@@ -1,0 +1,29 @@
+(
+echo # Only code files
+echo *
+echo !*/
+echo !*.py
+echo !*.ipynb
+echo !.gitignore
+echo !README.md
+echo.
+echo # Always ignore data and outputs
+echo features/
+echo original_audio/
+echo results*/
+echo phoneme_visualizations/
+echo region_plots/
+echo SingleWordProductionDutch-iBIDS/
+echo *.npy
+echo *.npz
+echo *.wav
+echo *.html
+echo *.keras
+echo *.h5
+echo *.mgz
+echo *.mat
+echo *.nwb
+echo __pycache__/
+echo *.pyc
+echo .ipynb_checkpoints/
+) > .gitignore

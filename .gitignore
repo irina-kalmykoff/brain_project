@@ -1,0 +1,15 @@
+(
+echo # Only code files
+echo *
+echo !*/
+echo !*.py
+echo !*.ipynb
+echo !.gitignore
+echo.
+echo # Always ignore data
+echo features/
+echo results/
+echo *.npy
+echo *.wav
+echo __pycache__/
+) > .gitignore

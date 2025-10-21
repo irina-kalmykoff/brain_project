@@ -1,8 +1,4 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
+# Converted from HybridRNNHMMDecoder_model.ipynb
 
 import os
 import numpy as np
@@ -11,18 +7,10 @@ from acoustic_change_detector import AcousticChangeDetector
 from phoneme_validator import PhonemeValidator
 from hybrid_rnn_hmm_decoder import HybridRNNHMMDecoder
 
-
-# In[2]:
-
-
 # Define paths
 path_bids = './SingleWordProductionDutch-iBIDS'  # Path to the BIDS dataset
 path_output = './features'  # Path to save extracted features
 path_results = './results'  # Path to save results
-
-
-# In[3]:
-
 
 # 1. Initialize the custom decoder and detector
 from custom_decoder import CustomBrainAudioDecoder
@@ -32,10 +20,6 @@ custom_decoder = CustomBrainAudioDecoder(
     path_results=path_results,
     debug_mode=True
 )
-
-
-# In[4]:
-
 
 # 2. Load and prepare the data
 print("Loading participants and extracting features...")
@@ -47,10 +31,6 @@ custom_decoder.extract_features_all_participants()
 # This identifies which channels are most relevant for speech decoding
 # and will be used to stratify participants by signal quality.
 custom_decoder.analyze_channels_across_participants()
-
-
-# In[5]:
-
 
 # 3. Stratify participants and create train/test split
 print("Creating stratified cross-word split...")
@@ -64,10 +44,6 @@ split_result = custom_decoder.create_stratified_cross_word_split(
     random_seed=42
 )
 
-
-# In[6]:
-
-
 # 4. Initialize the acoustic change detector
 print("Initializing acoustic change detector...")
 detector = AcousticChangeDetector(
@@ -80,24 +56,12 @@ detector = AcousticChangeDetector(
     debug_mode=True 
 )
 
-
-# In[7]:
-
-
 # 5. Initialize validator
 validator = PhonemeValidator(detector=detector)
 validator.enable_debug()
 
-
-# In[8]:
-
-
 # 6. Pass split_result to detector for data accumulation
 detector.split_result = split_result
-
-
-# In[9]:
-
 
 # 7. Accumulate phoneme data
 print("Accumulating training data...")
@@ -108,10 +72,6 @@ train_data = detector.accumulate_phoneme_data(
     batch_type='train'
 )
 
-
-# In[10]:
-
-
 print("Accumulating test data...")
 test_data = detector.accumulate_phoneme_data(
     num_batches=3,
@@ -119,10 +79,6 @@ test_data = detector.accumulate_phoneme_data(
     feature_extraction_method='high_gamma',
     batch_type='test'
 )
-
-
-# In[11]:
-
 
 # 8. Resolve unknown phonemes for better data quality
 # For training data
@@ -134,19 +90,11 @@ train_converted = {
     'phoneme_participant_ids': train_data.get('phoneme_participant_ids', ['unknown'] * len(train_data['phoneme_labels']))
 }
 
-
-# In[12]:
-
-
 print(f"Training data before resolution: {train_converted['phoneme_labels'].count('?')} unknown phonemes")
 resolved_train = validator.resolve_unknown_phonemes(train_converted)
 print(f"Training data after resolution: {resolved_train['phoneme_labels'].count('?')} unknown phonemes")
 # Update the training data with resolved phonemes
 train_data['phoneme_labels'] = resolved_train['phoneme_labels']
-
-
-# In[13]:
-
 
 # For test data
 test_converted = {
@@ -156,24 +104,12 @@ test_converted = {
     'phoneme_positions': test_data.get('phoneme_positions', [0] * len(test_data['phoneme_labels'])),
     'phoneme_participant_ids': test_data.get('phoneme_participant_ids', ['unknown'] * len(test_data['phoneme_labels']))}
 
-
-# In[14]:
-
-
 print(f"Test data before resolution: {test_converted['phoneme_labels'].count('?')} unknown phonemes")
 resolved_test = validator.resolve_unknown_phonemes(test_converted)
 print(f"Test data after resolution: {resolved_test['phoneme_labels'].count('?')} unknown phonemes")
 
-
-# In[15]:
-
-
 # Update the test data with resolved phonemes
 test_data['phoneme_labels'] = resolved_test['phoneme_labels']
-
-
-# In[16]:
-
 
 # 9. Initialize the Hybrid RNN-HMM Decoder
 print("Initializing HybridRNNHMMDecoder")
@@ -183,10 +119,6 @@ hybrid_model = HybridRNNHMMDecoder(
     phonetic_dict=detector.phonetic_dict,
     hmm_states_per_phoneme=3
 )
-
-
-# In[17]:
-
 
 # 10. Train the hybrid model
 print("Training hybrid model...")
@@ -198,10 +130,6 @@ results = hybrid_model.train_with_accumulated_data(
     hmm_iter=50,
     patience=10
 )
-
-
-# In[18]:
-
 
 # 11. Print results summary
 print("\n===== Results Summary =====")
@@ -216,10 +144,6 @@ if results['eval_results'] is not None:
     print(f"Improvement from HMM: {improvement:.4f} ({improvement*100:.1f}%)")
 
 print("\nModel training and evaluation complete!")
-
-
-# In[19]:
-
 
 # 12. Additional evaluation and analysis
 if results['eval_results'] is not None:
@@ -265,10 +189,3 @@ if results['eval_results'] is not None:
         
         if consonant_count > 0:
             print(f"  Average consonant F1: {consonant_f1/consonant_count:.4f}")
-
-
-# In[ ]:
-
-
-jupyter nbconvert --to python your_notebook.ipynb
-

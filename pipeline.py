@@ -20,12 +20,13 @@ from diverse_models import SimplePhonemeModels
 from acoustic_change_detector import AcousticChangeDetector
 from custom_decoder import CustomBrainAudioDecoder
 from markov_phoneme_model import MarkovPhonemeModel
+from phonetic_dictionary import PhoneticDictionary
 from phoneme_validator import PhonemeValidator
 from debugger import DebugMixin
 
 
 
-class UnifiedPhonemePipeline(DebugMixin):
+class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
     """
     Unified pipeline for phoneme processing with all steps integrated
     and full access to intermediate results.
@@ -33,14 +34,23 @@ class UnifiedPhonemePipeline(DebugMixin):
     
     def __init__(self, path_bids, path_output, path_results, 
                  feature_extraction_method='high_gamma',
-                 unknown_keep_ratio=0.1, pca_components=50, 
+                 unknown_keep_ratio=0.1, pca_components=100, 
                  use_phoneme_groups=True,
-                 channel_correlation_threshold=0.1,  # ADD THIS
-                 prioritize_regions=True,  # ADD THIS
+                 channel_correlation_threshold=0.1,
+                 prioritize_regions=True,
                  channel_selection='all', #'motor'/'best_correlation'
+                 use_rest_periods=False,
+                 rest_normalization=True,
+                 rest_as_class=False,
                  debug_mode=False, **kwargs):
         
-        super().__init__(class_name="UnifiedPhonemePipeline", debug_mode=debug_mode)
+        # Initialize CustomBrainAudioDecoder first
+        CustomBrainAudioDecoder.__init__(self, path_bids, path_output, path_results, 
+                                        debug_mode=debug_mode, **kwargs)
+                                        
+        # Then DebugMixin
+        DebugMixin.__init__(self, class_name="UnifiedPhonemePipeline", debug_mode=debug_mode)
+
         
         self.path_bids = path_bids
         self.path_output = path_output
@@ -52,11 +62,14 @@ class UnifiedPhonemePipeline(DebugMixin):
         self.channel_correlation_threshold = channel_correlation_threshold
         self.prioritize_regions = prioritize_regions
         self.channel_selection = channel_selection
+        self.use_rest_periods = use_rest_periods
+        self.rest_normalization = rest_normalization
+        self.rest_as_class = rest_as_class
         self.extraction_params = kwargs
         self.step_outputs = {}
         
         # Initialize phonetic dictionary once
-        from phonetic_dictionary import PhoneticDictionary
+
         self.phonetic_dict = PhoneticDictionary(debug_mode=debug_mode)
         self.phonetic_dict.add_phoneme_groups()
         
@@ -66,7 +79,10 @@ class UnifiedPhonemePipeline(DebugMixin):
             'temporal_context': True,
             'standardize': True,
             'frameshift': 0.01,
-            'win_length': 0.05
+            'win_length': 0.05,
+            'use_rest_periods': use_rest_periods,  
+            'rest_normalization': rest_normalization,
+            'rest_as_class': rest_as_class
         }
         self.config.update(self.extraction_params)
         
@@ -82,7 +98,10 @@ class UnifiedPhonemePipeline(DebugMixin):
             'pca_components': self.pca_components,
             'feature_extraction_method': self.feature_extraction_method,
             'temporal_context': True,
-            'standardize': True
+            'standardize': True,
+            'use_rest_periods': self.use_rest_periods,  # ADD THIS
+            'rest_normalization': self.rest_normalization,
+            'rest_as_class': self.rest_as_class
         }
         
         self.custom_decoder = CustomBrainAudioDecoder(
@@ -94,7 +113,7 @@ class UnifiedPhonemePipeline(DebugMixin):
         )
         
         self.step_outputs['decoder'] = self.custom_decoder
-        print(f"Step 1: Decoder initialized with PCA components={self.pca_components}")
+        print(f"Step 1: Decoder initialized with PCA components={self.pca_components}, rest_periods={self.use_rest_periods}")
         return self.custom_decoder
     
     def step2_stratify_participants(self, channel_correlation_threshold= None, 
@@ -182,7 +201,6 @@ class UnifiedPhonemePipeline(DebugMixin):
         
         self.step_outputs['participant_strata'] = self.participant_strata
         return self.participant_strata
-        
     
     def step3_create_split(self, test_ratio=0.2, min_word_freq=1, random_seed=42):
         """Step 3: Create train/test split"""
@@ -265,7 +283,6 @@ class UnifiedPhonemePipeline(DebugMixin):
             
         except Exception as e:
             self.log(f"Error accumulating training data: {e}")
-            import traceback
             traceback.print_exc()
             return None, None
         
@@ -287,7 +304,6 @@ class UnifiedPhonemePipeline(DebugMixin):
             
         except Exception as e:
             self.log(f"Error accumulating test data: {e}")
-            import traceback
             traceback.print_exc()
             return self.train, None
         
@@ -305,7 +321,7 @@ class UnifiedPhonemePipeline(DebugMixin):
             self.validator.enable_debug()
         
         self.step_outputs['validator'] = self.validator
-        self.log("✓ Step 6: Validator initialized")
+        self.log("Step 6: Validator initialized")
         
         # Resolve training data
         if self.train['phoneme_labels'].count('?') > 0:
@@ -351,7 +367,7 @@ class UnifiedPhonemePipeline(DebugMixin):
         self.step_outputs['train_resolved'] = self.train
         self.step_outputs['test_resolved'] = self.test
         
-        self.debug("Step 7: Unknown phonemes resolved")
+        self.debug("Step 6: Unknown phonemes resolved")
         return self.train, self.test
     
     def checkpoint_after_step6(self):
@@ -533,8 +549,7 @@ class UnifiedPhonemePipeline(DebugMixin):
         return self
     
     def step7_filter_unknowns(self, unknown_keep_ratio=None):
-        """Step 7: Filter unknown phonemes from training data"""
-        
+        """Step 7: Filter unknown phonemes from training data"""        
 
         if unknown_keep_ratio is None:
             unknown_keep_ratio = self.unknown_keep_ratio
@@ -1096,7 +1111,6 @@ class UnifiedPhonemePipeline(DebugMixin):
         
         return total_score / total_channels if total_channels > 0 else 0
         
-    
     def check_step(self, step_name):
         """Check the output of any step"""
         if step_name in self.step_outputs:
@@ -1458,10 +1472,6 @@ class UnifiedPhonemePipeline(DebugMixin):
 
     @staticmethod
     def load_saved(directory, method='high_gamma', pca_components=None, newest=True):
-        """
-        Load a saved pipeline.
-        
-        """
         
         # Find all matching files
         matching_files = []
@@ -1522,7 +1532,6 @@ class UnifiedPhonemePipeline(DebugMixin):
         pipeline.load(filepath)
         
         return pipeline
-        
         
     def visualize_model_results(self, model, eval_results, title_prefix="Model", 
                            save_dir=None, show_plot=True, figsize=(7, 5)):
@@ -1863,3 +1872,46 @@ class UnifiedPhonemePipeline(DebugMixin):
         except Exception as e:
             self.log(f"Error loading H5 file {filepath}: {e}")
             return None
+            
+     
+    def standardize_feature_shapes(self, target_channels=133):
+        """Standardize feature channel counts by padding or truncating (keeps time dimension variable)"""
+        self.log(f"Standardizing features to {target_channels} channels (keeping variable time)")
+    
+        def standardize_array(arr, target_channels):
+            """Pad or truncate channels only, preserve time dimension"""
+            if arr.shape[1] == target_channels:
+                return arr
+            
+            # Create result with same time, target channels
+            result = np.zeros((arr.shape[0], target_channels))
+            
+            # Copy data (truncate channels if necessary)
+            min_channels = min(arr.shape[1], target_channels)
+            result[:, :min_channels] = arr[:, :min_channels]
+            
+            return result
+        
+        # Standardize training data
+        if hasattr(self, 'train') and self.train and 'features' in self.train:
+            self.train['features'] = [
+                standardize_array(feat, target_channels) 
+                for feat in self.train['features']
+            ]
+            self.log(f"Standardized {len(self.train['features'])} train features")
+        
+        # Standardize test data
+        if hasattr(self, 'test') and self.test and 'features' in self.test:
+            self.test['features'] = [
+                standardize_array(feat, target_channels)
+                for feat in self.test['features']
+            ]
+            self.log(f"Standardized {len(self.test['features'])} test features")
+        
+        # Standardize val data
+        if hasattr(self, 'val') and self.val and 'features' in self.val:
+            self.val['features'] = [
+                standardize_array(feat, target_channels)
+                for feat in self.val['features']
+            ]
+            self.log(f"Standardized {len(self.val['features'])} val features")

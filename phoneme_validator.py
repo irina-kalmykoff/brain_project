@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.spatial.distance import cosine
 from scipy.interpolate import interp1d
 import os
+import copy
 from collections import Counter, defaultdict
 from debugger import DebugMixin
 
@@ -955,7 +956,7 @@ class PhonemeValidator(DebugMixin):
         dict
             Copy of the phoneme batch with resolved phonemes
         """
-        import copy
+
         
         # Create a deep copy to avoid modifying the original
         resolved_batch = copy.deepcopy(phoneme_batch)
@@ -988,21 +989,9 @@ class PhonemeValidator(DebugMixin):
         
         return resolved_batch
 
-    def _infer_phoneme_from_word(self, word, position):
+    def _infer_phoneme_from_word(self, word: str, position: int) -> str:
         """
         Infer a phoneme based on word and position.
-        
-        Parameters:
-        -----------
-        word : str
-            The word containing the phoneme
-        position : int
-            The position of the phoneme in the word
-            
-        Returns:
-        --------
-        str or None
-            The inferred phoneme, or None if it couldn't be inferred
         """
         # 1. Check if we have a transcription for this word
         if word in self.phonetic_dict:
@@ -1073,7 +1062,7 @@ class PhonemeValidator(DebugMixin):
             """Convert phonetic symbols to safe filenames"""
             # Map of phonetic symbols to safe equivalents
             replacements = {
-                 'ɛ': 'e_open',
+                'ɛ': 'e_open',
                 'œy': 'oe_y',
                 'ɑ': 'a_back',
                 'ə': 'schwa',

@@ -20,7 +20,7 @@ class MarkovPhonemeModel(DebugMixin):
     """
     
     def __init__(self, phonetic_dict=None, order=2, output_dir='./models/markov_phoneme', 
-                 debug_mode=False):
+                 debug_mode=False, use_groups=True):
         """
         Initialize the Markov chain phoneme model.
         
@@ -40,8 +40,10 @@ class MarkovPhonemeModel(DebugMixin):
             self.DEBUG_MODE = debug_mode
         self.log(f"Initialized with DEBUG_MODE={self.DEBUG_MODE}")
         
+        
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+        self.use_groups = use_groups
         
         # Set up phonetic dictionary
         if phonetic_dict is None:
@@ -119,51 +121,56 @@ class MarkovPhonemeModel(DebugMixin):
         if words is not None:
             words = [words[i] for i in valid_indices]
             
-        # Detect if labels are already groups
-        known_groups = set(self.phoneme_groups.keys())
-        known_groups.add('unknown')
-        
-        # Check if most labels are groups
-        labels_are_groups = sum(1 for label in phoneme_labels[:20] if label in known_groups) > 10
-        
-        if labels_are_groups:
-            self.log("Detected that labels are already phoneme groups")
-            group_labels = phoneme_labels  # Use labels directly as groups
+        if self.use_groups:
+            # Detect if labels are already groups
+            known_groups = set(self.phoneme_groups.keys())
+            known_groups.add('unknown')
+            
+            labels_are_groups = sum(1 for label in phoneme_labels[:20] if label in known_groups) > 10
+            
+            if labels_are_groups:
+                self.log("Detected that labels are already phoneme groups")
+                group_labels = phoneme_labels
+            else:
+                self.log("Mapping phonemes to groups...")
+                group_labels = []
+                for phoneme in phoneme_labels:
+                    if phoneme == '?':
+                        group_labels.append('unknown')
+                    elif phoneme in self.phoneme_to_group:
+                        group_labels.append(self.phoneme_to_group[phoneme])
+                    else:
+                        group_labels.append('unknown')
+            
+            training_labels = group_labels
         else:
-            self.log("Mapping phonemes to groups...")
-            # Original mapping logic
-            group_labels = []
-            for phoneme in phoneme_labels:
-                if phoneme == '?':
-                    group_labels.append('unknown')
-                elif phoneme in self.phoneme_to_group:
-                    group_labels.append(self.phoneme_to_group[phoneme])
-                else:
-                    group_labels.append('unknown')
+            # Use raw phonemes without conversion
+            self.log("Using raw phonemes (no group conversion)")
+            training_labels = phoneme_labels
         
         # store unique classes on which the model is trained
-        self.trained_classes = sorted(list(set(group_labels)))
+        self.trained_classes = sorted(list(set(training_labels)))
         self.class_to_index = {cls: i for i, cls in enumerate(self.trained_classes)}
         self.index_to_class = {i: cls for cls, i in self.class_to_index.items()}
         
         self.log(f"Training on {len(self.trained_classes)} classes: {self.trained_classes}")
         
         # Log the distribution
-        group_counter = Counter(group_labels)
-        self.log(f"Group distribution: {dict(group_counter)}")
+        label_counter = Counter(training_labels)
+        self.log(f"Group distribution: {dict(label_counter)}")
         
         # Rest of the training continues as normal
-        self._build_transition_model(group_labels, words)
-        self._build_acoustic_model(features, group_labels)
-        self._build_initial_probs(group_labels, words)
+        self._build_transition_model(training_labels, words)
+        self._build_acoustic_model(features, training_labels)
+        self._build_initial_probs(training_labels, words)
         
-        self.save_model()
+        #self.save_model()
         
         return {
             'transition_matrix_size': len(self.transition_probs),
             'num_states': len(self.phoneme_groups),
             'training_samples': len(features),
-            'group_distribution': dict(group_counter)
+            'group_distribution': dict(label_counter)
         }
 
     
@@ -245,13 +252,14 @@ class MarkovPhonemeModel(DebugMixin):
         X = X[valid_indices]
         y = [group_labels[i] for i in valid_indices]
         
+        
         # IMPORTANT: Track which groups we're training on
         self.trained_groups = sorted(list(set(y)))
         self.log(f"Training on groups: {self.trained_groups}")
         
         # Create a mapping from group names to indices for the classifier
-        self.group_to_classifier_idx = {group: i for i, group in enumerate(self.trained_groups)}
-        y_encoded = np.array([self.group_to_classifier_idx[group] for group in y])
+        self.group_to_classifier_idx = {group: i for i, group in enumerate(self.trained_classes)}
+        y_encoded = np.array([self.group_to_classifier_idx[label] for label in y])
         
         # Scale features
         self.feature_scaler = StandardScaler()
@@ -347,17 +355,17 @@ class MarkovPhonemeModel(DebugMixin):
                 self.debug(f"Mapped to: {self.classifier_group_mapping.get(classifier_preds[0], 'UNMAPPED')}")
         
         # Map to group names
-        predicted_groups = []
+        predicted_labels = []
         for pred_idx in classifier_preds:
             if pred_idx in self.index_to_class:
-                predicted_groups.append(self.index_to_class[pred_idx])
+                predicted_labels.append(self.index_to_class[pred_idx])
             else:
                 self.log(f"Warning: Prediction index {pred_idx} not in mapping!")
                 predicted_groups.append('unknown')
         
         # For compatibility, also return probabilities (simplified)
         n_all_groups = len(self.group_encoder.classes_)
-        probabilities = np.zeros((len(predicted_groups), n_all_groups))
+        probabilities = np.zeros((len(predicted_labels), n_all_groups))
         
         for i, probs in enumerate(classifier_probs):
             for j, class_idx in enumerate(range(len(probs))):
@@ -369,9 +377,9 @@ class MarkovPhonemeModel(DebugMixin):
         
         # Apply Viterbi smoothing if requested
         if use_viterbi and len(features) > 1:
-            predicted_groups = self._apply_viterbi_smoothing(predicted_groups, probabilities)
+            predicted_groups = self._apply_viterbi_smoothing(predicted_labels, probabilities)
         
-        return predicted_groups, probabilities 
+        return predicted_labels, probabilities 
     
     def _apply_viterbi_smoothing(self, predictions, probabilities):
         """

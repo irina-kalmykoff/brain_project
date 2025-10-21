@@ -83,8 +83,6 @@ class BrainAudioDecoder:
         # Results storage
         self.results = {}
         self.participants = None
-    
-    
 
     def _load_participant_data(self, participant_id):
         """
@@ -169,7 +167,6 @@ class BrainAudioDecoder:
         np.save(os.path.join(self.path_output, f'{participant_id}_spec{suffix}.npy'), mel_spec)
         np.save(os.path.join(self.path_output, f'{participant_id}_feat_names{suffix}.npy'), feature_names)
     
-    
     def extract_features_for_participant(self, participant_id):
         """
         Extract features for a single participant
@@ -234,7 +231,6 @@ class BrainAudioDecoder:
             results[participant] = self.extract_features_for_participant(participant)
         
         return results
-    
  
     def load_participants(self):
         """Load participant information from BIDS dataset"""

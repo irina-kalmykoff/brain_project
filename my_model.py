@@ -1,8 +1,4 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
+# Converted from my_model.ipynb
 
 import os
 import numpy as np
@@ -21,18 +17,10 @@ from acoustic_change_detector import AcousticChangeDetector
 from phoneme_validator import PhonemeValidator
 from phoneme_model import PhonemeDecoderModel
 
-
-# In[2]:
-
-
 # Define paths
 path_bids = './SingleWordProductionDutch-iBIDS'  # Path to the BIDS dataset
 path_output = './features'  # Path to save extracted features
 path_results = './results'  # Path to save results
-
-
-# In[3]:
-
 
 # This decoder extends the baseline BrainAudioDecoder with additional functionality
 # for phoneme-level analysis and provides stratification capabilities for participants.
@@ -43,10 +31,6 @@ custom_decoder = CustomBrainAudioDecoder(
 )
 custom_decoder.enable_debug() # Enable detailed logging for troubleshooting
 
-
-# In[4]:
-
-
 # This loads metadata for all participants and extracts high gamma features
 # from the EEG data, which will be used for model training.
 custom_decoder.load_participants()
@@ -56,19 +40,11 @@ custom_decoder.extract_features_all_participants()
 # and will be used to stratify participants by signal quality.
 custom_decoder.analyze_channels_across_participants()
 
-
-# In[5]:
-
-
 # Groups participants into high, medium, and low quality based on
 # the strength of speech-related signals in their EEG data.
 participant_strata = custom_decoder.stratify_participants_by_channel_quality(
     channel_correlation_threshold=0.1  # Minimum correlation for a channel to be considered relevant
 )
-
-
-# In[6]:
-
 
 # # Call segment_data_by_words
 # # Choose a participant to segment (e.g., sub-01)
@@ -79,10 +55,6 @@ participant_strata = custom_decoder.stratify_participants_by_channel_quality(
 #     post_offset_ms=200,
 #     handle_overlaps='adjust'  # Options: 'adjust', 'flag', 'skip', 'allow'
 # )
-
-
-# In[7]:
-
 
 # Ensures that the training and test sets have similar distributions of
 # participant quality and word frequencies for better generalization.
@@ -101,10 +73,6 @@ split_result = custom_decoder.create_stratified_cross_word_split(
     random_seed=42                          # For reproducibility
 )
 
-
-# In[8]:
-
-
 # # Get a batch of training data
 train_batch = custom_decoder.get_data_batch(
     split_result=split_result,
@@ -114,10 +82,6 @@ train_batch = custom_decoder.get_data_batch(
     balanced_sampling=True,
     batch_size=32
 )
-
-
-# In[9]:
-
 
 # Prepare features for model training
 model_data = custom_decoder.prepare_word_model_data(
@@ -130,10 +94,6 @@ model_data = custom_decoder.prepare_word_model_data(
 
 print(f"Prepared {len(model_data['features'])} feature sets for model training")
 print(f"Feature dimensions: {model_data['features'][0].shape}")
-
-
-# In[10]:
-
 
 # This component is responsible for segmenting continuous speech signals
 # into individual phonemes by detecting acoustic boundaries.
@@ -149,10 +109,6 @@ detector = AcousticChangeDetector(
 
 # This allows the detector to access the train/test split when accumulating phoneme data
 detector.split_result = split_result
-
-
-# In[11]:
-
 
 # accumulated_data = detector.accumulate_phoneme_data(
 #     num_batches=5,
@@ -171,10 +127,6 @@ detector.split_result = split_result
 #     'phoneme_participant_ids': accumulated_data['phoneme_participant_ids'] if 'phoneme_participant_ids' in accumulated_data else ['unknown'] * len(accumulated_data['phoneme_labels'])
 # }
 
-
-# In[12]:
-
-
 # Processes multiple batches of data to build a comprehensive training set
 # of phoneme segments with their corresponding EEG features
 train = detector.accumulate_phoneme_data(
@@ -185,10 +137,6 @@ train = detector.accumulate_phoneme_data(
 print(f"Accumulated {train['metadata']['n_phonemes']} training phoneme segments")
 print(f"Found {train['metadata']['unique_phonemes']} unique phonemes")
 
-
-# In[13]:
-
-
 # Similar to training data accumulation but for the test set
 test = detector.accumulate_phoneme_data(
     num_batches=3,                         # Fewer batches for test set
@@ -197,17 +145,9 @@ test = detector.accumulate_phoneme_data(
 )
 print(f"Accumulated {test['metadata']['n_phonemes']} test phoneme segments")
 
-
-# In[14]:
-
-
 # 3. Initialize the validator with a reference to the detector
 validator = PhonemeValidator(detector=detector)
 validator.enable_debug()
-
-
-# In[15]:
-
 
 # Extract phoneme segments
 df  = train
@@ -240,10 +180,6 @@ if phoneme_segments:
 else:
     print("No phonemes found")
 
-
-# In[16]:
-
-
 # 2. Try to resolve unknown phonemes
 resolved_batch = validator.resolve_unknown_phonemes(converted_data)
 
@@ -254,10 +190,6 @@ resolved_segments = validator.extract_phoneme_segments_from_batch(resolved_batch
 print(f"Original segments: {len(phoneme_segments)} phonemes")
 print(f"Resolved segments: {len(resolved_segments)} phonemes")
 
-
-# In[17]:
-
-
 # 5. Visualize a phoneme with proper position display
 if resolved_segments:
     top_phoneme = max(resolved_segments.keys(), key=lambda p: len(resolved_segments[p]))
@@ -266,10 +198,6 @@ if resolved_segments:
         phoneme=top_phoneme,
         max_examples=5
     )
-
-
-# In[18]:
-
 
 def visualize_phoneme_category(phoneme_batch, phoneme_label, max_examples=5):
     """Visualize examples of a specific phoneme"""
@@ -315,18 +243,10 @@ def visualize_phoneme_category(phoneme_batch, phoneme_label, max_examples=5):
     
     return fig
 
-
-# In[19]:
-
-
 # Visualize a few interesting phonemes
 for phoneme in ['m', 'ɛ', 'œy', 'n', 't']:
     print(f"\nVisualizing phoneme '{phoneme}':")
     visualize_phoneme_category(converted_data, phoneme)
-
-
-# In[20]:
-
 
 # Structure the data correctly for validation
 all_results = {}
@@ -350,10 +270,6 @@ validation_results = validator.validate_phoneme_consistency(
 )
 validation_results
 
-
-# In[21]:
-
-
 # For training data
 train_converted = {
     'phoneme_labels': train['phoneme_labels'],
@@ -369,10 +285,6 @@ print(f"Training data after resolution: {resolved_train['phoneme_labels'].count(
 
 # Update the training data with resolved phonemes
 train['phoneme_labels'] = resolved_train['phoneme_labels']
-
-
-# In[22]:
-
 
 # For test data
 test_converted = {
@@ -390,19 +302,11 @@ print(f"Test data after resolution: {resolved_test['phoneme_labels'].count('?')}
 # Update the test data with resolved phonemes
 test['phoneme_labels'] = resolved_test['phoneme_labels']
 
-
-# In[23]:
-
-
 # Prepare the input features (EEG segments) and target labels (phonemes)
 # train_features = train['features']
 # train_labels = train['phoneme_labels']
 # test_features = test['features']
 # test_labels = test['phoneme_labels']
-
-
-# In[24]:
-
 
 # This neural network model will learn to map EEG signals to phonemes
 phoneme_model = PhonemeDecoderModel(
@@ -410,10 +314,6 @@ phoneme_model = PhonemeDecoderModel(
     output_dir=os.path.join(path_results, 'phoneme_model'),
     debug_mode=True
 )
-
-
-# In[25]:
-
 
 # This handles all preprocessing, training, and evaluation in a single call
 results = phoneme_model.train_with_accumulated_data(
@@ -426,17 +326,9 @@ results = phoneme_model.train_with_accumulated_data(
     resolve_unknown=True
 )
 
-
-# In[26]:
-
-
 # Step 13: Evaluate model performance
 evaluation = results['evaluation']
 print(f"Phoneme model accuracy: {evaluation['accuracy']:.4f}")
-
-
-# In[33]:
-
 
 # Step 14: Compare with baseline (optional)
 # Evaluate the baseline BrainAudioDecoder for comparison
@@ -452,17 +344,8 @@ baseline_results = baseline_decoder.train_test_model(
 baseline_accuracy = np.mean(baseline_results['correlations'])
 print(f"Baseline model correlation: {baseline_accuracy:.4f}")
 
-
-# In[28]:
-
-
 phoneme_model.plot_confusion_matrix(results['evaluation']['confusion_matrix'])
-
-
-# In[29]:
-
 
 # Step 15: Generate visualizations (optional)
 # Create plots comparing model performance, confusion matrices, etc.
 phoneme_model.plot_training_history()
-

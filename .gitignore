@@ -12,4 +12,12 @@ echo results/
 echo *.npy
 echo *.wav
 echo __pycache__/
+echo.
+echo # Jupyter
+echo .ipynb_checkpoints/
+echo *.ipynb_checkpoints
+echo.
+echo # Temporary files
+echo Untitled*.py
+echo Untitled*.ipynb
 ) > .gitignore

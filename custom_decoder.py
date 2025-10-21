@@ -1271,12 +1271,13 @@ class CustomBrainAudioDecoder(BrainAudioDecoder, DebugMixin):
                 'metadata': dict with batch information
             }
         """
+        
         if random_seed is not None:
             random.seed(random_seed)
             np.random.seed(random_seed)
         
         # Get the correct split
-        if batch_type not in ['train', 'test']:
+        if batch_type not in ['train', 'test', 'val']:
             raise ValueError(f"Invalid batch_type: {batch_type}. Must be 'train' or 'test'.")
         
         split = split_result[batch_type]
@@ -1512,18 +1513,34 @@ class CustomBrainAudioDecoder(BrainAudioDecoder, DebugMixin):
             
         return data
         
+    def process_with_rest(self, eeg, stimuli, features):
+        """Process features using rest periods for normalization or as a class"""
         
-    def get_pca_model(self, feature_type, level='word'):
-        """Get stored PCA model for a specific feature type and level."""
-        key = f"{feature_type}_{level}"
-        return self.pca_models.get(key, None)
-    
-    def get_config_value(self, key):
-        """Get a specific configuration value."""
-        return self.config.get(key, None)
-    
-    def update_config(self, **kwargs):
-        """Update configuration values."""
-        self.config.update(kwargs)
-        self.debug(f"Updated config: {self.config}")
-        return self
+        if not self.config.get('use_rest_periods', False):
+            return features, stimuli
+        
+        # Find rest periods (empty markers)
+        rest_mask = stimuli == ''
+        
+        if self.config.get('rest_normalization', True) and np.any(rest_mask):
+            # Normalize using rest baseline
+            rest_features = features[rest_mask]
+            baseline_mean = np.mean(rest_features, axis=0)
+            baseline_std = np.std(rest_features, axis=0)
+            features = (features - baseline_mean) / (baseline_std + 1e-8)
+            
+            if self.debug:
+                self.debug(f"Applied rest normalization using {np.sum(rest_mask)} rest windows")
+        
+        if self.config.get('rest_as_class', False):
+            # Replace empty strings with 'REST' label
+            stimuli = np.array(['REST' if s == '' else s for s in stimuli])
+        else:
+            # Optionally remove rest periods from training
+            if not self.config.get('keep_rest_periods', False):
+                # Keep only non-rest periods
+                non_rest_mask = ~rest_mask
+                features = features[non_rest_mask]
+                stimuli = stimuli[non_rest_mask]
+        
+        return features, stimuli

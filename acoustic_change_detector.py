@@ -6,13 +6,15 @@ from scipy.signal import find_peaks, savgol_filter
 from sklearn.preprocessing import normalize
 import os
 import numpy as np
+import librosa
 from collections import Counter, defaultdict
 
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
 from extract_features import extractHG
 from debugger import DebugMixin
 from phonetic_dictionary import PhoneticDictionary
+from dataset_config import Dutch30Config
 
 
 class AcousticChangeDetector(DebugMixin):
@@ -21,18 +23,9 @@ class AcousticChangeDetector(DebugMixin):
     Uses unsupervised methods to find significant changes in acoustic features.
     """
     
-    def __init__(self, min_segment_duration=0.06, max_segment_duration=0.4,     
-                 distance_metric='cosine', smoothing_window=3, peak_threshold=0.75, 
-                 decoder=None, debug_mode=None, phonetic_dict=None, feature_extraction_method='high_gamma'):
-        """
-        phoneme duration
-        Short consonants (stops, t, k, p): 30-80ms
-        Regular consonants (s, f, n): 80-150ms
-        Short vowels (ə, ɪ): 50-120ms
-        Regular vowels (a, e, o): 100-200ms
-        Long vowels/diphthongs (aː, eː, ɛi): 150-400ms
-        Rarely >400ms (unless emphatic or includes silence)
-        """
+    def __init__(self, config: Dutch30Config, distance_metric='cosine', smoothing_window=3, peak_threshold=0.75, 
+                 decoder=None, debug_mode=None, phonetic_dict=None, feature_extraction_method='high_gamma', 
+                 use_rms_boundaries=True, use_multifeature=False):
         
         """
         Initialize with parameters to control boundary detection sensitivity.
@@ -40,21 +33,91 @@ class AcousticChangeDetector(DebugMixin):
         # Initialize the DebugMixin
         super().__init__(class_name="AcousticChangeDetector", debug_mode=False)
         
+        self.config = config
         if debug_mode is not None:
             self.DEBUG_MODE = debug_mode
         self.log(f"Initialized with DEBUG_MODE={self.DEBUG_MODE}")
-        
 
-        self.min_segment_duration = min_segment_duration
-        self.max_segment_duration = max_segment_duration
         self.distance_metric = distance_metric
         self.smoothing_window = smoothing_window
         self.peak_threshold = peak_threshold 
         self.decoder = decoder
         self.phonetic_dict = phonetic_dict or PhoneticDictionary()
-        # Store the feature extraction method
         self.feature_extraction_method = feature_extraction_method
+        
+        self.use_rms_boundaries = use_rms_boundaries 
+        self.use_multifeature = use_multifeature    
+        
         self.log(f"Using feature extraction method: {self.feature_extraction_method}")
+        
+        self.frameshift = config.frameshift
+        self.eeg_sr = config.eeg_sr
+        self.window_length = config.window_length
+    
+    def _extract_band_power_features(self, eeg_segment: np.ndarray) -> np.ndarray:
+        """
+        Extract power in delta, theta, alpha, beta, low_gamma, and high_gamma bands.
+        Returns fixed-length feature vector (1, channels×6).
+        """
+        from scipy.signal import welch
+        
+        bands = {
+            'delta': (1, 4),
+            'theta': (4, 8),
+            'alpha': (8, 13),
+            'beta': (13, 30),
+            'low_gamma': (30, 70),
+            'high_gamma': (70, 170)
+        }
+        
+        n_channels = eeg_segment.shape[1]
+        band_features = []
+        
+        for ch in range(n_channels):
+            freqs, psd = welch(
+                eeg_segment[:, ch], 
+                fs=self.config.eeg_sr, 
+                nperseg=min(256, eeg_segment.shape[0])
+            )
+            
+            for band_name, (low, high) in bands.items():
+                band_mask = (freqs >= low) & (freqs < high)
+                if np.any(band_mask):
+                    band_power = np.mean(psd[band_mask])
+                else:
+                    band_power = 0.0
+                band_features.append(band_power)
+        
+        return np.array(band_features).reshape(1, -1)
+
+    def _extract_temporal_stats_features(self, eeg_segment: np.ndarray) -> np.ndarray:
+        """
+        Extract mean, std, max, min for each channel.
+        Returns fixed-length feature vector (1, channels×4).
+        """
+        n_channels = eeg_segment.shape[1]
+        stat_features = []
+        
+        for ch in range(n_channels):
+            signal = eeg_segment[:, ch]
+            stat_features.extend([
+                np.mean(signal),
+                np.std(signal),
+                np.max(signal),
+                np.min(signal)
+            ])
+        
+        return np.array(stat_features).reshape(1, -1)
+
+    def _extract_combined_features(self, eeg_segment: np.ndarray) -> np.ndarray:
+        """
+        Combine band powers and temporal statistics.
+        Returns fixed-length feature vector (1, channels×10).
+        """
+        band_feats = self._extract_band_power_features(eeg_segment)
+        stat_feats = self._extract_temporal_stats_features(eeg_segment)
+        
+        return np.concatenate([band_feats, stat_feats], axis=1)
     
     def count_phonemes(self, word):
         """
@@ -210,7 +273,7 @@ class AcousticChangeDetector(DebugMixin):
         
         return enhanced
     
-    def detect_peaks(self, enhanced_distances, n_phonemes=None, frameshift=0.01, participant_id = None, word=None, word_position=None):
+    def detect_peaks(self, enhanced_distances, n_phonemes=None, frameshift=None, participant_id = None, word=None, word_position=None):
         """
         Detect peaks in the distance curve as potential boundaries.
         
@@ -228,11 +291,13 @@ class AcousticChangeDetector(DebugMixin):
         boundaries : ndarray
             Indices of detected boundaries
         """
+        if frameshift is None:
+            frameshift = self.config.frameshift
+        
         # Calculate minimum distance between peaks in frames
-        min_dist_frames = max(1, int(self.min_segment_duration / frameshift))
+        min_dist_frames = max(1, int(self.config.min_phoneme_duration / self.config.frameshift))
         
-        # Use median-based threshold instead of max-based
-        
+        # Use median-based threshold instead of max-based        
         median_val = np.median(enhanced_distances)
         mad = np.median(np.abs(enhanced_distances - median_val))  # Median Absolute Deviation
         
@@ -278,7 +343,7 @@ class AcousticChangeDetector(DebugMixin):
                 patient_info = f" (Patient {participant_id})" if participant_id else ""
                 word_info = f" for word '{word}'" if word else ""
                 position_info = f" [position {word_position}]" if word_position is not None else ""
-                self.log(f"  Need {n_boundaries} peaks but only found {len(peaks)}{word_info}{patient_info}{position_info}")
+                self.log(f"  Need {n_boundaries} peaks but only found {len(peaks)}{word_info}{patient_info}")
                 
                 for attempt in range(3):
                     height = height * 0.6  # More aggressive reduction
@@ -312,7 +377,7 @@ class AcousticChangeDetector(DebugMixin):
         
         return boundaries
     
-    def refine_boundaries(self, boundaries, spectrogram, frameshift=0.01):
+    def refine_boundaries(self, boundaries, spectrogram):
         """
         Refine boundary positions using additional constraints.
         
@@ -337,8 +402,8 @@ class AcousticChangeDetector(DebugMixin):
         energy = self.compute_energy_contour(spectrogram)
         
         # Calculate minimum and maximum segment duration in frames
-        min_frames = max(1, int(self.min_segment_duration / frameshift))
-        max_frames = max(min_frames + 1, int(self.max_segment_duration / frameshift))
+        min_frames = max(1, int(self.config.min_phoneme_duration / self.config.frameshift))
+        max_frames = max(min_frames + 1, int(self.config.max_phoneme_duration / self.config.frameshift))
         
         # Initialize refined boundaries
         refined = [boundaries[0]]  # Keep the first boundary
@@ -380,72 +445,128 @@ class AcousticChangeDetector(DebugMixin):
         return refined
     
     def detect_boundaries(self, spectrogram, word=None, phonetic_transcription=None, 
-                         frameshift=0.01, participant_id = None, word_position=None):
-        """
-        Main method to detect phoneme boundaries in a word spectrogram.
-        
-        Parameters:
-        -----------
-        spectrogram : ndarray
-            Mel spectrogram of the word
-        word : str or None
-            The word being analyzed
-        phonetic_transcription : str or None
-            Phonetic transcription if available
-        frameshift : float
-            Time between consecutive frames in seconds
-            
-        Returns:
-        --------
-        dict
-            Dictionary containing:
-            - 'boundaries': list of boundary indices
-            - 'boundary_times': list of boundary times in seconds
-            - 'segments': list of spectrogram segments
-            - 'distances': frame-to-frame distances
-            - 'enhanced_distances': enhanced distance curve
-            - 'word': original word
-            - 'n_phonemes': estimated number of phonemes
-        """
+                     participant_id=None, word_position=None, 
+                     use_multifeature=True,
+                     use_rms_boundaries=True,
+                     audio_segment=None, audio_sr=None):
+        """Main method to detect phoneme boundaries in a word spectrogram."""
         self.debug(f"Detecting boundaries for word: {word if word else 'unknown'}")
         
+        if word == 'vogelkooitje':
+            print(f"DEBUG vogelkooitje: use_rms={use_rms_boundaries}, audio_exists={audio_segment is not None}")
+            if audio_segment is not None:
+                print(f"  Audio length: {len(audio_segment)}")
+            
         # Determine number of phonemes
         n_phonemes = None
         if word is not None:
             n_phonemes = self.count_phonemes(word)
-            n_phonemes = self.count_phonemes(word)
             self.debug(f"Estimated {n_phonemes} phonemes for '{word}'")
         
-        # Calculate frame-to-frame distances
-        distances = self.compute_frame_distances(spectrogram)
-        
-        # Calculate additional features
-        flux = self.compute_spectral_flux(spectrogram)
-        energy = self.compute_energy_contour(spectrogram)
-        
-        # Enhance transitions
-        enhanced_distances = self.enhance_transitions(distances, flux, energy)
-        
-        # Detect peaks
-        boundaries = self.detect_peaks(
-            enhanced_distances, 
-            n_phonemes, 
-            frameshift, 
-            participant_id=participant_id, 
-            word=word,
-            word_position=word_position
-        )
-        
-        # Refine boundaries
-        refined_boundaries = self.refine_boundaries(boundaries, spectrogram, frameshift)
-        
-        # Extract segments
-        segments = []
-        for i in range(len(refined_boundaries) - 1):
-            start = refined_boundaries[i]
-            end = refined_boundaries[i + 1]
+        # STEP 1: Choose boundary detection method
+        if use_rms_boundaries and audio_segment is not None:
+            # NEW: RMS-based detection
+            self.debug("Using RMS-based boundary detection")
             
-            # Ensure valid indices
+            boundaries_original, rms_change = self.compute_rms_boundaries(
+                audio_segment,
+                audio_sr if audio_sr else self.config.audio_sr,
+                n_phonemes=n_phonemes
+            )
+            
+            # For compatibility
+            distances = np.zeros(len(boundaries_original) - 1)
+            energy = np.sum(spectrogram ** 2, axis=1)
+            enhanced_distances = rms_change
+            feature_dict = {'rms_change': rms_change}
+            
+            # Skip refinement for RMS (already precise)
+            boundaries_final = boundaries_original
+            
+        elif use_multifeature:
+            # Multi-feature fusion
+            self.debug("Using multi-feature fusion for boundary detection")
+            enhanced_distances, feature_dict = self.compute_multifeature_distances(
+                spectrogram, 
+                audio_segment=audio_segment,
+                audio_sr=audio_sr if audio_sr else self.config.audio_sr
+            )
+            
+            distances = feature_dict.get('spectral_distance', enhanced_distances)
+            energy = np.sum(spectrogram ** 2, axis=1)
+            
+            # Detect peaks
+            boundaries_original = self.detect_peaks(
+                enhanced_distances, 
+                n_phonemes, 
+                participant_id=participant_id, 
+                word=word,
+                word_position=word_position
+            )
+            
+            # Refine boundaries
+            boundaries_refined = self.refine_boundaries(boundaries_original, spectrogram)
+            
+            # Decide which to use
+            original_durations = [(boundaries_original[i+1] - boundaries_original[i]) * self.config.frameshift 
+                                  for i in range(len(boundaries_original) - 1)]
+            refined_durations = [(boundaries_refined[i+1] - boundaries_refined[i]) * self.config.frameshift 
+                                 for i in range(len(boundaries_refined) - 1)]
+            
+            if len(original_durations) > 1:
+                original_cv = np.std(original_durations) / np.mean(original_durations) * 100
+                refined_cv = np.std(refined_durations) / np.mean(refined_durations) * 100
+                
+                if refined_cv <= original_cv * 1.2:
+                    boundaries_final = boundaries_refined
+                    self.debug(f"  ✓ Using refined boundaries (CV: {original_cv:.1f}% → {refined_cv:.1f}%)")
+                else:
+                    boundaries_final = boundaries_original
+            else:
+                boundaries_final = boundaries_refined
+        
+        else:
+            # Original spectral distance method
+            self.debug("Using original spectral distance method")
+            distances = self.compute_frame_distances(spectrogram)
+            flux = self.compute_spectral_flux(spectrogram)
+            energy = self.compute_energy_contour(spectrogram)
+            enhanced_distances = self.enhance_transitions(distances, flux, energy)
+            feature_dict = None
+            
+            boundaries_original = self.detect_peaks(
+                enhanced_distances, 
+                n_phonemes, 
+                participant_id=participant_id, 
+                word=word,
+                word_position=word_position
+            )
+            
+            boundaries_refined = self.refine_boundaries(boundaries_original, spectrogram)
+            
+            original_durations = [(boundaries_original[i+1] - boundaries_original[i]) * self.config.frameshift 
+                                  for i in range(len(boundaries_original) - 1)]
+            refined_durations = [(boundaries_refined[i+1] - boundaries_refined[i]) * self.config.frameshift 
+                                 for i in range(len(boundaries_refined) - 1)]
+            
+            if len(original_durations) > 1:
+                original_cv = np.std(original_durations) / np.mean(original_durations) * 100
+                refined_cv = np.std(refined_durations) / np.mean(refined_durations) * 100
+                
+                if refined_cv <= original_cv * 1.2:
+                    boundaries_final = boundaries_refined
+                    self.debug(f"  ✓ Using refined boundaries (CV: {original_cv:.1f}% → {refined_cv:.1f}%)")
+                else:
+                    boundaries_final = boundaries_original
+            else:
+                boundaries_final = boundaries_refined
+        
+        # STEP 2: Extract segments using final boundaries
+        segments = []
+        for i in range(len(boundaries_final) - 1):
+            start = boundaries_final[i]
+            end = boundaries_final[i + 1]
+            
             start = max(0, start)
             end = min(spectrogram.shape[0], end)
             
@@ -453,45 +574,81 @@ class AcousticChangeDetector(DebugMixin):
                 segment = spectrogram[start:end]
                 segments.append(segment)
         
-        # Calculate boundary times
-        boundary_times = refined_boundaries * frameshift        
-
-
-        # Create result dictionary
+        # STEP 3: Calculate boundary times
+        boundary_times = boundaries_final * self.config.frameshift    
+        boundary_samples = np.round(boundary_times * self.config.eeg_sr).astype(int)
+        
+        # STEP 4: Create result
         result = {
-            'boundaries': refined_boundaries,
+            'boundaries': boundaries_final,
+            'boundary_samples': boundary_samples,
             'boundary_times': boundary_times,
             'segments': segments,
             'distances': distances,
             'enhanced_distances': enhanced_distances,
             'word': word,
             'n_phonemes': n_phonemes,
-            'energy': energy
+            'energy': energy,
+            'feature_dict': feature_dict,
+            'method': 'rms' if (use_rms_boundaries and audio_segment is not None) else 'multifeature' if use_multifeature else 'spectral'
         }
         
-        eeg_sr = 1024  # EEG sampling rate
-        boundary_samples = np.round(boundary_times * eeg_sr).astype(int)
-        result['boundary_samples'] = boundary_samples
-        
         return result
-    
-    def process_word_segment(self, word_segment, participant_id=None, frameshift=0.01):
+        
+    def detect_speech_onset_rms(self, audio_segment, audio_sr, threshold_factor=0.15):
         """
-        Process a word segment from segment_data_by_words output.
+        Detect speech onset using RMS energy.
         
         Parameters:
         -----------
-        word_segment : dict
-            Word segment dictionary from segment_data_by_words
-        participant_id : str or None
-            Participant ID for reference
-        frameshift : float
-            Time between consecutive frames in seconds
+        audio_segment : ndarray
+            Raw audio waveform
+        audio_sr : int
+            Audio sampling rate
+        threshold_factor : float
+            Fraction of max RMS to use as threshold (0.1-0.3 typical)
             
         Returns:
         --------
-        dict
-            Dictionary containing phoneme segmentation results
+        onset_sample : int
+            Sample index where speech starts
+        onset_time : float
+            Time in seconds where speech starts
+        """
+        # Compute RMS in frames
+        hop_length = int(0.010 * audio_sr)  # 10ms hop
+        frame_length = int(0.025 * audio_sr)  # 25ms frame
+        
+        rms = librosa.feature.rms(
+            y=audio_segment,
+            frame_length=frame_length,
+            hop_length=hop_length
+        )[0]
+        
+        # Compute RMS change (derivative)
+        rms_change = np.abs(np.gradient(rms))
+        
+        # Find threshold
+        max_rms_change = np.max(rms_change)
+        threshold = max_rms_change * threshold_factor
+        
+        # Find first point above threshold
+        above_threshold = np.where(rms_change > threshold)[0]
+        
+        if len(above_threshold) > 0:
+            onset_frame = above_threshold[0]
+            onset_sample = onset_frame * hop_length
+            onset_time = onset_sample / audio_sr
+            
+            self.debug(f"Detected speech onset at {onset_time:.3f}s (sample {onset_sample})")
+            return onset_sample, onset_time
+        else:
+            self.debug("No clear speech onset detected, using start of segment")
+            return 0, 0.0
+    
+    def process_word_segment(self, word_segment: dict, participant_id: str = None) -> dict:
+        """
+        Process a word segment from segment_data_by_words output.
         """
         word = word_segment.get('word', None)
         
@@ -503,7 +660,7 @@ class AcousticChangeDetector(DebugMixin):
             return None
         
         # Detect boundaries
-        result = self.detect_boundaries(spectrogram, word, frameshift=frameshift)
+        result = self.detect_boundaries(spectrogram, word, frameshift=self.config.frameshift)
         
         # Add additional metadata
         result['participant_id'] = participant_id
@@ -515,7 +672,7 @@ class AcousticChangeDetector(DebugMixin):
             eeg = word_segment['eeg_segment']
             
             # Calculate EEG sample indices for boundaries
-            eeg_sr = word_segment.get('eeg_sr', 1024)  # Default EEG sampling rate
+            eeg_sr = word_segment.get('eeg_sr', self.config.eeg_sr)  # Default EEG sampling rate
             boundary_samples = np.round(result['boundary_times'] * eeg_sr).astype(int)
             
             # Extract EEG segments
@@ -537,27 +694,15 @@ class AcousticChangeDetector(DebugMixin):
         
         return result
     
-    def process_word_segments_dict(self, word_segments_dict, participant_id):
+    def process_word_segments_dict(self, word_segments_dict: dict, participant_id: str) -> dict:
         """
         Process all word segments for a participant.
-        
-        Parameters:
-        -----------
-        word_segments_dict : dict
-            Output from segment_data_by_words
-        participant_id : str
-            Participant ID
-            
-        Returns:
-        --------
-        dict
-            Dictionary containing phoneme segmentation results for all words
         """
         self.debug(f"Processing word segments for {participant_id}")
         
         # Get metadata
         metadata = word_segments_dict.get('metadata', {})
-        frameshift = metadata.get('frameshift', 0.01)
+        frameshift = metadata.get('frameshift', self.config.frameshift)
         
         # Process each word
         results = {}
@@ -583,33 +728,19 @@ class AcousticChangeDetector(DebugMixin):
         
         return results
     
-    def process_batch(self, batch, apply_segmentation=True, detect_phonemes=True, frameshift=0.01, skip_mismatches=True):
+    def process_batch(self, batch: dict, skip_mismatches: bool = True) -> dict:
         """
         Process a batch of data from get_data_batch to extract phoneme-level features.
     
         Parameters:
         -----------
-        batch : dict
-            Output from get_data_batch function
-        apply_segmentation : bool
-            Whether to apply phoneme segmentation
-        detect_phonemes : bool
-            Whether to try detecting phonemes
-        frameshift : float
-            Time between consecutive frames in seconds
-        skip_mismatches : bool
-            If True, skip words where detected segments don't match expected phonemes
-            
-        Returns:
-        --------
-        dict
-            Enhanced batch with phoneme-level segmentation
+        batch : Output from get_data_batch function
+        skip_mismatches :  If True, skip words where detected segments don't match expected phonemes
         """
         self.debug(f"Processing batch with {len(batch.get('words', []))} instances")
-        self.debug(f"Original batch keys: {list(batch.keys())}")
-        self.debug(f"EEG segments in batch: {'eeg_segments' in batch}")
-        self.debug(f"Spectrogram segments in batch: {'spectrogram_segments' in batch}")
-        
+        #self.debug(f"Original batch keys: {list(batch.keys())}")
+        #self.debug(f"EEG segments in batch: {'eeg_segments' in batch}")
+        #self.debug(f"Spectrogram segments in batch: {'spectrogram_segments' in batch}")
         
         if 'eeg_segments' in batch and batch['eeg_segments']:
             self.debug(f"  First EEG segment shape: {batch['eeg_segments'][0].shape}")
@@ -638,24 +769,39 @@ class AcousticChangeDetector(DebugMixin):
             spectrogram_segment = batch['spectrogram_segments'][i] if 'spectrogram_segments' in batch else None
             participant_id = batch['participant_ids'][i] if 'participant_ids' in batch else None
         
-            # Skip if required data is missing
+            # VALIDATE SPECTROGRAM SIZE
             if spectrogram_segment is None:
+                self.debug(f"Skipping word '{word}': spectrogram is None")
                 continue
             
+            # Need at least 3 frames for proper boundary detection
+            if spectrogram_segment.shape[0] < 3:
+                self.debug(f"Skipping word '{word}': only {spectrogram_segment.shape[0]} frames (need ≥3)")
+                continue
+    
+            if spectrogram_segment.shape[0] < 2:  # Need at least 2 frames for distances
+                self.debug(f"Skipping word '{word}': spectrogram too short ({spectrogram_segment.shape[0]} frames, need ≥2)")
+                continue        
+            
             # Apply phoneme segmentation if requested
-            if apply_segmentation and detect_phonemes and word is not None:
+            if word is not None:
                 
                 #count words for stats
                 if word in self.phonetic_dict:
                     total_words += 1 
                     
                 # Detect boundaries
+                audio_segment = batch['audio_segments'][i] if 'audio_segments' in batch and i < len(batch['audio_segments']) else None
+
                 result = self.detect_boundaries(
                     spectrogram=spectrogram_segment,
                     word=word,
-                    frameshift=frameshift,
                     participant_id=participant_id, 
-                    word_position=i
+                    word_position=i,
+                    use_multifeature=self.use_multifeature,   
+                    use_rms_boundaries=self.use_rms_boundaries,                     
+                    audio_segment=audio_segment,   
+                    audio_sr=self.config.audio_sr  
                 )
                 
                 # Store boundaries
@@ -668,7 +814,7 @@ class AcousticChangeDetector(DebugMixin):
                 if word in self.phonetic_dict:
                     transcription = self.phonetic_dict[word]
                     # Clean transcription
-                    cleaned = transcription.replace('ˈ', '').replace('(', '').replace(')', '').replace("'", '')
+                    cleaned = transcription.replace('ˈ', '').replace('(', '').replace(')', '').replace("'", '').replace("?", '')
                     
                     # Extract individual phonemes
                     phonemes = []
@@ -678,8 +824,7 @@ class AcousticChangeDetector(DebugMixin):
                         complex_found = False
                         # Sort by length to prevent substring matches
                         sorted_complex = sorted(['ɛi', 'œy', 'ɑu', 'ɵ:', 'ɛ:', 'a:', 'o:', 'e:', 'øk', 'ɔf', 
-                            'ts', 'ŋk', 'sx', 'ɔx', 'ɪx', 'aː', 'eː', 'iː', 'oː', 'uː', 
-                            'yː', 'øː', 'tʋ', 'ʋɑ', 'ʋɪ', 'ʋə'],
+                            'ts', 'ŋk', 'sx', 'ɔx', 'ɪx', 'aː', 'eː', 'iː', 'oː', 'uː', 'yː', 'øː', 'tʋ', 'ʋɑ', 'ʋɪ', 'ʋə'],
                            key=len, reverse=True)
                            
                         for cp in sorted_complex:
@@ -821,8 +966,6 @@ class AcousticChangeDetector(DebugMixin):
         enhanced_batch['metadata'] = {
             'phoneme_count': len(phoneme_labels),
             'unique_phonemes': len(set(phoneme_labels)),
-            'segmentation_applied': apply_segmentation,
-            'phoneme_detection_applied': detect_phonemes,
             'total_words': total_words,
             'mismatched_words': mismatched_words,
             'perfect_match_words': perfect_match_words,
@@ -834,9 +977,8 @@ class AcousticChangeDetector(DebugMixin):
         
         return enhanced_batch
     
-    def accumulate_phoneme_data(self, split_result, batch_size=32,
-                                feature_extraction_method='high_gamma', 
-                                batch_type='train') -> dict:
+    def accumulate_phoneme_data(self, split_result, batch_size=32, feature_extraction_method='high_gamma', 
+                                batch_type='train', standardize_channels=True, standardize_values=False) -> dict:
         """
         Accumulate phoneme data from multiple batches for training.
         
@@ -895,16 +1037,6 @@ class AcousticChangeDetector(DebugMixin):
         
             # Build batch from specific instances
             batch = self._build_batch_from_instances(batch_instances, word_segments_dict)
-
-        
-            # Get a new batch of training data
-            #batch = self.decoder.get_data_batch(
-            #    split_result=self.split_result,
-            #    batch_type=batch_type,
-            #    balanced_sampling=True,
-            #    batch_size=batch_size,
-            #    random_seed=42
-            #)
             
             # Process batch to get phoneme-level data
             phoneme_batch = self.process_batch(batch)
@@ -913,8 +1045,8 @@ class AcousticChangeDetector(DebugMixin):
             phoneme_data = self.prepare_phoneme_training_data(
                 phoneme_batch,
                 feature_extraction_method=feature_extraction_method,
-                standardize_channels=True,
-                standardize_values=False
+                standardize_channels=self.config.standardize_channels,
+                standardize_values=self.config.standardize_values
             )
             
              # Accumulate mismatch statistics
@@ -922,16 +1054,15 @@ class AcousticChangeDetector(DebugMixin):
                 total_words_processed += phoneme_batch['metadata']['total_words']
                 total_mismatches += phoneme_batch['metadata']['mismatched_words']
                 total_perfect_matches += phoneme_batch['metadata']['perfect_match_words']
-
             
             # Accumulate data
             accumulated_features.extend(phoneme_data['features'])
             if 'spectrograms' in phoneme_data and phoneme_data['spectrograms']:
                 accumulated_spectrograms.extend(phoneme_data['spectrograms'])
-            accumulated_labels.extend(phoneme_data['phoneme_labels'])
-            accumulated_words.extend(phoneme_data['phoneme_words'])
-            accumulated_participant_ids.extend(phoneme_data['phoneme_participant_ids'])
-            accumulated_positions.extend(phoneme_data.get('phoneme_positions', 
+                accumulated_labels.extend(phoneme_data['phoneme_labels'])
+                accumulated_words.extend(phoneme_data['phoneme_words'])
+                accumulated_participant_ids.extend(phoneme_data['phoneme_participant_ids'])
+                accumulated_positions.extend(phoneme_data.get('phoneme_positions', 
                                     [0] * len(phoneme_data['phoneme_labels'])))
             self.log(f"Accumulated {len(accumulated_features)} phoneme segments so far")
         
@@ -956,7 +1087,6 @@ class AcousticChangeDetector(DebugMixin):
         self.log(f"Total phoneme segments: {accumulated_data['metadata']['n_phonemes']}")
         self.log(f"Unique phonemes: {accumulated_data['metadata']['unique_phonemes']}")
         
-        
         self.log("\n" + "="*60)
         self.log("PHONEME DETECTION SUMMARY")
         self.log("="*60)
@@ -970,7 +1100,6 @@ class AcousticChangeDetector(DebugMixin):
         self.log(f"Unknown phonemes ('?'): {accumulated_labels.count('?')}")
         self.log("="*60 + "\n")
 
-        
         return accumulated_data
     
     def prepare_phoneme_training_data(self, enhanced_batch, **kwargs):
@@ -983,32 +1112,28 @@ class AcousticChangeDetector(DebugMixin):
                 Output from process_batch function
         feature_extraction_method : str
                 Method to use for feature extraction ('high_gamma', 'multi_band', etc.)
-        standardize : bool
-                Whether to standardize features
+        standardize channels: bool
+                Whether to zero pad to a certain number of channels
+        standardize values: bool
+                Whether to standardize the lengths of the signal        
         pca_components : int or None
                 Number of PCA components to use. If None, don't use PCA.
                 
         Returns: Dictionary containing processed data ready for phoneme-based model training
         """
         # Use decoder's config as base, override with kwargs
+        
         if self.decoder is not None and hasattr(self.decoder, 'config'):
-            config = self.decoder.config.copy()
-            config.update(kwargs)
+            config_dict = self.decoder.config.to_dict()
+            config_dict.update(kwargs)
         else:
-            # Fallback if no decoder is provided
-            config = {
-                    'feature_extraction_method': 'high_gamma',
-                    'standardize_channels': True,   # RENAMED from just using standardize
-                    'standardize_values': True,     # RENAMED - this is the problematic one
-                    'pca_components': 150
-            }
-            config.update(kwargs)
+            config_dict = kwargs
                 
         # Extract parameters from config
-        feature_extraction_method = config.get('feature_extraction_method', 'high_gamma')
-        standardize_channels = config.get('standardize_channels', True)  # NEW
-        standardize_values = config.get('standardize_values', True) 
-        pca_components = config.get('pca_components', None)
+        feature_extraction_method = config_dict.get('feature_extraction_method', 'high_gamma')
+        standardize_channels = config_dict.get('standardize_channels', True)
+        standardize_values = config_dict.get('standardize_values', True)
+        pca_components = config_dict.get('pca_components', None)
             
         self.debug(f"Preparing phoneme training data with PCA components={pca_components}")
             
@@ -1022,8 +1147,7 @@ class AcousticChangeDetector(DebugMixin):
             if eeg is not None and isinstance(eeg, np.ndarray) and eeg.size > 0:
                 valid_indices.append(i)
             
-        self.debug(f"Found {len(valid_indices)} valid phoneme segments out of {len(enhanced_batch['phoneme_eeg_segments'])}")
-            
+        self.debug(f"Found {len(valid_indices)} valid phoneme segments out of {len(enhanced_batch['phoneme_eeg_segments'])}")            
            
         # FIRST PASS: Extract all features to determine expected dimensions
         patient_features = defaultdict(list)
@@ -1041,11 +1165,18 @@ class AcousticChangeDetector(DebugMixin):
                 # Extract features
                 if self.decoder is not None:
                     if feature_extraction_method == 'high_gamma':
-                        feat = extractHG(eeg, 1024)
+                        feat = extractHG(eeg, self.config.eeg_sr)
                     elif feature_extraction_method == 'multi_band':
-                        feat = self.decoder.custom_feature_extraction(eeg, 1024, method='multi_band')
+                        feat = self.decoder.custom_feature_extraction(eeg, self.config.eeg_sr, method='multi_band')
+                    
+                    elif feature_extraction_method == 'band_powers':  
+                        feat = self._extract_band_power_features(eeg) 
+                        #print(f"DEBUG: Band power shape after extraction: {feat.shape}")
+                    elif feature_extraction_method == 'combined':  
+                        feat = self._extract_combined_features(eeg)
+            
                     elif hasattr(self.decoder, 'custom_feature_extraction'):
-                        feat = self.decoder.custom_feature_extraction(eeg, 1024, method=feature_extraction_method)
+                        feat = self.decoder.custom_feature_extraction(eeg, self.config.eeg_sr, method=feature_extraction_method)
                     else:
                         raise ValueError(f"Unknown feature extraction method: {feature_extraction_method}")
                 
@@ -1082,7 +1213,8 @@ class AcousticChangeDetector(DebugMixin):
                     'phoneme_participant_ids': [],
                     'metadata': {
                         'feature_extraction_method': feature_extraction_method,
-                        'standardized': standardize,
+                        'standardize_channels': standardize_channels,   
+                        'standardize_values': standardize_values,  
                         'pca_components': pca_components,
                         'n_phonemes': 0,
                         'unique_phonemes': 0
@@ -1118,16 +1250,32 @@ class AcousticChangeDetector(DebugMixin):
         # Standardize feature shapes zero padding the channels that are missing to make all data have 133 channels 
         # (patients with less than 75 channels were filtered out before)
         
-        if standardize_channels and features:  # ADD this condition
-            max_channels = 133
-            self.debug(f"Standardizing channels to {max_channels}")
-        
-            standardized_features = []
-            for feat in features:
-                result = np.zeros((feat.shape[0], max_channels))
-                min_channels = min(feat.shape[1], max_channels)
-                result[:, :min_channels] = feat[:, :min_channels]
-                standardized_features.append(result)
+        if standardize_channels and features: 
+            
+            if feature_extraction_method in ['band_powers', 'combined']:
+                # Band powers: standardize to max_channels × n_bands
+                n_bands = 6  # delta, theta, alpha, beta, low_gamma, high_gamma
+                target_features = self.config.target_channels * n_bands  # 133 × 6 = 798
+                
+                standardized_features = []
+                for feat in features:
+                    result = np.zeros((feat.shape[0], target_features))
+                    min_features = min(feat.shape[1], target_features)
+                    result[:, :min_features] = feat[:, :min_features]
+                    standardized_features.append(result)
+                
+                features = standardized_features
+            else:
+                # Temporal features: standardize channels dimension
+                max_channels = self.config.target_channels
+                self.debug(f"Standardizing channels to {max_channels}")
+                
+                standardized_features = []
+                for feat in features:
+                    result = np.zeros((feat.shape[0], max_channels))
+                    min_channels = min(feat.shape[1], max_channels)
+                    result[:, :min_channels] = feat[:, :min_channels]
+                    standardized_features.append(result)
 
             features = standardized_features
         
@@ -1140,28 +1288,44 @@ class AcousticChangeDetector(DebugMixin):
             for i in range(len(features)):
                 # Standardize each feature set independently
                 features[i] = scaler.fit_transform(features[i])
-            
-        # Apply PCA if requested
+
+        # Apply PCA per patient if requested
         if pca_components is not None and pca_components > 0 and features:
             
-            pca = PCA(n_components=min(pca_components, min(f.shape[1] for f in features)))
+            # Group features by patient
+            patient_features = {}
+            for i, feat in enumerate(features):
+                pid = phoneme_participant_ids[i]
+                if pid not in patient_features:
+                    patient_features[pid] = []
+                patient_features[pid].append((i, feat))  # Store index and feature
             
-            # Stack all features for fitting
-            try:
-                all_features = np.vstack(features)
-                pca.fit(all_features)
+            # Fit and transform PCA per patient
+            transformed_features = [None] * len(features)
+            
+            for pid, pid_data in patient_features.items():
+                indices = [idx for idx, _ in pid_data]
+                pid_features = [feat for _, feat in pid_data]
                 
-                # Transform all features
-                for i in range(len(features)):
-                    features[i] = pca.transform(features[i])
+                # Fit PCA on THIS patient only
+                pca = PCA(n_components=min(pca_components, min(f.shape[1] for f in pid_features)))
                 
-                # Store in decoder if available
-                if self.decoder is not None and hasattr(self.decoder, 'pca_models'):
-                    key = f"{feature_extraction_method}_phoneme"
-                    self.decoder.pca_models[key] = pca
-                    self.debug(f"Stored PCA model in decoder")
-            except ValueError as e:
-                self.log(f"Error during PCA: {e}. Continuing without PCA")
+                try:
+                    all_pid_features = np.vstack(pid_features)
+                    pca.fit(all_pid_features)
+                    
+                    # Transform this patient's features
+                    for local_idx, global_idx in enumerate(indices):
+                        transformed_features[global_idx] = pca.transform(pid_features[local_idx])
+                    
+                    self.debug(f"Applied per-patient PCA for {pid}")
+                except ValueError as e:
+                    self.log(f"Error during PCA for {pid}: {e}")
+                    # Keep original features
+                    for local_idx, global_idx in enumerate(indices):
+                        transformed_features[global_idx] = pid_features[local_idx]
+            
+            features = transformed_features
             
         # Create result dictionary
         result = {
@@ -1173,7 +1337,7 @@ class AcousticChangeDetector(DebugMixin):
                 'phoneme_participant_ids': phoneme_participant_ids,
                 'metadata': {
                     'feature_extraction_method': feature_extraction_method,
-                    'standardized_channels': standardize_channels,  # RENAMED
+                    'standardized_channels': standardize_channels, 
                     'standardized_values': standardize_values, 
                     'pca_components': pca_components,
                     'n_phonemes': len(phoneme_labels),
@@ -1186,13 +1350,13 @@ class AcousticChangeDetector(DebugMixin):
             
         return result              
         
-        
     def _build_batch_from_instances(self, instances, word_segments_dict):
         """helper class for accumulate_phoneme_data()"""
         batch = {
             'words': [],
             'eeg_segments': [],
             'spectrogram_segments': [],
+            'audio_segments': [],
             'participant_ids': []
         }
         
@@ -1200,19 +1364,446 @@ class AcousticChangeDetector(DebugMixin):
             pid = inst['participant_id']
             word = inst['word']
             idx = inst['instance_index']
-            
+                
             # Get the actual data from word_segments_dict
             try:
                 word_data = word_segments_dict[pid]['words'][word]['instances'][idx]
-                
+                    
                 batch['words'].append(word)
                 batch['eeg_segments'].append(word_data['eeg_segment'])
                 batch['spectrogram_segments'].append(word_data['spectrogram_segment'])
+                batch['audio_segments'].append(word_data.get('audio_segment'))  # ← ADD THIS
                 batch['participant_ids'].append(pid)
             except (KeyError, IndexError) as e:
                 self.log(f"Warning: Could not load instance {pid}/{word}/{idx}: {e}")
                 continue
-        
+            
         return batch
+        
+    def compute_multifeature_distances(self, spectrogram, audio_segment=None, audio_sr=None):
+        """
+        Compute boundary detection score using multiple acoustic features.
+        
+        Parameters:
+        -----------
+        spectrogram : ndarray
+            Mel spectrogram (time frames × frequency bins)
+        audio_segment : ndarray or None
+            Raw audio waveform for additional features
+        audio_sr : int or None
+            Audio sampling rate
+            
+        Returns:
+        --------
+        combined_score : ndarray
+            Combined boundary detection score
+        feature_dict : dict
+            Individual feature scores for debugging
+        """
+        
+        n_frames = spectrogram.shape[0]
+        
+        # FEATURE 1: Spectral distance (your current method)
+        self.debug("Computing spectral distances...")
+        spec_distances = self.compute_frame_distances(spectrogram)
+        
+        # FEATURE 2: Energy envelope changes
+        self.debug("Computing energy changes...")
+        energy = np.sum(spectrogram ** 2, axis=1)
+        energy_gradient = np.abs(np.gradient(energy))
+        # Pad to match spec_distances length
+        energy_change = energy_gradient[:-1] if len(energy_gradient) > len(spec_distances) else energy_gradient
+        
+        # FEATURE 3: Spectral flux (already computed, but let's enhance it)
+        self.debug("Computing spectral flux...")
+        flux = self.compute_spectral_flux(spectrogram)
+        
+        # FEATURE 4: Spectral centroid changes
+        self.debug("Computing spectral centroid changes...")
+        # Compute spectral centroid for each frame
+        freq_bins = np.arange(spectrogram.shape[1])
+        centroids = []
+        for frame in spectrogram:
+            if np.sum(frame) > 0:
+                centroid = np.sum(freq_bins * frame) / np.sum(frame)
+            else:
+                centroid = 0
+            centroids.append(centroid)
+        centroids = np.array(centroids)
+        centroid_change = np.abs(np.gradient(centroids))[:-1]
+        
+        # FEATURE 5: Spectral rolloff changes
+        self.debug("Computing spectral rolloff changes...")
+        rolloffs = []
+        for frame in spectrogram:
+            cumsum = np.cumsum(frame)
+            total = cumsum[-1]
+            if total > 0:
+                rolloff_idx = np.where(cumsum >= 0.85 * total)[0]
+                rolloff = rolloff_idx[0] if len(rolloff_idx) > 0 else 0
+            else:
+                rolloff = 0
+            rolloffs.append(rolloff)
+        rolloffs = np.array(rolloffs)
+        rolloff_change = np.abs(np.gradient(rolloffs))[:-1]
+        
+        # If audio available, add time-domain features
+        if audio_segment is not None and audio_sr is not None:
+            self.debug("Computing audio-based features...")
+            
+            # FEATURE 6: Zero-crossing rate changes
+            hop_length = int(self.config.frameshift * audio_sr)
+            zcr = librosa.feature.zero_crossing_rate(
+                audio_segment, 
+                frame_length=int(self.config.window_length * audio_sr),
+                hop_length=hop_length
+            )[0]
+            
+            # Match length with spectrogram
+            if len(zcr) > n_frames:
+                zcr = zcr[:n_frames]
+            elif len(zcr) < n_frames:
+                zcr = np.pad(zcr, (0, n_frames - len(zcr)), mode='edge')
+            
+            zcr_change = np.abs(np.gradient(zcr))[:-1]
+            
+            # FEATURE 7: RMS energy from audio
+            rms = librosa.feature.rms(
+                y=audio_segment,
+                frame_length=int(self.config.window_length * audio_sr),
+                hop_length=hop_length
+            )[0]
+            
+            if len(rms) > n_frames:
+                rms = rms[:n_frames]
+            elif len(rms) < n_frames:
+                rms = np.pad(rms, (0, n_frames - len(rms)), mode='edge')
+            
+            rms_change = np.abs(np.gradient(rms))[:-1]
+        else:
+            # Use zeros if no audio
+            zcr_change = np.zeros_like(spec_distances)
+            rms_change = np.zeros_like(spec_distances)
+        
+        # Store all features for debugging
+        feature_dict = {
+            'spectral_distance': spec_distances,
+            'energy_change': energy_change,
+            'spectral_flux': flux,
+            'centroid_change': centroid_change,
+            'rolloff_change': rolloff_change,
+            'zcr_change': zcr_change,
+            'rms_change': rms_change
+        }
+        
+        # Ensure all features have same length
+        min_length = min(len(f) for f in feature_dict.values())
+        for key in feature_dict:
+            feature_dict[key] = feature_dict[key][:min_length]
+        
+        # Normalize each feature to [0, 1]
+        self.debug("Normalizing features...")
+        scaler = MinMaxScaler()
+        normalized_features = {}
+        
+        for key, values in feature_dict.items():
+            if np.max(values) > 0:
+                normalized = scaler.fit_transform(values.reshape(-1, 1)).flatten()
+            else:
+                normalized = values
+            normalized_features[key] = normalized
+        
+        # Weighted combination (tune these weights based on performance)
+        weights = {
+            'spectral_distance': 0.25,
+            'energy_change': 0.15,
+            'spectral_flux': 0.20,
+            'centroid_change': 0.15,
+            'rolloff_change': 0.10,
+            'zcr_change': 0.10,
+            'rms_change': 0.05
+        }
+        
+        self.debug(f"Combining features with weights: {weights}")
+        
+        combined_score = np.zeros(min_length)
+        for key, weight in weights.items():
+            combined_score += weight * normalized_features[key]
+        
+        return combined_score, feature_dict
 
+    def compute_rms_boundaries(self, audio_segment, audio_sr, n_phonemes=None):
+        """
+        Detect phoneme boundaries using RMS energy changes.
+        """
+        self.debug("Computing RMS-based boundaries...")
+        
+        # Compute RMS with fine temporal resolution
+        hop_length = int(0.005 * audio_sr)  # 5ms hop
+        frame_length = int(0.020 * audio_sr)  # 20ms frame
+        
+        rms = librosa.feature.rms(
+            y=audio_segment,
+            frame_length=frame_length,
+            hop_length=hop_length
+        )[0]
+        
+        # Smooth RMS
+        rms_smoothed = gaussian_filter1d(rms, sigma=2)
+        
+        # Compute RMS change
+        rms_change = np.abs(np.gradient(rms_smoothed))
+        rms_change_smoothed = gaussian_filter1d(rms_change, sigma=1.5)
+        
+        # STEP 1: Detect speech onset (first significant peak)
+        max_rms_change = np.max(rms_change_smoothed)
+        onset_threshold = max_rms_change * 0.15  # 15% for onset
+        
+        # Find first point above onset threshold
+        onset_candidates = np.where(rms_change_smoothed > onset_threshold)[0]
+        
+        if len(onset_candidates) > 0:
+            onset_frame = onset_candidates[0]
+            self.debug(f"  Speech onset detected at frame {onset_frame} ({onset_frame * hop_length / audio_sr:.3f}s)")
+        else:
+            onset_frame = 0
+            self.debug(f"  No clear onset, using start of segment")
+        
+        # STEP 2: Find internal phoneme boundaries (after onset)
+        # Use adaptive threshold based on median + MAD
+        median_val = np.median(rms_change_smoothed)
+        mad = np.median(np.abs(rms_change_smoothed - median_val))
+        
+        k = 1.2  # Sensitivity
+        threshold = median_val + k * mad
+        
+        # Minimum distance between boundaries
+        min_phoneme_duration_sec = self.config.min_phoneme_duration
+        min_distance_frames = int(min_phoneme_duration_sec / (hop_length / audio_sr))
+        
+        self.debug(f"  Internal boundary threshold: {threshold:.4f} (median: {median_val:.4f}, MAD: {mad:.4f})")
+        
+        # Find peaks AFTER onset
+        
+        
+        # Search for peaks starting from onset
+        search_start = max(0, onset_frame - 2)  # Start slightly before onset
+        rms_change_after_onset = rms_change_smoothed[search_start:]
+        
+        peaks_relative, properties = find_peaks(
+            rms_change_after_onset,
+            height=threshold,
+            distance=min_distance_frames,
+            prominence=0.02 * np.max(rms_change_after_onset)
+        )
+        
+        # Convert back to absolute frame indices
+        peaks = peaks_relative + search_start
+        
+        self.debug(f"  Found {len(peaks)} internal boundaries (peaks after onset)")
+        
+        # STEP 3: Adjust number of boundaries if we know expected phonemes
+        if n_phonemes is not None and n_phonemes > 1:
+            n_boundaries_needed = n_phonemes - 1
+            
+            self.debug(f"  Need {n_boundaries_needed} internal boundaries for {n_phonemes} phonemes")
+            
+            if len(peaks) > n_boundaries_needed:
+                # Keep strongest peaks
+                peak_heights = rms_change_smoothed[peaks]
+                strongest_indices = np.argsort(peak_heights)[-n_boundaries_needed:]
+                peaks = peaks[strongest_indices]
+                peaks = np.sort(peaks)
+                self.debug(f"  Selected {len(peaks)} strongest peaks")
+                
+            elif len(peaks) < n_boundaries_needed:
+                # Lower threshold to find more
+                self.debug(f"  Only found {len(peaks)} peaks, need {n_boundaries_needed}")
+                
+                for attempt in range(3):
+                    threshold *= 0.7
+                    self.debug(f"    Attempt {attempt+1}: lowering threshold to {threshold:.4f}")
+                    
+                    peaks_relative, properties = find_peaks(
+                        rms_change_after_onset,
+                        height=threshold,
+                        distance=min_distance_frames,
+                        prominence=0.01 * np.max(rms_change_after_onset)
+                    )
+                    
+                    peaks = peaks_relative + search_start
+                    self.debug(f"    Found {len(peaks)} peaks")
+                    
+                    if len(peaks) >= n_boundaries_needed:
+                        peak_heights = rms_change_smoothed[peaks]
+                        strongest_indices = np.argsort(peak_heights)[-n_boundaries_needed:]
+                        peaks = peaks[strongest_indices]
+                        peaks = np.sort(peaks)
+                        break
+        
+        # STEP 4: Convert from audio frames to spectrogram frames
+        spec_hop_samples = int(self.config.frameshift * audio_sr)
+        
+        # Convert onset
+        onset_spec_frame = int(onset_frame * hop_length / spec_hop_samples)
+        
+        # Convert internal boundaries
+        spec_frame_boundaries = np.round(peaks * hop_length / spec_hop_samples).astype(int)
+        
+        # IMPORTANT: Use onset as first boundary (not 0)
+        # This captures the first phoneme properly
+        boundaries = np.concatenate(
+            [[onset_spec_frame],  # Start at detected onset, not 0
+             spec_frame_boundaries, 
+             [int(len(audio_segment) / spec_hop_samples)]]  # End of segment
+        )
+        
+        # Remove duplicates and ensure sorted
+        boundaries = np.unique(boundaries)
+        
+        self.debug(f"  Final boundaries (spec frames): {boundaries}")
+        self.debug(f"  Number of segments: {len(boundaries) - 1}")
+        
+        return boundaries, rms_change_smoothed
+        
+    def segment_sentence_by_rms(self, audio_sentence: np.ndarray, audio_sr: int, 
+                            words: list, phonetic_dict) -> dict:
+        """
+        Segment entire sentence using RMS peaks, then group into words.
+        
+        Parameters:
+        -----------
+        audio_sentence : ndarray
+            Full sentence audio
+        audio_sr : int
+            Audio sampling rate
+        words : list
+            List of words in sentence
+        phonetic_dict : PhoneticDictionary
+            For looking up expected phoneme counts
+            
+        Returns:
+        --------
+        dict with 'word_boundaries', 'phoneme_boundaries', 'word_segments'
+        """
+        self.debug(f"Segmenting sentence: {words}")
+        
+        # Get expected phoneme counts for each word
+        word_phoneme_counts = []
+        for word in words:
+            phonemes = phonetic_dict.extract_phonemes(word)
+            count = len(phonemes) if phonemes else 3
+            word_phoneme_counts.append(count)
+        
+        total_phonemes = sum(word_phoneme_counts)
+        self.debug(f"  Expected: {total_phonemes} total phonemes across {len(words)} words")
+        
+        # Compute RMS change for entire sentence
+        hop_length = int(0.005 * audio_sr)  # 5ms
+        frame_length = int(0.020 * audio_sr)  # 20ms
+        
+        rms = librosa.feature.rms(
+            y=audio_sentence,
+            frame_length=frame_length,
+            hop_length=hop_length
+        )[0]
+        
+        from scipy.ndimage import gaussian_filter1d
+        rms_smoothed = gaussian_filter1d(rms, sigma=2)
+        rms_change = np.abs(np.gradient(rms_smoothed))
+        rms_change_smoothed = gaussian_filter1d(rms_change, sigma=1.5)
+        
+        # Find speech onset and offset
+        max_rms_change = np.max(rms_change_smoothed)
+        onset_threshold = max_rms_change * 0.15
+        above_onset = np.where(rms_change_smoothed > onset_threshold)[0]
+        
+        if len(above_onset) > 0:
+            speech_start = above_onset[0]
+            speech_end = above_onset[-1]
+        else:
+            speech_start = 0
+            speech_end = len(rms_change_smoothed) - 1
+        
+        # Focus on speech region
+        rms_change_speech = rms_change_smoothed[speech_start:speech_end]
+        
+        # Find ALL internal boundaries
+        median_val = np.median(rms_change_speech)
+        mad = np.median(np.abs(rms_change_speech - median_val))
+        threshold = median_val + 1.0 * mad  # Start with k=1.0
+        
+        min_phoneme_duration_sec = self.config.min_phoneme_duration
+        min_distance_frames = int(min_phoneme_duration_sec / (hop_length / audio_sr))
+        
+        # Find peaks
+        n_boundaries_needed = total_phonemes - 1
+        
+        for attempt in range(5):
+            peaks, _ = find_peaks(
+                rms_change_speech,
+                height=threshold,
+                distance=min_distance_frames,
+                prominence=0.01 * np.max(rms_change_speech)
+            )
+            
+            self.debug(f"  Attempt {attempt+1}: threshold={threshold:.4f}, found {len(peaks)} peaks (need {n_boundaries_needed})")
+            
+            if len(peaks) >= n_boundaries_needed:
+                # Keep strongest n peaks
+                if len(peaks) > n_boundaries_needed:
+                    peak_heights = rms_change_speech[peaks]
+                    strongest = np.argsort(peak_heights)[-n_boundaries_needed:]
+                    peaks = peaks[strongest]
+                    peaks = np.sort(peaks)
+                break
+            else:
+                threshold *= 0.75  # Lower threshold
+        
+        # Convert peaks to audio samples
+        peaks_absolute = peaks + speech_start
+        onset_sample = speech_start * hop_length
+        
+        phoneme_boundaries_samples = [onset_sample]
+        for peak in peaks_absolute:
+            phoneme_boundaries_samples.append(peak * hop_length)
+        phoneme_boundaries_samples.append(len(audio_sentence))
+        
+        phoneme_boundaries_samples = np.array(phoneme_boundaries_samples)
+        
+        # Now group phonemes into words based on expected counts
+        word_boundaries_samples = [phoneme_boundaries_samples[0]]
+        
+        phoneme_idx = 0
+        for word_idx, n_phonemes in enumerate(word_phoneme_counts):
+            # This word should span n_phonemes
+            phoneme_idx += n_phonemes
+            
+            # Word ends at the boundary after these phonemes
+            if phoneme_idx < len(phoneme_boundaries_samples):
+                word_boundaries_samples.append(phoneme_boundaries_samples[phoneme_idx])
+            else:
+                # Last word - use end of sentence
+                word_boundaries_samples.append(phoneme_boundaries_samples[-1])
+        
+        word_boundaries_samples = np.array(word_boundaries_samples)
+        
+        # Extract word segments
+        word_segments = []
+        for i in range(len(word_boundaries_samples) - 1):
+            start = int(word_boundaries_samples[i])
+            end = int(word_boundaries_samples[i + 1])
+            word_segments.append(audio_sentence[start:end])
+        
+        self.debug(f"  Result: {len(word_segments)} words extracted")
+        
+        return {
+            'word_boundaries_samples': word_boundaries_samples,
+            'phoneme_boundaries_samples': phoneme_boundaries_samples,
+            'word_segments': word_segments,
+            'rms_change': rms_change_smoothed,
+            'speech_start': speech_start,
+            'speech_end': speech_end
+        }
+    
     

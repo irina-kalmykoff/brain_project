@@ -1,215 +1,182 @@
 from pipeline import UnifiedPhonemePipeline
 from phonetic_dictionary import PhoneticDictionary
-import glob
+from scipy.signal import hilbert
+
 import os
 import re
 import json
+import glob
+
 import pickle
+import numpy as np
+
 from datetime import datetime
 from collections import Counter, defaultdict
 from debugger import DebugMixin
-import numpy as np
+from phoneme_validator import PhonemeValidator
+
+from scipy.signal import decimate
 from extract_features import extractHG, extractMelSpecs
+from acoustic_change_detector import AcousticChangeDetector
 from config import BIDS_PATH, OUTPUT_PATH, RESULTS_PATH, DUTCH_30_PATH, DUTCH_10_PATH, get_dataset_paths
+from dataset_config import Dutch30Config
 
 class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
     """Extend the pipeline for Dutch30 data"""
+
     
-    def __init__(self, dutch30_extractor, **kwargs):
+    def __init__(self, dutch30_extractor, config: Dutch30Config = None,
+                        decoder=None, feature_extraction_method='high_gamma',
+                        pca_components=100, use_phoneme_groups=False, 
+                        debug_mode=False, use_rms_boundaries=True, use_multifeature=False,
+                        **kwargs):
         
         super().__init__(
             path_bids=dutch30_extractor.data_dir, 
             path_output=dutch30_extractor.results_dir,
             path_results=dutch30_extractor.results_dir,
+            feature_extraction_method=feature_extraction_method,
+            pca_components=pca_components,
+            use_phoneme_groups=use_phoneme_groups,
+            debug_mode=debug_mode,
             **kwargs
         )
         self.class_name = "Dutch30Pipeline" 
         self.dutch30_extractor = dutch30_extractor
         self.phonetic_dict = PhoneticDictionary()
         self.phonetic_dict.add_phoneme_groups()
+        self.config = config if config is not None else Dutch30Config()
+        self.use_rms_boundaries = use_rms_boundaries
+        self.use_multifeature = use_multifeature
+        
+        # Log config if in debug mode
+        self.debug(str(self.config))
+        self.log(f"Pipeline initialized: {feature_extraction_method}, PCA={pca_components}, groups={use_phoneme_groups}")
+        self.log(f"Boundary detection: RMS={use_rms_boundaries}, MultiFeature={use_multifeature}")
+        
+        # Initialize detector with config
+        self.detector = AcousticChangeDetector(
+            config=self.config,
+            feature_extraction_method=self.feature_extraction_method,
+            use_rms_boundaries=self.use_rms_boundaries,     
+            use_multifeature=self.use_multifeature         
+        )
     
-    def step1_load_dutch30_data(self, sample_fraction=0.2):
-        """Replace step1 - load Dutch30 data instead of initializing decoder"""
-        self.log("Step 1: Loading Dutch30 raw data...")
+    def step1_load_dutch30_data(self, num_patients=None, patient_ids=None, patient_range=None):
+        """
+        Load data from specified patients.
         
-        # Get patient split
-        split_info = self.dutch30_extractor.create_patient_split()
+        Parameters:
+        -----------
+        num_patients : int or None
+            Load first N patients (e.g., 3 → P01, P02, P03)
+        patient_ids : list or None
+            Specific patient IDs (e.g., ['P01', 'P10', 'P20'])
+        patient_range : tuple or None
+            Range of patients (e.g., (10, 20) → P10 through P20 inclusive)
+        """
+        self.log(f"Step 1: Loading Dutch30...")
         
-        # We'll process raw data through normal pipeline
-        # Don't convert to "pipeline format" with pre-computed features
-        self.split_info = split_info
+        all_patient_ids = ['P01', 'P02', 'P03', 'P04', 'P06', 'P07', 'P08', 
+                           'P09', 'P10', 'P11', 'P12', 'P13', 'P14', 'P15',
+                           'P16', 'P17', 'P20', 'P21', 'P22', 'P23', 'P24',
+                           'P25', 'P26', 'P27', 'P28', 'P29', 'P30']
         
-        self.log(f"Patients: {len(split_info['train'])} train, "
-              f"{len(split_info['val'])} val, {len(split_info['test'])} test")
+        # Determine which patients to use
+        if patient_ids is not None:
+            # Use explicit list
+            selected_patients = [pid for pid in patient_ids if pid in all_patient_ids]
+            self.log(f"  Using specified patients: {selected_patients}")
+            
+        elif patient_range is not None:
+            # Use range (start, end) inclusive
+            start, end = patient_range
+            selected_patients = []
+            for pid in all_patient_ids:
+                # Extract number from PXX format
+                num = int(pid[1:])
+                if start <= num <= end:
+                    selected_patients.append(pid)
+            self.log(f"  Using patients P{start:02d} to P{end:02d}: {selected_patients}")
+            
+        elif num_patients is not None:
+            # Use first N patients
+            selected_patients = all_patient_ids[:num_patients]
+            self.log(f"  Using first {num_patients} patients: {selected_patients}")
+            
+        else:
+            # Use all patients
+            selected_patients = all_patient_ids
+            self.log(f"  Using all {len(selected_patients)} patients")
+        
+        if not selected_patients:
+            raise ValueError("No valid patients selected!")
+        
+        # Store selected patients for later use
+        self.selected_patients = selected_patients
         
         return self
     
-    def _convert_to_pipeline_format(self, X, y, split_name):
-        """Convert Dutch30 data to pipeline format"""
-        # y contains words, we need to map to phonemes
-        phoneme_labels = []
-        phoneme_words = []
-        features = []
+    def step2_split_by_instances(self, train_fraction=0.7, random_seed=42):
+        """Split each patient's word instances into train/test."""
+        np.random.seed(random_seed)
         
-        for i, label in enumerate(y):
-            if isinstance(label, bytes):
-                label = label.decode()
-            
-            # Clean the label - remove \r and whitespace
-            label = label.strip()
+        self.split_result = {'train': {}, 'test': {}, 'word_segments_dict': {}}
+        self.patient_baselines = {}
         
-            # Map word to phonemes (simplified - takes first phoneme)
-            if label and label in self.phonetic_dict:
-                phonemes = self.phonetic_dict.extract_phonemes(label)
-                phoneme_labels.append(phonemes[0] if phonemes else 'unknown')
-            else:
-                phoneme_labels.append('unknown')
-            
-            phoneme_words.append(label)
-            features.append(X[i])
+        patient_ids = self.selected_patients if hasattr(self, 'selected_patients') else ['P01', 'P02', 'P03', 'P04', 'P06', 'P07', 'P08', 
+                                                                                       'P09', 'P10', 'P11', 'P12', 'P13', 'P14', 'P15',
+                                                                                       'P16', 'P17', 'P20', 'P21', 'P22', 'P23', 'P24',
+                                                                                       'P25', 'P26', 'P27', 'P28', 'P29', 'P30']
         
-        unique_words = set(phoneme_words[:100])
-        self.debug(f"  Sample words in {split_name}: {list(unique_words)[:5]}")
-        unique_phonemes = set(phoneme_labels[:100])
-        self.debug(f"  Sample phonemes in {split_name}: {list(unique_phonemes)[:5]}")
-        
-        return {
-            'features': features,
-            'phoneme_labels': phoneme_labels,
-            'phoneme_words': phoneme_words,
-            'split': split_name
-        }
-    
-    def step2_3_use_existing_split(self):
-        """Use existing split with actual channel quality stratification"""
-        self.log("Steps 2-3")
-        
-        split_info = self.dutch30_extractor.create_patient_split()
-        channel_dir = os.path.join(self.path_results, 'channel_analysis')
-        
-        # Calculate quality scores for all patients
-        patient_scores = {}
-        for pid in split_info['train'] + split_info['val'] + split_info['test']:
-            result_path = os.path.join(channel_dir, f'{pid}_channel_correlations.npy')
-            if os.path.exists(result_path):
-                data = np.load(result_path, allow_pickle=True).item()
-                correlations = [ch['correlation'] for ch in data.values() 
-                              if not np.isnan(ch['correlation'])]
-                if correlations:
-                    patient_scores[pid] = np.mean(correlations)
-        
-        # Calculate thresholds
-        scores = list(patient_scores.values())
-        low_thresh = np.percentile(scores, 33)
-        high_thresh = np.percentile(scores, 67)
-        
-        # Assign quality strata
-        self.participant_strata = {}
-        for pid in split_info['train'] + split_info['val'] + split_info['test']:
-            if pid in patient_scores:
-                if patient_scores[pid] >= high_thresh:
-                    self.participant_strata[pid] = 'high_quality'
-                elif patient_scores[pid] >= low_thresh:
-                    self.participant_strata[pid] = 'medium_quality'
-                else:
-                    self.participant_strata[pid] = 'low_quality'
-            else:
-                self.participant_strata[pid] = 'low_quality'  # No data = low quality
-        
-        # Create split_result
-        self.split_result = {
-            'train': {pid: {} for pid in split_info['train']},
-            'test': {pid: {} for pid in split_info['test']},
-            'val': {pid: {} for pid in split_info['val']},
-            'word_segments_dict': {}
-        }
-        
-        successfully_loaded = []
-        failed_patients = []
-        
-        
-        # Populate word segments for sampled patients
-        for pid in split_info['train'] + split_info['test'] + split_info['val']:
+        for pid in patient_ids:
             try:
-                #self.log(f"Segmenting data for {pid}...")
-                # CHECK CHANNEL COUNT FIRST
-                eeg_path = os.path.join(self.path_bids, f'{pid}_sEEG.npy')
-                if os.path.exists(eeg_path):
-                    eeg = np.load(eeg_path)
-                    n_channels = eeg.shape[1]
-                    
-                    # Exclude patients with too few channels
-                    if n_channels < 75:
-                        self.log(f"Excluding {pid}: only {n_channels} channels (< 75 threshold)")
-                        failed_patients.append(pid)
-                        continue  # Skip to next patient
-                    
-                    self.log(f"Segmenting data for {pid} ({n_channels} channels)...")
-                else:
-                    self.log(f"Warning: No raw data file for {pid}")
-                    failed_patients.append(pid)
+                # Load raw data to extract baseline
+                raw_data = self.dutch30_extractor.load_patient_raw_data(pid)
+                eeg = raw_data['eeg']
+                audio = raw_data['audio']
+                
+                # Extract baseline from silence
+                baseline = self._extract_baseline_from_silence(audio, eeg)
+                self.patient_baselines[pid] = baseline
+                
+                # Segment words
+                word_segments = self.segment_data_by_words(pid)
+                self.split_result['word_segments_dict'][pid] = word_segments
+                
+            except Exception as e:
+                self.log(f"Failed to process {pid}: {e}")
+                continue
+            
+            self.split_result['train'][pid] = {}
+            self.split_result['test'][pid] = {}
+            
+            for word, word_data in word_segments['words'].items():
+                num_instances = len(word_data['instances'])
+                if num_instances == 0:
                     continue
                 
-                word_segments = self.segment_data_by_words(pid)
+                indices = np.arange(num_instances)
+                np.random.shuffle(indices)
                 
-                if word_segments and 'words' in word_segments:
-                    self.split_result['word_segments_dict'][pid] = word_segments
-                    successfully_loaded.append(pid)
+                # CHANGE THIS PART:
+                if num_instances == 1:
+                    # Randomly assign to train or test
+                    if np.random.random() < train_fraction:
+                        self.split_result['train'][pid][word] = [0]
+                    else:
+                        self.split_result['test'][pid][word] = [0]
                 else:
-                    self.log(f"Warning: No word segments for {pid}")
-                    failed_patients.append(pid)
-                    
-            except MemoryError as e:
-                self.log(f"Memory error for {pid}: {e}. Skipping...")
-                failed_patients.append(pid)
-            except Exception as e:
-                self.log(f"Error segmenting {pid}: {e}. Skipping...")
-                failed_patients.append(pid)
-        
-        # *** REMOVE FAILED PATIENTS FROM SPLITS ***
-        for pid in failed_patients:
-            # Remove from train/test/val splits
-            if pid in self.split_result['train']:
-                del self.split_result['train'][pid]
-            if pid in self.split_result['test']:
-                del self.split_result['test'][pid]
-            if pid in self.split_result['val']:
-                del self.split_result['val'][pid]
-        
-        self.log(f"Successfully loaded: {len(successfully_loaded)} patients")
-        self.log(f"Failed/excluded: {len(failed_patients)} patients: {failed_patients}")
-
-        quality_distribution = Counter()
-        for pid in successfully_loaded:
-            if pid in self.participant_strata:
-                quality_distribution[self.participant_strata[pid]] += 1
-
-        self.log(f"Quality distribution (after exclusion): {quality_distribution}")
-        self.log(f"  High quality: {quality_distribution.get('high_quality', 0)} patients")
-        self.log(f"  Medium quality: {quality_distribution.get('medium_quality', 0)} patients")
-        self.log(f"  Low quality: {quality_distribution.get('low_quality', 0)} patients")
-
-        # Populate word-to-instance mappings for parent's get_data_batch
-        for pid in successfully_loaded:  # *** ONLY USE SUCCESSFULLY LOADED ***
-            segments = self.split_result['word_segments_dict'][pid]
+                    n_train = max(1, int(num_instances * train_fraction))
+                    self.split_result['train'][pid][word] = indices[:n_train].tolist()
+                    self.split_result['test'][pid][word] = indices[n_train:].tolist()
             
-            # Determine which split this patient is in
-            if pid in split_info['train']:
-                split_type = 'train'
-            elif pid in split_info['test']:
-                split_type = 'test'
-            else:
-                split_type = 'val'
-            
-            # Create word-to-instance mappings
-            for word, word_data in segments['words'].items():  # Now it's a dict
-                if word not in self.split_result[split_type][pid]:
-                    self.split_result[split_type][pid][word] = []
-                num_instances = len(word_data['instances'])
-                self.split_result[split_type][pid][word].extend(range(num_instances))
-                
-        return self
-
+            train_total = sum(len(v) for v in self.split_result['train'][pid].values())
+            test_total = sum(len(v) for v in self.split_result['test'][pid].values())
+            self.log(f"{pid}: {train_total} train, {test_total} test, baseline: {baseline.shape}")
+        
+        return self.split_result
+    
     def segment_data_by_words(self, participant_id):
         """
         Segment raw EEG by words (like Dutch10 does)
@@ -222,115 +189,224 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         audio = raw_data['audio']
         eeg_sr = raw_data['eeg_sr']
         
+        # Extract baseline from silence
+        baseline = self._extract_baseline_from_silence(audio, eeg)
+    
         # Find word boundaries in stimuli
         word_segments = self._segment_by_word_markers(eeg, stimuli, audio, eeg_sr, participant_id)
         
+        # Add baseline to result
+        word_segments['baseline'] = baseline
+        
         return word_segments
     
-    def _segment_by_word_markers(self, eeg, stimuli, audio, eeg_sr, participant_id):
+    def _segment_by_word_markers(self, eeg: np.ndarray, stimuli: np.ndarray, audio: np.ndarray, 
+                             eeg_sr: int, participant_id: str) -> dict:
         """
-        Segment continuous recording into words.
-        Dutch30: stimuli contains sentences repeated across samples.
-        """
-        # Find sentence boundaries (where stimuli changes)
-        sentence_boundaries = []
-        current_sentence = None
+        Segment data by processing sentences, then extracting individual words.
         
-        for i, stim in enumerate(stimuli):
-            sentence = stim.decode() if isinstance(stim, bytes) else str(stim)
-            sentence = sentence.strip()
+        Flow:
+        1. Identify sentence boundaries from stimuli
+        2. For each sentence: use RMS to find word boundaries
+        3. Extract individual word segments (EEG, audio, spectrogram)
+        4. Store words in dictionary
+        """
+        
+        # ===================================================================
+        # STEP 1: IDENTIFY SENTENCES FROM STIMULI
+        # ===================================================================
+        sentence_list = []
+        current_sentence_text = None
+        current_sentence_start_idx = 0
+        
+        for stim_idx, stim in enumerate(stimuli):
+            sentence_text = stim.decode() if isinstance(stim, bytes) else str(stim)
+            sentence_text = sentence_text.strip()
             
-            if sentence != current_sentence:
-                if current_sentence is not None:
-                    sentence_boundaries.append({
-                        'sentence': current_sentence,
-                        'start': sentence_start,
-                        'end': i
+            # New sentence detected
+            if sentence_text != current_sentence_text:
+                # Save previous sentence
+                if current_sentence_text is not None:
+                    sentence_list.append({
+                        'text': current_sentence_text,
+                        'stim_start_idx': current_sentence_start_idx,
+                        'stim_end_idx': stim_idx
                     })
-                current_sentence = sentence
-                sentence_start = i
+                
+                # Start tracking new sentence
+                current_sentence_text = sentence_text
+                current_sentence_start_idx = stim_idx
         
-        # Add final sentence
-        if current_sentence is not None:
-            sentence_boundaries.append({
-                'sentence': current_sentence,
-                'start': sentence_start,
-                'end': len(stimuli)
+        # Save final sentence
+        if current_sentence_text is not None:
+            sentence_list.append({
+                'text': current_sentence_text,
+                'stim_start_idx': current_sentence_start_idx,
+                'stim_end_idx': len(stimuli)
             })
         
-        self.debug(f"Found {len(sentence_boundaries)} sentences")
+        self.debug(f"Identified {len(sentence_list)} sentences")
         
-        # Split each sentence into words and create segments
-        all_words = []
-        all_eeg_segments = []
-        all_spec_segments = []
-        all_audio_segments = [] 
+        # Step2: Storage for all extracted words
+        all_word_texts = []
+        all_word_eeg_segments = []
+        all_word_spec_segments = []
+        all_word_audio_segments = []
         
-        for sent_info in sentence_boundaries:
-            sentence = sent_info['sentence']
-            sent_start = sent_info['start']
-            sent_end = sent_info['end']
+        for sent_info in sentence_list:
+            sentence_text = sent_info['text']
+            sent_stim_start = sent_info['stim_start_idx']
+            sent_stim_end = sent_info['stim_end_idx']
             
-            # Clean and split sentence into words
-            # Remove punctuation, split on whitespace
-            cleaned = re.sub(r'["""„"''\r\n]+', '', sentence)
-            words = [w for w in cleaned.split() if w]
+            # -----------------------------------------------------------
+            # 2A. Parse sentence text into individual words
+            # -----------------------------------------------------------
+            cleaned_sentence = re.sub(r'["""„"''\r\n]+', '', sentence_text)
+            word_texts = [w for w in cleaned_sentence.split() if w]
             
-            if not words:
+            if not word_texts:
+                self.debug(f"Skipping empty sentence")
                 continue
             
-            # Divide sentence time equally among words
-            sent_duration = sent_end - sent_start
-            samples_per_word = sent_duration // len(words)
-
+            self.debug(f"Processing sentence: '{sentence_text}' → {len(word_texts)} words")
             
-            for word_idx, word in enumerate(words):
-                word_start = sent_start + (word_idx * samples_per_word)
-                word_end = sent_start + ((word_idx + 1) * samples_per_word)
-                if word_idx == len(words) - 1:  # Last word gets remainder
-                    word_end = sent_end
-                
-                # Extract EEG segment
-                eeg_segment = eeg[word_start:word_end]
-                
-                # Extract audio segment
-                audio_start = int(word_start * len(audio) / len(eeg))
-                audio_end = int(word_end * len(audio) / len(eeg))
-                audio_segment = audio[audio_start:audio_end].copy()
-                scaled_audio = np.int16(audio_segment * 32767)
-                all_audio_segments.append(audio_segment)
-                
-                # Compute spectrogram
-                spec_segment = extractMelSpecs(
-                    scaled_audio,
-                    48000,
-                    windowLength=0.05,
-                    frameshift=0.01
+            # -----------------------------------------------------------
+            # 2B. Extract sentence-level audio
+            # -----------------------------------------------------------
+            audio_start_sent = int(sent_stim_start * len(audio) / len(eeg))
+            audio_end_sent = int(sent_stim_end * len(audio) / len(eeg))
+            audio_sent = audio[audio_start_sent:audio_end_sent].copy()
+            
+            # -----------------------------------------------------------
+            # 2C. Use RMS to find word boundaries WITHIN this sentence
+            # -----------------------------------------------------------
+            try:
+                rms_result = self.detector.segment_sentence_by_rms(
+                    audio_sentence=audio_sent,
+                    audio_sr=self.config.audio_sr,
+                    words=word_texts,
+                    phonetic_dict=self.phonetic_dict
                 )
                 
-                all_words.append(word)
-                all_eeg_segments.append(eeg_segment)
-                all_spec_segments.append(spec_segment)
+                word_boundaries_in_sent = rms_result['word_boundaries_samples']
+                word_audio_segments = rms_result['word_segments']
                 
+            except Exception as e:
+                self.debug(f"Failed RMS segmentation for '{sentence_text}': {e}")
+                continue
+            
+            # -----------------------------------------------------------
+            # 2D. Extract each word's data from sentence
+            # -----------------------------------------------------------
+            for word_idx, word_text in enumerate(word_texts):
+                # Get word boundaries (in samples, relative to sentence audio)
+                word_audio_start_in_sent = int(word_boundaries_in_sent[word_idx])
+                word_audio_end_in_sent = int(word_boundaries_in_sent[word_idx + 1])
+                
+                # Map word audio boundaries to absolute audio indices
+                word_audio_start_abs = audio_start_sent + word_audio_start_in_sent
+                word_audio_end_abs = audio_start_sent + word_audio_end_in_sent
+                
+                # Map word audio boundaries to EEG indices
+                word_fraction_start = word_audio_start_in_sent / len(audio_sent)
+                word_fraction_end = word_audio_end_in_sent / len(audio_sent)
+                
+                sent_duration_eeg = sent_stim_end - sent_stim_start
+                word_eeg_start = sent_stim_start + int(word_fraction_start * sent_duration_eeg)
+                word_eeg_end = sent_stim_start + int(word_fraction_end * sent_duration_eeg)
+                
+                # Extract word EEG segment
+                word_eeg = eeg[word_eeg_start:word_eeg_end]
+                word_audio = word_audio_segments[word_idx]
+                
+                # -----------------------------------------------------------
+                # 2E. Validate word segment lengths
+                # -----------------------------------------------------------
+                min_eeg_frames = int(self.config.min_phoneme_duration * eeg_sr)
+                if len(word_eeg) < min_eeg_frames:
+                    self.debug(f"Skipping '{word_text}': EEG too short "
+                              f"({len(word_eeg)/eeg_sr*1000:.0f}ms < {min_eeg_frames/eeg_sr*1000:.0f}ms)")
+                    continue
+                
+                min_audio_samples = int((self.config.window_length + self.config.frameshift) * self.config.audio_sr)
+                if len(word_audio) < min_audio_samples:
+                    self.debug(f"Skipping '{word_text}': audio too short")
+                    continue
+                
+                # -----------------------------------------------------------
+                # 2F. Create spectrogram for this word
+                # -----------------------------------------------------------
+                try:
+                    # Downsample audio
+                    audio_down = decimate(
+                        word_audio,
+                        int(self.config.audio_sr / self.config.audio_target_sr)
+                    )
+                    
+                    # Check downsampled length
+                    min_audio_samples_down = int((self.config.window_length + self.config.frameshift) 
+                                                * self.config.audio_target_sr)
+                    if len(audio_down) < min_audio_samples_down:
+                        self.debug(f"Skipping '{word_text}': downsampled audio too short")
+                        continue
+                    
+                    # Normalize and convert to int16
+                    audio_normalized = audio_down / np.max(np.abs(audio_down) + 1e-10)
+                    audio_int16 = np.int16(audio_normalized * self.config.int16_max)
+                    
+                    # Extract mel spectrogram
+                    word_spec = extractMelSpecs(
+                        audio_int16,
+                        self.config.audio_target_sr,
+                        windowLength=self.config.window_length,
+                        frameshift=self.config.frameshift,
+                        numFilter=self.config.mel_num_filters
+                    )
+                    
+                except Exception as e:
+                    self.debug(f"Skipping '{word_text}': spectrogram failed ({e})")
+                    continue
+                
+                # Validate spectrogram
+                if word_spec.shape[0] < 3:
+                    self.debug(f"Skipping '{word_text}': spectrogram only {word_spec.shape[0]} frames")
+                    continue
+                
+                # -----------------------------------------------------------
+                # 2G. Store validated word segments
+                # -----------------------------------------------------------
+                all_word_texts.append(word_text)
+                all_word_eeg_segments.append(word_eeg)
+                all_word_spec_segments.append(word_spec)
+                all_word_audio_segments.append(word_audio)  # Original, not downsampled
         
+        # ===================================================================
+        # STEP 3: ORGANIZE WORDS INTO DICTIONARY
+        # ===================================================================
         words_dict = {}
-        for i, word in enumerate(all_words):
-            if word not in words_dict:
-                words_dict[word] = {'instances': []}
-            words_dict[word]['instances'].append({
-                'eeg_segment': all_eeg_segments[i],
-                'spectrogram_segment': all_spec_segments[i], 
-                'audio_segment': all_audio_segments[i]
+        
+        for i, word_text in enumerate(all_word_texts):
+            if word_text not in words_dict:
+                words_dict[word_text] = {'instances': []}
+            
+            words_dict[word_text]['instances'].append({
+                'eeg_segment': all_word_eeg_segments[i],
+                'spectrogram_segment': all_word_spec_segments[i],
+                'audio_segment': all_word_audio_segments[i]
             })
         
-        self.debug(f"Extracted {len(all_words)} word segments")
+        self.debug(f"Successfully extracted {len(all_word_texts)} word segments from {len(sentence_list)} sentences")
+        self.debug(f"Unique words: {len(words_dict)}")
         
+        # ===================================================================
+        # RETURN: Word-level data organized by unique words
+        # ===================================================================
         return {
-            'words': words_dict,
-            'words_list': all_words,
-            'eeg_segments': all_eeg_segments,
-            'spectrogram_segments': all_spec_segments,
-            'audio_segments': all_audio_segments,  
+            'words': words_dict,                          # Dict: word → instances
+            'words_list': all_word_texts,                 # List: all words in order
+            'eeg_segments': all_word_eeg_segments,        # List: EEG per word
+            'spectrogram_segments': all_word_spec_segments,  # List: spec per word
+            'audio_segments': all_word_audio_segments,    # List: audio per word
             'participant_id': participant_id
         }
     
@@ -385,29 +461,27 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
     
     def step4_custom_detector(self):
         """Initialize detector without BIDS decoder"""
-        print("Step 4: Initializing detector...")
-        from acoustic_change_detector import AcousticChangeDetector
-        
+        self.log("Step 4: Initializing detector...")
+                
         self.detector = AcousticChangeDetector(
-            min_segment_duration=0.03,
-            max_segment_duration=0.3,
+            config=self.config,
             phonetic_dict=self.phonetic_dict,
-            debug_mode=self.DEBUG_MODE
+            debug_mode=self.DEBUG_MODE,
+            feature_extraction_method=self.feature_extraction_method,
+            use_wav2vec=True
         )
         
-        # Critical: set decoder to self
         self.detector.decoder = self
-        #self.detector.split_result = self.split_result
-        
+                
         return self.detector
 
-    def step5_accumulate_data_dutch30(self, sample_fraction):
+    def step5_accumulate_data_dutch30(self):
         """Accumulate all available data for Dutch30"""
         
+
         # Calculate total samples and batches needed
         train_samples = 0
         test_samples = 0
-        val_samples = 0
         
         word_segments_dict = self.split_result['word_segments_dict']
         
@@ -423,23 +497,20 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 for word, indices in self.split_result['test'][pid].items():
                     test_samples += len(indices)
         
-        # Count val samples
-        if 'val' in self.split_result:
-            for pid in self.split_result['val']:
-                if pid in word_segments_dict:
-                    for word, indices in self.split_result['val'][pid].items():
-                        val_samples += len(indices)
         
-        self.debug(f"Available samples: train={train_samples}, test={test_samples}, val={val_samples}")
+        self.debug(f"Available samples: train={train_samples}, test={test_samples}")
         
-        # NOW use your flexible batch sizing logic
+        self.log(f"\nStep 5 starting:")
+        self.log(f"  Train patients: {list(self.split_result['train'].keys())}")
+        self.log(f"  Available samples: train={train_samples}, test={test_samples}")
+        
+        # flexible batch sizing logic
         if train_samples < 5000:
-            batch_size = 32
+            batch_size = 128
         elif train_samples < 20000:
-            batch_size = 64
+            batch_size = 256
         else:
             batch_size = 128
- 
         
         self.debug(f"Using batch_size={batch_size}")    
         
@@ -448,23 +519,53 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             split_result=self.split_result,
             batch_size=batch_size,
             feature_extraction_method=self.feature_extraction_method,
-            batch_type='train'
+            batch_type='train', 
+            standardize_channels=self.config.standardize_channels,
+            standardize_values=self.config.standardize_values   
         )
+        self.log(f"  Train accumulated: {len(self.train['features'])} samples, {len(set(self.train['phoneme_labels']))} phonemes")
         
         self.test = self.detector.accumulate_phoneme_data(
             split_result=self.split_result,
             batch_size=batch_size,
             feature_extraction_method=self.feature_extraction_method,
-            batch_type='test'
-        )
+            batch_type='test', 
+            standardize_channels=self.config.standardize_channels,
+            standardize_values=self.config.standardize_values   
+        )        
         
-        # Add val accumulation after test data in parent method
-        self.val = self.detector.accumulate_phoneme_data(
-            split_result=self.split_result,
-            batch_size=batch_size,
-            feature_extraction_method=self.feature_extraction_method,
-            batch_type='val'  # Requires 'val' in split_result
-        )
+        if self.feature_extraction_method in ['high_gamma', 'multi_band']:
+            # Per-patient trimming
+            self._trim_edge_phonemes_per_patient()
+            
+            # Duration filtering
+            self.train = self.filter_valid_phonemes(
+                dataset='train', 
+                min_duration=self.config.min_phoneme_duration, 
+                max_duration=self.config.max_phoneme_duration
+            )
+            self.log(f"  After filtering: {len(self.train['features'])} samples")
+            
+            self.test = self.filter_valid_phonemes(
+                dataset='test',
+                min_duration=self.config.min_phoneme_duration,
+                max_duration=self.config.max_phoneme_duration
+            )
+            
+            if hasattr(self, 'val'):
+                self.val = self.filter_valid_phonemes(
+                    dataset='val',
+                    min_duration=self.config.min_phoneme_duration,
+                    max_duration=self.config.max_phoneme_duration
+                )
+        else:
+            self.log(f"Skipping trimming for '{self.feature_extraction_method}'")
+            
+        # Subtract baselines (already extracted in step 2!)
+        if hasattr(self, 'patient_baselines'):
+            self.train = self.subtract_baseline(self.train, 'train', self.patient_baselines)
+            self.log(f"  After baseline: {len(self.train['features'])} samples")
+            self.test = self.subtract_baseline(self.test, 'test', self.patient_baselines)
         
         self.debug(f"Train phonemes: {set(self.train['phoneme_labels'])}")
         self.debug(f"Test phonemes: {set(self.test['phoneme_labels'])}")
@@ -474,75 +575,88 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             if label == '?':
                 unknown_words.add(self.train['phoneme_words'][i])
         self.debug(f"Words without phoneme mappings: {unknown_words}")
-
-        # STANDARDIZE AT END OF STEP 5
-        self.log("Standardizing features to (195, 133) at end of step 5")
-        
-        # Store original shapes for reference (optional but useful)
-        self._original_train_shapes = [f.shape for f in self.train['features']]
-        self._original_test_shapes = [f.shape for f in self.test['features']]
-        
-        # Now standardize
-        self.standardize_feature_shapes(target_channels=133)
         
         self.log(f"Step 5 complete: train={len(self.train['features'])}, "
-                 f"test={len(self.test['features'])}, val={len(self.val['features'])} samples")        
+                 f"test={len(self.test['features'])} samples")        
         
-        return self.train, self.test, self.val
-        
-    def step6_resolve_unknowns(self):
-        # Check what fields your accumulated data has
-        print("Train data keys:", self.train.keys())
-        print("Sample phoneme_labels:", self.train['phoneme_labels'][:5])
-        print("Unknown count:", self.train['phoneme_labels'].count('?'))
-
-        """Step 6: Initialize validator to resolve unknown phonemes"""        
-        self.train, self.test = super().step6_resolve_unknowns()
         return self.train, self.test
-    
-    def step8_convert_to_groups(self):
-        """Step 8: Convert phonemes to groups if use_phoneme_groups is True"""
-        if not self.use_phoneme_groups:
-            self.log("Step 8: Skipping group conversion (use_phoneme_groups=False)")
-            return
         
-        self.log("Step 8: Converting phonemes to groups...")
+    def analyze_phoneme_lengths(self):
+        """Analyze phoneme length distribution"""
+        phoneme_lengths = defaultdict(list)
         
-        # SAVE ORIGINAL PHONEME DATA FIRST
-        if hasattr(self, 'train') and self.train:
-            self.train_phonemes = {k: v.copy() if isinstance(v, list) else v 
-                                   for k, v in self.train.items()}
+        for i, label in enumerate(self.train['phoneme_labels']):
+            feat = self.train['features'][i]
+            n_frames = feat.shape[0]
+            duration = n_frames * self.config.frameshift
+            phoneme_lengths[label].append(duration)
         
-        if hasattr(self, 'test') and self.test:
-            self.test_phonemes = {k: v.copy() if isinstance(v, list) else v 
-                                  for k, v in self.test.items()}
+       
+        for phoneme in sorted(phoneme_lengths.keys()):
+            durations = phoneme_lengths[phoneme]
+            self.log(f"\n{phoneme}: {len(durations)} samples")
+            self.log(f"  Duration range: {min(durations):.3f}s - {max(durations):.3f}s")
+            self.log(f"  Mean ± Std: {np.mean(durations):.3f}s ± {np.std(durations):.3f}s")
+            self.log(f"  CV: {(np.std(durations)/np.mean(durations)*100):.1f}%")
+            
+            if (np.std(durations)/np.mean(durations)) > self.config.max_phoneme_duration:
+                self.log(f"HIGH LENGTH VARIATION!")
+
+    def dutch30_step6_resolve_unknowns(self):
+        """Step 6: Initialize validator to resolve unknown phonemes (Dutch30-specific)"""
         
-        # NOW convert to groups
-        if hasattr(self, 'train') and self.train:
-            self.train = self._convert_labels_to_groups(self.train)
+        self.log(f"Train data keys: {self.train.keys()}")
+        self.log(f"Sample phoneme_labels: {self.train['phoneme_labels'][:5]}")
+        self.log(f"Unknown count: {self.train['phoneme_labels'].count('?')}")
         
-        if hasattr(self, 'test') and self.test:
-            self.test = self._convert_labels_to_groups(self.test)
+        # Initialize validator with detector
+        validator = PhonemeValidator(
+            detector=self.detector,
+            debug_mode=self.DEBUG_MODE
+        )
         
-        # Also save group versions
-        self.train_groups = self.train
-        self.test_groups = self.test
+        self.validator = validator
         
-        # Log the results
-        if self.train:
-            from collections import Counter
-            train_groups = Counter(self.train['phoneme_labels'])
-            self.log(f"Train data: {len(train_groups)} groups, {dict(train_groups)}")
+        if self.DEBUG_MODE:
+            self.validator.enable_debug()
         
-        self.log("Step 8: Conversion to groups complete")
-        return self
+        self.log("Step 6: Validator initialized")
+        
+        # Resolve unknowns in training data 
+        unknown_count = self.train['phoneme_labels'].count('?')
+        if unknown_count > 0:
+            self.log(f"Resolving {unknown_count} unknown phonemes in training...")
+            
+            self.train = self.validator.resolve_unknown_phonemes(
+                self.train
+            )
+        
+        # Resolve unknowns in test data
+        if self.test is not None and len(self.test.get('phoneme_labels', [])) > 0:
+            test_unknown = self.test['phoneme_labels'].count('?')
+            self.log(f"Test unknowns: {test_unknown}")
+            
+            if test_unknown > 0:
+                self.test = self.validator.resolve_unknown_phonemes(self.test)
+        
+        # Check remaining unknowns
+        train_unknown_after = self.train['phoneme_labels'].count('?')
+        test_unknown_after = self.test['phoneme_labels'].count('?') if self.test else 0
+        
+        if train_unknown_after > 0 or test_unknown_after > 0:
+            self.log(f"WARNING: Still {train_unknown_after} unknown in train, {test_unknown_after} in test")
+        
+        self.log(f"Step 6 complete: {len(self.train['features'])} train, {len(self.test['features']) if self.test else 0} test")
+        self.log(f"  Unknown remaining: {train_unknown_after} train, {test_unknown_after} test")
+        
+        return self.train, self.test
     
     def analyze_dutch30_channels(self):
         """Run channel analysis for Dutch30 patients"""
         
         os.makedirs(os.path.join(self.path_results, 'channel_analysis'), exist_ok=True)
         
-        split_info = self.dutch30_extractor.create_patient_split()
+        split_info = self.split_info
         all_patients = split_info['train'] + split_info['val'] + split_info['test']
         
         for pid in all_patients:
@@ -550,17 +664,17 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                                       f'{pid}_channel_correlations.npy')
             
             if os.path.exists(result_path):
-                print(f"{pid}: Already analyzed")
+                self.log(f"{pid}: Already analyzed")
                 continue
                 
-            print(f"Analyzing {pid}...")
+            self.log(f"Analyzing {pid}...")
             
             # Load raw EEG data for this patient
             eeg_path = os.path.join(self.dutch30_extractor.data_dir, f'{pid}_sEEG.npy')
             stimuli_path = os.path.join(self.dutch30_extractor.data_dir, f'{pid}_stimuli.npy')
             
             if not os.path.exists(eeg_path):
-                print(f"  {pid}: EEG file not found")
+                self.log(f"  {pid}: EEG file not found")
                 continue
             
             eeg = np.load(eeg_path)
@@ -590,7 +704,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                     }
             
             np.save(result_path, channel_results)
-            print(f"  {pid}: Analyzed {n_channels} channels")     
+            self.log(f"  {pid}: Analyzed {n_channels} channels")     
             
     def get_data_batch(self, split_result, batch_type='train', **kwargs):
         """Override to handle flat list format"""
@@ -612,6 +726,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         return super().get_data_batch(split_result, batch_type, **kwargs)
         
+    '''
     def checkpoint_after_step6(self, sample_fraction=None):
         """Save checkpoint with sample fraction in filename"""
         
@@ -707,7 +822,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         except Exception as e:
             self.log(f"Error loading checkpoint: {e}")
             return False
-
+'''
     def run_step1_to_step6(self, sample_fraction=0.0001, force_reprocess=False):
         """Run Dutch30-specific steps 1-6"""
         
@@ -718,17 +833,18 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         try:
             # Dutch30 custom steps
             self.step1_load_dutch30_data(sample_fraction)
+            self.step2_split_by_instances()
             self.step2_3_use_existing_split()
             self.step4_custom_detector()
             
             # Modified step 5 for Dutch30
-            self.train, self.test, self.val = self.step5_accumulate_data_dutch30(sample_fraction)
+            self.train, self.test, self.val = self.step5_accumulate_data_dutch30()
             
             # Reuse parent's step 6
-            self.step6_resolve_unknowns()
+            self.dutch30_step6_resolve_unknowns()
             
             # Save checkpoint with sample fraction
-            self.checkpoint_after_step6(sample_fraction)
+            #self.checkpoint_after_step6(sample_fraction)
             
         except Exception as e:
             self.log(f"Error in Dutch30 steps 1-6: {e}")
@@ -736,18 +852,9 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         return self
 
-    def run_step7_and_beyond(self):
-        """Run steps 7 and beyond."""
-        self.log("Step 7: Filtering unknowns")
-        self.step7_filter_unknowns()
-        
-        return self            
-    
-    # 18.10.2025 temp debugging method
     def debug_sentence_parsing(self, participant_id, max_samples=10):
         """
         Comprehensive debug to understand sentence → word → phoneme parsing
-        Add this method to your Dutch30Pipeline class
         """
         self.log("\n" + "="*80)
         self.log(f"SENTENCE PARSING DEBUG: {participant_id}")
@@ -799,8 +906,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 self.log(f"MULTI-WORD STIMULUS - needs splitting!")
             
         # 3. PHONEME LOOKUP
-        print("\n[3] PHONEME LOOKUP")
-        print("-" * 80)
+        self.log("\n[3] PHONEME LOOKUP")
+        self.log("-" * 80)
         
         for i, label in enumerate(unique_stimuli[:max_samples]):
             label_str = label.decode() if isinstance(label, bytes) else str(label)
@@ -815,8 +922,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                     self.log(f"  '{word}' → NOT FOUND in dictionary")
         
         # 4. BOUNDARY DETECTION SIMULATION
-        print("\n[4] BOUNDARY DETECTION SIMULATION")
-        print("-" * 80)
+        self.log("\n[4] BOUNDARY DETECTION SIMULATION")
+        self.log("-" * 80)
         
         # Get actual word segments
         word_result = self.segment_data_by_words(participant_id)
@@ -843,8 +950,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 # Simulate boundary detection
                 boundary_result = self.detector.detect_boundaries(
                     spectrogram=spec,
-                    word=word,
-                    frameshift=0.01
+                    word=word
                 )
                 
                 detected_count = len(boundary_result['segments'])
@@ -861,8 +967,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 self.log(f"  Word not in dictionary")
         
         # 5. SUMMARY STATISTICS
-        print("\n[5] SUMMARY")
-        print("-" * 80)
+        self.log("\n[5] SUMMARY")
+        self.log("-" * 80)
         
         # Count multi-word vs single-word stimuli
         multi_word_count = sum(1 for s in stimuli if len((s.decode() if isinstance(s, bytes) else str(s)).split()) > 1)
@@ -880,4 +986,388 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         found_words = sum(1 for w in unique_words if self.phonetic_dict.extract_phonemes(w))
         self.log(f"\nDictionary coverage: {found_words}/{len(unique_words)} unique words ({100*found_words/len(unique_words):.1f}%)")
         
-        print("\n" + "="*80)
+        self.log("\n" + "="*80)
+        
+    '''
+    def trim_edge_phonemes_to_mean(self, dataset='train'):
+        """
+        Trim first and last phonemes to match mean duration of middle phonemes.
+        """
+       
+        data = getattr(self, dataset)
+        
+        features = data['features']
+        positions = data.get('phoneme_positions', [0] * len(features))
+        words = data.get('phoneme_words', ['unknown'] * len(features))
+        
+        # Step 1: Calculate mean length of middle phonemes
+        middle_lengths = []
+        
+        for i, feat in enumerate(features):
+            position = positions[i]
+            word = words[i]
+            
+            # Get expected phoneme count for this word
+            if hasattr(self, 'detector') and hasattr(self.detector, 'phonetic_dict'):
+                try:
+                    expected_phonemes = self.detector.phonetic_dict.extract_phonemes(word)
+                    n_phonemes = len(expected_phonemes)
+                except:
+                    n_phonemes = None
+            else:
+                n_phonemes = None
+            
+            # Check if it's a middle phoneme
+            if n_phonemes and n_phonemes > 2:  # Only for words with 3+ phonemes
+                if position > 0 and position < n_phonemes - 1:
+                    middle_lengths.append(feat.shape[0])
+        
+        if len(middle_lengths) == 0:
+            self.debug("No middle phonemes found - skipping trim")
+            return
+        
+        target_length = int(np.mean(middle_lengths))
+        self.log(f"Middle phonemes: {len(middle_lengths)} samples")
+        self.log(f"Mean length: {target_length} frames ({target_length * self.config.frameshift:.3f}s)")
+        self.log(f"Std: {np.std(middle_lengths):.1f} frames")
+        
+        # Step 2: Trim first and last phonemes
+        trimmed_features = []
+        trim_stats = {'first_trimmed': 0, 'last_trimmed': 0, 'unchanged': 0}
+        
+        for i, feat in enumerate(features):
+            position = positions[i]
+            word = words[i]
+            current_length = feat.shape[0]
+            
+            # Get expected phoneme count
+            if hasattr(self, 'detector') and hasattr(self.detector, 'phonetic_dict'):
+                expected_phonemes = self.detector.phonetic_dict.extract_phonemes(word)
+                # Filter out '?' phonemes
+                valid_phonemes = [p for p in expected_phonemes if p != '?']
+                n_phonemes = len(valid_phonemes) if valid_phonemes else None                
+
+            else:
+                n_phonemes = None
+            
+            # Determine if first or last
+            is_first = (n_phonemes and position == 0)
+            is_last = (n_phonemes and n_phonemes > 1 and position == n_phonemes - 1)
+            
+            if is_first and current_length > target_length:
+                # Trim from START (keep end that borders next phoneme)
+                trim_amount = current_length - target_length
+                trimmed_feat = feat[trim_amount:, :]  # Keep the end
+                trimmed_features.append(trimmed_feat)
+                trim_stats['first_trimmed'] += 1
+                
+            elif is_last and current_length > target_length:
+                # Trim from END (keep start that borders previous phoneme)
+                trimmed_feat = feat[:target_length, :]  # Keep the start
+                trimmed_features.append(trimmed_feat)
+                trim_stats['last_trimmed'] += 1
+                
+            else:
+                # Keep as is (middle phonemes or already short enough)
+                trimmed_features.append(feat)
+                trim_stats['unchanged'] += 1
+        
+        # Step 3: Update the dataset
+        data['features'] = trimmed_features
+        
+        # Print summary
+        self.log(f"\nTrimming summary:")
+        self.log(f"  First phonemes trimmed: {trim_stats['first_trimmed']}")
+        self.log(f"  Last phonemes trimmed: {trim_stats['last_trimmed']}")
+        self.log(f"  Unchanged: {trim_stats['unchanged']}")
+        
+        # Recalculate statistics after trimming
+        new_lengths = [f.shape[0] for f in trimmed_features]
+        self.log(f"\nAfter trimming:")
+        self.log(f"  Mean length: {np.mean(new_lengths):.1f} frames ({np.mean(new_lengths) * self.config.frameshift:.3f}s)")
+        self.log(f"  Std: {np.std(new_lengths):.1f} frames")
+        self.log(f"  CV: {(np.std(new_lengths) / np.mean(new_lengths) * 100):.1f}%")
+        
+        return data
+        '''
+        
+    def _trim_edge_phonemes_per_patient(self):
+        """Calculate per-patient targets from train, apply to all datasets."""
+        
+        # Calculate targets from train only
+        patient_targets = {}
+        for pid in set(self.train['phoneme_participant_ids']):
+            middle_lengths = []
+            for i, p in enumerate(self.train['phoneme_participant_ids']):
+                if p != pid:
+                    continue
+                
+                feat = self.train['features'][i]
+                pos = self.train['phoneme_positions'][i]
+                word = self.train['phoneme_words'][i]
+                
+                phonemes = self.detector.phonetic_dict.extract_phonemes(word)
+                n_phonemes = len([p for p in phonemes if p != '?']) if phonemes else None
+                
+                if n_phonemes and n_phonemes > 2 and 0 < pos < n_phonemes - 1:
+                    middle_lengths.append(feat.shape[0])
+            
+            if middle_lengths:
+                patient_targets[pid] = int(np.mean(middle_lengths))
+        
+        # Apply to all datasets
+        for dataset_name in ['train', 'test', 'val']:
+            if not hasattr(self, dataset_name):
+                continue
+            
+            data = getattr(self, dataset_name)
+            trimmed = []
+            
+            for i, feat in enumerate(data['features']):
+                pid = data['phoneme_participant_ids'][i]
+                pos = data['phoneme_positions'][i]
+                word = data['phoneme_words'][i]
+                
+                if pid not in patient_targets:
+                    trimmed.append(feat)
+                    continue
+                
+                target = patient_targets[pid]
+                phonemes = self.detector.phonetic_dict.extract_phonemes(word)
+                n = len([p for p in phonemes if p != '?']) if phonemes else None
+                
+                is_first = n and pos == 0
+                is_last = n and n > 1 and pos == n - 1
+                
+                if is_first and feat.shape[0] > target:
+                    trimmed.append(feat[-target:, :])
+                elif is_last and feat.shape[0] > target:
+                    trimmed.append(feat[:target, :])
+                else:
+                    trimmed.append(feat)
+            
+            data['features'] = trimmed
+            self.log(f"  {dataset_name}: Trimmed to per-patient targets")
+        
+    def filter_valid_phonemes(self, dataset: str ='train', min_duration: float = None, max_duration: float = None) -> dict:
+        """
+        Remove phonemes with invalid durations.
+        
+        Parameters:
+        -----------
+        dataset : str
+            'train', 'test', or 'val'
+
+        """
+        min_duration = self.config.min_phoneme_duration
+        max_duration = self.config.max_phoneme_duration
+        self.log(f"\nFiltering {dataset} phonemes by duration [{min_duration}, {max_duration}]s")
+        
+        data = getattr(self, dataset)  # Get self.train or self.test or self.val
+        
+        valid_indices = []
+        
+        for i, feat in enumerate(data['features']):
+            duration = feat.shape[0] * self.config.frameshift  # frames to seconds
+            if min_duration <= duration <= max_duration:
+                valid_indices.append(i)
+        
+        removed = len(data['features']) - len(valid_indices)
+        self.log(f"Filtered out {removed}/{len(data['features'])} phonemes "
+                 f"({removed/len(data['features'])*100:.1f}%) outside duration range")
+        
+        # Return filtered data
+        return {
+            'features': [data['features'][i] for i in valid_indices],
+            'phoneme_labels': [data['phoneme_labels'][i] for i in valid_indices],
+            'phoneme_words': [data['phoneme_words'][i] for i in valid_indices],
+            'phoneme_positions': [data['phoneme_positions'][i] for i in valid_indices] if 'phoneme_positions' in data else [],
+            'phoneme_participant_ids': [data['phoneme_participant_ids'][i] for i in valid_indices] if 'phoneme_participant_ids' in data else [],
+            'spectrograms': [data['spectrograms'][i] for i in valid_indices] if 'spectrograms' in data else [],
+            'metadata': data.get('metadata', {})
+        }
+        
+    def _extract_baseline_from_silence(self, audio, eeg):
+        """
+        Extract baseline from silence periods using audio energy threshold.
+        """
+        
+        # Process audio
+        audio_down  = decimate(audio, int(self.config.audio_sr / self.config.audio_target_sr))
+        scaled      = np.int16(audio_down / np.max(np.abs(audio_down)) * self.config.int16_max)
+        
+        window_length   = self.config.window_length
+        frameshift      = self.config.frameshift
+        eeg_sr          = self.config.eeg_sr
+        
+        # Extract mel spectrogram
+        melspec = extractMelSpecs(
+            scaled, 
+            self.config.audio_target_sr,
+            windowLength=window_length,
+            frameshift=frameshift,
+            numFilter=self.config.mel_num_filters
+        )
+        
+        # Detect silence
+        spec_avg = np.mean(melspec, axis=1)
+        threshold = (np.max(spec_avg) + np.min(spec_avg)) * self.config.silence_threshold_factor
+        is_silence = spec_avg < threshold
+        
+        # Find CONTINUOUS silence blocks (not individual frames)
+        silence_blocks = []
+        in_silence = False
+        block_start = None
+        
+        for i, silent in enumerate(is_silence):
+            if silent and not in_silence:
+                # Start of silence block
+                block_start = i
+                in_silence = True
+            elif not silent and in_silence:
+                # End of silence block
+                block_end = i
+                silence_blocks.append((block_start, block_end))
+                in_silence = False
+        
+        # Handle case where recording ends in silence
+        if in_silence:
+            silence_blocks.append((block_start, len(is_silence)))
+        
+        self.debug(f"Found {len(silence_blocks)} silence blocks")
+        
+        # Extract EEG from silence blocks (only if long enough)
+        baseline_features = []
+        min_silence_duration = self.config.min_silence_duration
+        
+        for block_start, block_end in silence_blocks:
+            # Duration in seconds
+            block_duration = (block_end - block_start) * frameshift  # 10ms frameshift
+            
+            if block_duration < min_silence_duration:
+                continue  # Skip short silence blocks
+            
+            # Convert to EEG samples
+            eeg_start = int(block_start * frameshift * eeg_sr)
+            eeg_end = int(block_end * frameshift * eeg_sr)
+            
+            if eeg_end <= len(eeg):
+                silence_eeg = eeg[eeg_start:eeg_end]
+                
+                # Check if segment is long enough for extractHG
+                min_samples = int((window_length + frameshift) * eeg_sr)  # windowLength + frameshift
+                if len(silence_eeg) < min_samples:
+                    continue
+                
+                try:
+                    # Extract high-gamma features from silence
+                    silence_feat = extractHG(
+                        silence_eeg, 
+                        eeg_sr,
+                        windowLength = window_length,
+                        frameshift = frameshift
+                    )
+                    
+                    if silence_feat.shape[0] > 0:
+                        baseline_features.append(silence_feat)
+                except Exception as e:
+                    self.debug(f"Error extracting features from silence block: {e}")
+                    continue
+        
+        # Average all silence
+        if len(baseline_features) > 0:
+            all_silence = np.vstack(baseline_features)
+            baseline = np.mean(all_silence, axis=0)
+            self.debug(f"Baseline: {len(baseline_features)} blocks, {all_silence.shape[0]} frames total")
+            return baseline
+        else:
+            self.debug("Warning: No usable silence blocks found!")
+            return None
+            
+    def subtract_baseline(self, data, dataset_name, baseline_dict):
+        """
+        Subtract per-patient baseline from features.
+        Automatically pads baseline to match feature dimensions.
+        """
+        self.log(f"\nSubtracting baseline for {dataset_name}:")
+        
+        features = data['features']
+        participants = data.get('phoneme_participant_ids', [])
+        
+        corrected_features = []
+        corrected_count = 0
+        
+        for i, feat in enumerate(features):
+            pid = participants[i] if i < len(participants) else None
+            
+            if pid in baseline_dict:
+                baseline = baseline_dict[pid]  # Shape: (n_channels,)
+                
+                # Pad baseline to match feature dimensions if needed
+                n_feat_channels = feat.shape[1]
+                n_baseline_channels = baseline.shape[0]
+                
+                if n_baseline_channels < n_feat_channels:
+                    # Pad baseline with zeros to match
+                    padded_baseline = np.zeros(n_feat_channels)
+                    padded_baseline[:n_baseline_channels] = baseline
+                    baseline = padded_baseline
+                    self.debug(f"Padded baseline for {pid}: {n_baseline_channels} → {n_feat_channels} channels")
+                elif n_baseline_channels > n_feat_channels:
+                    # Trim baseline (shouldn't happen but handle it)
+                    baseline = baseline[:n_feat_channels]
+                    self.debug(f"Trimmed baseline for {pid}: {n_baseline_channels} → {n_feat_channels} channels")
+                
+                # Subtract baseline from all time frames
+                corrected_feat = feat - baseline
+                corrected_features.append(corrected_feat)
+                corrected_count += 1
+            else:
+                # No baseline for this patient - keep as is
+                corrected_features.append(feat)
+        
+        data['features'] = corrected_features
+        
+        self.log(f"  Features corrected: {corrected_count}/{len(features)}")
+        self.log(f"  Features unchanged: {len(features) - corrected_count}")
+        
+        return data
+        
+    def sample_split(self, split_info, sample_fraction):
+        """Sample patients from each split proportionally"""
+        sampled_split = {}
+        
+        for split_type in ['train', 'val', 'test']:
+            full_list = split_info[split_type]
+            n_total = len(full_list)
+            n_sample = max(1, int(n_total * sample_fraction))
+            
+            sampled_split[split_type] = full_list[:n_sample]
+            self.log(f"  {split_type}: {n_sample}/{n_total} patients")
+        
+        return sampled_split
+        
+    def _extract_baseline_from_silence(self, audio, eeg):
+        """Extract baseline EEG from silence periods in audio."""
+        window_size = int(0.5 * self.config.audio_sr)  # 500ms
+        silence_threshold = np.sqrt(np.mean(audio**2)) * 0.1
+        
+        segment_averages = []  # Store averages, not raw segments
+        
+        for i in range(0, len(audio) - window_size, window_size):
+            window_rms = np.sqrt(np.mean(audio[i:i+window_size]**2))
+            if window_rms < silence_threshold:
+                eeg_start = int(i * len(eeg) / len(audio))
+                eeg_end = int((i + window_size) * len(eeg) / len(audio))
+                
+                # Average THIS segment immediately, don't store raw data
+                segment_avg = np.mean(eeg[eeg_start:eeg_end], axis=0)
+                segment_averages.append(segment_avg)
+        
+        if segment_averages:
+            # Average across segment averages (much smaller!)
+            baseline = np.mean(segment_averages, axis=0)
+        else:
+            baseline = np.zeros(eeg.shape[1])
+        
+        return baseline

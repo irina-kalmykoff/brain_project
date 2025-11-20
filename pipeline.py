@@ -16,7 +16,7 @@ from scipy.interpolate import interp1d
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
-from diverse_models import SimplePhonemeModels
+#from diverse_models import SimplePhonemeModels
 from acoustic_change_detector import AcousticChangeDetector
 from custom_decoder import CustomBrainAudioDecoder
 from markov_phoneme_model import MarkovPhonemeModel
@@ -242,7 +242,7 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
         self.debug("Step 4: Detector initialized")
         return self.detector
     
-    def step5_accumulate_data(self, train_batches=5, test_batches=3, batch_size=32):
+    def step5_accumulate_data(self, train_batches=5, test_batches=3, batch_size=100):
         """Step 5: Accumulate training and test data"""
         
         # Check if detector and split_result are available
@@ -316,9 +316,10 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
     def step6_resolve_unknowns(self):
         """Step 6: Initialize validator to resolve unknown phonemes"""        
         
-        self.validator = PhonemeValidator(detector=self.detector)
-        if self.debug:
-            self.validator.enable_debug()
+        validator = PhonemeValidator(
+            phonetic_dict=self.phonetic_dict,
+            debug_mode=self.DEBUG_MODE
+        )
         
         self.step_outputs['validator'] = self.validator
         self.log("Step 6: Validator initialized")
@@ -1873,45 +1874,3 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
             self.log(f"Error loading H5 file {filepath}: {e}")
             return None
             
-     
-    def standardize_feature_shapes(self, target_channels=133):
-        """Standardize feature channel counts by padding or truncating (keeps time dimension variable)"""
-        self.log(f"Standardizing features to {target_channels} channels (keeping variable time)")
-    
-        def standardize_array(arr, target_channels):
-            """Pad or truncate channels only, preserve time dimension"""
-            if arr.shape[1] == target_channels:
-                return arr
-            
-            # Create result with same time, target channels
-            result = np.zeros((arr.shape[0], target_channels))
-            
-            # Copy data (truncate channels if necessary)
-            min_channels = min(arr.shape[1], target_channels)
-            result[:, :min_channels] = arr[:, :min_channels]
-            
-            return result
-        
-        # Standardize training data
-        if hasattr(self, 'train') and self.train and 'features' in self.train:
-            self.train['features'] = [
-                standardize_array(feat, target_channels) 
-                for feat in self.train['features']
-            ]
-            self.log(f"Standardized {len(self.train['features'])} train features")
-        
-        # Standardize test data
-        if hasattr(self, 'test') and self.test and 'features' in self.test:
-            self.test['features'] = [
-                standardize_array(feat, target_channels)
-                for feat in self.test['features']
-            ]
-            self.log(f"Standardized {len(self.test['features'])} test features")
-        
-        # Standardize val data
-        if hasattr(self, 'val') and self.val and 'features' in self.val:
-            self.val['features'] = [
-                standardize_array(feat, target_channels)
-                for feat in self.val['features']
-            ]
-            self.log(f"Standardized {len(self.val['features'])} val features")

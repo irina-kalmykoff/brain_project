@@ -983,7 +983,6 @@ class PhonemeValidator(DebugMixin):
             if resolved:
                 labels[i] = resolved
                 resolved_count += 1
-                #self.debug(f"Resolved phoneme at position {position} in '{word}' as '{resolved}'")
         
         self.debug(f"Resolved {resolved_count} out of {unknown_count} unknown phonemes")
         
@@ -999,7 +998,7 @@ class PhonemeValidator(DebugMixin):
             
             # Check if position is valid
             if 0 <= position < len(phonemes):
-                self.log(f"Resolved phoneme at position {position} in '{word}' as '{phonemes[position]}'")
+                #self.debug(f"Resolved phoneme at position {position} in '{word}' as '{phonemes[position]}'")
                 return phonemes[position]
         
         # 2. If no transcription, try to infer based on Dutch spelling rules

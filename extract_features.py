@@ -148,7 +148,7 @@ def downsampleLabels(labels, sr, windowLength=0.05, frameshift=0.01):
     return np.array([label.decode() for label in newLabels])
 
 
-def extractMelSpecs(audio, sr, windowLength=0.05, frameshift=0.01):
+def extractMelSpecs(audio, sr, windowLength=0.05, frameshift=0.01, numFilter = 23): #numFilter = 23 added later
     """
     Extract logarithmic mel-scaled spectrogram, traditionally used to compress audio spectrograms
     
@@ -179,7 +179,8 @@ def extractMelSpecs(audio, sr, windowLength=0.05, frameshift=0.01):
         a = audio[start_audio:stop_audio]
         spec = np.fft.rfft(win*a)
         spectrogram[w,:] = spec
-    mfb = mel.MelFilterBank(spectrogram.shape[1], 23, sr)
+    #mfb = mel.MelFilterBank(spectrogram.shape[1], 23, sr) old version
+    mfb = mel.MelFilterBank(spectrogram.shape[1], numFilter, sr) # new version
     spectrogram = np.abs(spectrogram)
     spectrogram = (mfb.toLogMels(spectrogram)).astype('float')
     return spectrogram

@@ -260,6 +260,7 @@ class BrainAudioDecoder:
         
         return features, spectrogram, words, feature_names
     
+    '''
     def train_test_model(self, participant_id, save_audio=True):
         """
         Train and test the model for a single participant
@@ -428,6 +429,7 @@ class BrainAudioDecoder:
             'explained_variance': explained_variance,
             'random_control': random_control
         }
+    '''
     
     def create_audio(self, spectrogram, audiosr=16000, winLength=0.05, frameshift=0.01):
         """
@@ -468,6 +470,7 @@ class BrainAudioDecoder:
         scaled = np.int16(rec_audio / np.max(np.abs(rec_audio)) * 32767)
         return scaled
     
+    '''
     def evaluate_performance(self, participant_id=None):
         """
         Evaluate model performance
@@ -524,6 +527,7 @@ class BrainAudioDecoder:
                 'individual_metrics': all_metrics,
                 'average_metrics': avg_metrics
             }
+            '''
             
     def analyze_channels(self, participant_id):
         """

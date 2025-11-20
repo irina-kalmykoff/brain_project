@@ -66,7 +66,7 @@ class MarkovPhonemeModel(DebugMixin):
         self.initial_probs = {}
         
         # Simple acoustic classifier (will be trained on features)
-        self.acoustic_classifier = None
+        self.neural_classifier = None
         self.feature_scaler = None
         self.trained_classes = None
         self.class_to_index = None
@@ -81,7 +81,7 @@ class MarkovPhonemeModel(DebugMixin):
         
         self.log(f"Initialized MarkovPhonemeModel with order={order}")
     
-    def train(self, features, phoneme_labels, words=None, participant_ids=None):
+    def train(self, features: list, phoneme_labels: list, words=None, participant_ids=None) -> dict:
         """
         Train the Markov chain model.
         
@@ -95,13 +95,8 @@ class MarkovPhonemeModel(DebugMixin):
             List of words each phoneme belongs to
         participant_ids : list or None
             List of participant IDs
-            
-        Returns:
-        --------
-        dict
-            Training results
         """
-        self.log("Training Markov chain model...")
+        self.log("Training Markov chain model")
         
         # Filter out samples with NaN or Inf features
         valid_indices = []
@@ -161,7 +156,7 @@ class MarkovPhonemeModel(DebugMixin):
         
         # Rest of the training continues as normal
         self._build_transition_model(training_labels, words)
-        self._build_acoustic_model(features, training_labels)
+        self._build_neural_model(features, training_labels)
         self._build_initial_probs(training_labels, words)
         
         #self.save_model()
@@ -226,11 +221,11 @@ class MarkovPhonemeModel(DebugMixin):
                                   
         self.log(f"Built transition model with {len(self.transition_probs)} contexts")
     
-    def _build_acoustic_model(self, features, group_labels):
+    def _build_neural_model(self, features, group_labels):
         """
-        Build a simple acoustic model using averaged features per group.
+        Build a simple emission model using averaged features per group.
         """
-        self.log("Building acoustic model...")
+        self.log("Building neural model")
     
         # Flatten features
         flattened_features = []
@@ -252,7 +247,6 @@ class MarkovPhonemeModel(DebugMixin):
         X = X[valid_indices]
         y = [group_labels[i] for i in valid_indices]
         
-        
         # IMPORTANT: Track which groups we're training on
         self.trained_groups = sorted(list(set(y)))
         self.log(f"Training on groups: {self.trained_groups}")
@@ -267,15 +261,16 @@ class MarkovPhonemeModel(DebugMixin):
         
         X_scaled += np.random.normal(0, 0.01, X_scaled.shape)
         # Train classifier with balanced class weights
-        self.acoustic_classifier = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=5,
+        self.neural_classifier = RandomForestClassifier(
+            n_estimators=200,
+            max_depth=15,
             min_samples_split=10,  # to prevent overfitting
-            min_samples_leaf=5,   #  to prevent overfitting
+            min_samples_leaf=2,   #  to prevent overfitting
             class_weight='balanced',  # This helps with imbalanced classes
+            max_features='sqrt',        # Add: prevents correlation between trees
             random_state=42
         )
-        self.acoustic_classifier.fit(X_scaled, y_encoded)
+        self.neural_classifier.fit(X_scaled, y_encoded)
         
         self.log(f"Trained acoustic model on {len(X)} samples with {len(self.trained_groups)} groups")
         
@@ -283,7 +278,7 @@ class MarkovPhonemeModel(DebugMixin):
         """
         Build initial state probabilities.
         """
-        self.log("Building initial state probabilities...")
+        self.log("Building initial state probabilities")
         
         if words is not None:
             # Count first phoneme of each word
@@ -325,7 +320,7 @@ class MarkovPhonemeModel(DebugMixin):
         tuple
             (predicted_groups, probabilities)
         """
-        if self.acoustic_classifier is None:
+        if self.neural_classifier is None:
             self.log("Error: Model must be trained before prediction")
             return None, None
     
@@ -345,8 +340,8 @@ class MarkovPhonemeModel(DebugMixin):
         X_scaled = self.feature_scaler.transform(X)
         
         # Get predictions from classifier
-        classifier_probs = self.acoustic_classifier.predict_proba(X_scaled)
-        classifier_preds = self.acoustic_classifier.predict(X_scaled)
+        classifier_probs = self.neural_classifier.predict_proba(X_scaled)
+        classifier_preds = self.neural_classifier.predict(X_scaled)
         
         # Debug first prediction
         if len(classifier_preds) > 0:
@@ -521,7 +516,7 @@ class MarkovPhonemeModel(DebugMixin):
         model_data = {
             'transition_probs': self.transition_probs,
             'initial_probs': self.initial_probs,
-            'acoustic_classifier': self.acoustic_classifier,
+            'neural_classifier': self.neural_classifier,
             'feature_scaler': self.feature_scaler,
             'group_encoder': self.group_encoder,
             'order': self.order
@@ -542,7 +537,7 @@ class MarkovPhonemeModel(DebugMixin):
         
         self.transition_probs = model_data['transition_probs']
         self.initial_probs = model_data['initial_probs']
-        self.acoustic_classifier = model_data['acoustic_classifier']
+        self.neural_classifier = model_data['neural_classifier']
         self.feature_scaler = model_data['feature_scaler']
         self.group_encoder = model_data['group_encoder']
         self.order = model_data['order']

@@ -5,11 +5,12 @@ import pandas as pd
 import numpy as np
 from debugger import DebugMixin
 from config import BIDS_PATH, OUTPUT_PATH, RESULTS_PATH, DUTCH_30_PATH, DUTCH_10_PATH, get_dataset_paths
+from dataset_config import Dutch30Config
 
 class Dutch30FeatureExtractor(DebugMixin):
     """Fixed version that properly handles patient categorization"""
     
-    def __init__(self, sampling_rate=1024):
+    def __init__(self, config: Dutch30Config = None):
         
         # Initialize the DebugMixin
         super().__init__(class_name="Dutch30FeatureExtractor", debug_mode=False)
@@ -23,11 +24,13 @@ class Dutch30FeatureExtractor(DebugMixin):
             self.results_dir = os.path.join(DUTCH_30_PATH, 'results')
             self.paths_30 = {'results_path': self.results_dir}
         
+        self.config = config if config is not None else Dutch30Config()
+        
         # Set data_dir - this is the critical attribute
         self.data_dir = os.path.join(DUTCH_30_PATH, 'raw')
         
         # Set sampling rate
-        self.sampling_rate = sampling_rate
+        self.sampling_rate = self.config.eeg_sr
         
         # Create results directory if it doesn't exist
         os.makedirs(self.results_dir, exist_ok=True)
@@ -35,11 +38,11 @@ class Dutch30FeatureExtractor(DebugMixin):
         # Set up HDF5 file paths
         self.raw_features_file = os.path.join(
             self.results_dir, 
-            f'raw_features_{sampling_rate}Hz.h5'
+            f'raw_features_{self.sampling_rate}Hz.h5'
         )
         self.padded_features_file = os.path.join(
             self.results_dir, 
-            f'padded_features_{sampling_rate}Hz.h5'
+            f'padded_features_{self.sampling_rate}Hz.h5'
         )
         self.split_file = os.path.join(
             self.results_dir, 
@@ -47,7 +50,7 @@ class Dutch30FeatureExtractor(DebugMixin):
         )
         self.final_data_file = os.path.join(
             self.results_dir, 
-            f'final_data_{sampling_rate}Hz.h5'
+            f'final_data_{self.sampling_rate}Hz.h5'
         )
         
         # Verify data directory exists
@@ -264,46 +267,6 @@ class Dutch30FeatureExtractor(DebugMixin):
             'labels': labels,
             'n_windows': len(labels)
         }
-
-    def pad_to_max_dimension(self, patient_data=None, force_repad=False):
-        """Pad and save to HDF5 without returning data"""
-        
-        if not force_repad and os.path.exists(self.padded_features_file):
-            print(f"Padded features already exist at {self.padded_features_file}")
-            return True  # Just return success, don't load the data
-        
-        # Load raw data if not provided
-        if patient_data is None:
-            if os.path.exists(self.raw_features_file):
-                patient_data = self.load_from_h5(self.raw_features_file)
-            else:
-                raise ValueError("No patient data available")
-        
-        # Find max dimension
-        max_dim = max(data['features'].shape[1] for data in patient_data.values())
-        print(f"Padding to {max_dim} dimensions")
-        
-        # Save padded data directly to HDF5
-        with h5py.File(self.padded_features_file, 'w') as f:
-            f.attrs['feature_dim'] = max_dim
-            
-            for pt_id, data in patient_data.items():
-                grp = f.create_group(pt_id)
-                
-                # Pad if needed
-                if data['features'].shape[1] < max_dim:
-                    n_samples = data['features'].shape[0]
-                    padded = np.zeros((n_samples, max_dim))
-                    padded[:, :data['features'].shape[1]] = data['features']
-                    grp.create_dataset('features', data=padded, compression='gzip')
-                else:
-                    grp.create_dataset('features', data=data['features'], compression='gzip')
-                
-                grp.attrs['labels'] = '|'.join(data['labels'])
-                grp.attrs['n_windows'] = data['n_windows']
-        
-        print(f"Saved padded data to {self.padded_features_file}")
-        return True  # Don't load it back!
     
     def _stratified_split(self, words_only, sentences_only, mixed, 
                          val_size=0.1, test_size=0.1, random_state=42):

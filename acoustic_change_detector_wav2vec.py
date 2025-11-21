@@ -2,18 +2,19 @@ import matplotlib.pyplot as plt
 from scipy import signal
 from scipy.spatial.distance import cosine, euclidean
 from scipy.ndimage import gaussian_filter1d
-from scipy.signal import find_peaks, savgol_filter
-from sklearn.preprocessing import normalize
-from scipy.signal import welch
-import os
-import numpy as np
+from scipy.signal import find_peaks, savgol_filter, decimate
 import torch
 from transformers import Wav2Vec2Model, Wav2Vec2Processor
+
+import os
+import numpy as np
+from numpy import ndarray
 import librosa
 from collections import Counter, defaultdict
 
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, normalize
 from sklearn.decomposition import PCA
+
 from extract_features import extractHG
 from debugger import DebugMixin
 from phonetic_dictionary import PhoneticDictionary
@@ -52,23 +53,76 @@ class AcousticChangeDetector(DebugMixin):
         self.use_multifeature = use_multifeature    
         
         self.log(f"Using feature extraction method: {self.feature_extraction_method}")
-        self.use_wav2vec = use_wav2vec
-        if self.use_wav2vec:
-            self.log("Initializing wav2vec model for boundary detection...")
-            self.wav2vec_processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
-            self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base", use_safetensors=True)
-            self.wav2vec_model.eval()
-            self.log("Wav2vec model initialized successfully")
         
         self.frameshift = config.frameshift
         self.eeg_sr = config.eeg_sr
         self.window_length = config.window_length
+        
+        self.use_wav2vec = use_wav2vec
+        if self.use_wav2vec:            
+            self.wav2vec_processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
+            self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base", use_safetensors=True)
+            self.wav2vec_model.eval()  # Set to evaluation mode
+            self.log("Initialized wav2vec model for feature extraction")
+    
+    def extract_wav2vec_features(self, audio_waveform: ndarray, audio_sr: int = None) -> ndarray:
+        """
+        Extract wav2vec features from raw audio.
+        
+        Parameters:
+        -----------
+        audio_waveform : Raw audio samples (1D array)
+        audio_sr : Audio sampling rate (should be 16000 for wav2vec)            
+        Returns:
+        --------
+        features : Wav2vec features, shape (time_steps, feature_dim=768)
+        """
+        
+        # Downsample if needed
+        if audio_sr == self.config.eeg_sr:
+            audio_waveform = decimate(audio_waveform, 3)
+            audio_sr = self.config.audio_target_sr
+        elif audio_sr != self.config.audio_target_sr:
+            raise ValueError(f"Audio sampling rate must be {self.config.audio_target_sr} or {self.config.eeg_sr}, got {audio_sr}")
+    
+        # Process through wav2vec
+        inputs = self.wav2vec_processor(audio_waveform, sampling_rate=audio_sr, return_tensors="pt")
+        with torch.no_grad():
+            outputs = self.wav2vec_model(**inputs)
+            features = outputs.last_hidden_state.squeeze(0).numpy()
+        
+        return features
+        
+    def compute_wav2vec_distances(self, features: ndarray) -> ndarray:
+        """
+        Calculate frame-to-frame distances in wav2vec feature space.
+        Similar to compute_frame_distances but for wav2vec features.
+        
+        Parameters:
+        -----------
+        features : Wav2vec features, shape (time_steps, 768)
+            
+        Returns:
+        --------
+        distances : Distance between consecutive frames
+        """        
+        
+        distances = np.zeros(len(features) - 1)
+        
+        for i in range(len(features) - 1):
+            if self.distance_metric == 'cosine':
+                distances[i] = cosine(features[i], features[i + 1])
+            elif self.distance_metric == 'euclidean':
+                distances[i] = euclidean(features[i], features[i + 1])
+        
+        return distances
     
     def _extract_band_power_features(self, eeg_segment: np.ndarray) -> np.ndarray:
         """
         Extract power in delta, theta, alpha, beta, low_gamma, and high_gamma bands.
         Returns fixed-length feature vector (1, channels×6).
-        """        
+        """
+        from scipy.signal import welch
         
         bands = {
             'delta': (1, 4),
@@ -128,12 +182,12 @@ class AcousticChangeDetector(DebugMixin):
         
         return np.concatenate([band_feats, stat_feats], axis=1)
     
-    #def count_phonemes(self, word):
-    #    """
-    #    Count the number of phonemes in a word based on its transcription.
+    def count_phonemes(self, word):
+        """
+        Count the number of phonemes in a word based on its transcription.
         
-    #    """
-    #    return self.phonetic_dict.count_phonemes(word)
+        """
+        return self.phonetic_dict.count_phonemes(word)
     
     def compute_frame_distances(self, spectrogram):
         """
@@ -386,16 +440,14 @@ class AcousticChangeDetector(DebugMixin):
         
         return boundaries
     
-    def refine_boundaries(self, boundaries, spectrogram):
+    def refine_boundaries(self, boundaries: ndarray, spectrogram: ndarray) -> ndarray:
         """
         Refine boundary positions using additional constraints.
         
         Parameters:
         -----------
-        boundaries : ndarray
-            Initial boundary indices
-        spectrogram : ndarray
-            Original mel spectrogram
+        boundaries: Initial boundary indices
+        spectrogram: Original mel spectrogram
         frameshift : float
             Time between consecutive frames in seconds
             
@@ -458,23 +510,45 @@ class AcousticChangeDetector(DebugMixin):
                      use_multifeature=True,
                      use_rms_boundaries=True,
                      audio_segment=None, audio_sr=None):
-        """Main method to detect phoneme boundaries in a word spectrogram."""
-        self.debug(f"Detecting boundaries for word: {word if word else 'unknown'}")
+        """
+        Main method to detect phoneme boundaries in a word spectrogram.
         
-        if word == 'vogelkooitje':
-            print(f"DEBUG vogelkooitje: use_rms={use_rms_boundaries}, audio_exists={audio_segment is not None}")
-            if audio_segment is not None:
-                print(f"  Audio length: {len(audio_segment)}")
+        Parameters:
+        -----------
+        spectrogram : ndarray
+            Mel spectrogram of the word
+        word : str or None
+            The word being analyzed
+        phonetic_transcription : str or None
+            Phonetic transcription if available
+        participant_id : str or None
+            Participant identifier
+        word_position : int or None
+            Position of word in sequence
+        use_multifeature : bool
+            Whether to use multi-feature fusion
+        use_rms_boundaries : bool
+            Whether to use RMS-based boundary detection
+        audio_segment : ndarray or None
+            Raw audio waveform for RMS or wav2vec methods
+        audio_sr : int or None
+            Audio sampling rate
             
+        Returns:
+        --------
+        dict
+            Dictionary containing boundaries, segments, and metadata
+        """
+        
         # Determine number of phonemes
         n_phonemes = None
         if word is not None:
             n_phonemes = self.count_phonemes(word)
             self.debug(f"Estimated {n_phonemes} phonemes for '{word}'")
         
-        # STEP 1: Choose boundary detection method
+        # STEP 1: Choose boundary detection method and compute boundaries
         if use_rms_boundaries and audio_segment is not None:
-            # NEW: RMS-based detection
+            # RMS-based detection
             self.debug("Using RMS-based boundary detection")
             
             boundaries_original, rms_change = self.compute_rms_boundaries(
@@ -485,7 +559,7 @@ class AcousticChangeDetector(DebugMixin):
             
             # For compatibility
             distances = np.zeros(len(boundaries_original) - 1)
-            energy = np.sum(spectrogram ** 2, axis=1)
+            energy = np.sum(spectrogram ** 2, axis=1) if spectrogram is not None else np.zeros(len(boundaries_original))
             enhanced_distances = rms_change
             feature_dict = {'rms_change': rms_change}
             
@@ -527,6 +601,7 @@ class AcousticChangeDetector(DebugMixin):
         elif use_multifeature:
             # Multi-feature fusion
             self.debug("Using multi-feature fusion for boundary detection")
+            
             enhanced_distances, feature_dict = self.compute_multifeature_distances(
                 spectrogram, 
                 audio_segment=audio_segment,
@@ -560,15 +635,20 @@ class AcousticChangeDetector(DebugMixin):
                 
                 if refined_cv <= original_cv * 1.2:
                     boundaries_final = boundaries_refined
-                    self.debug(f"  ✓ Using refined boundaries (CV: {original_cv:.1f}% → {refined_cv:.1f}%)")
+                    self.debug(f"Using refined boundaries (CV: {original_cv:.1f}% to {refined_cv:.1f}%)")
                 else:
                     boundaries_final = boundaries_original
+                    self.debug(f"Using original boundaries (refinement increased CV)")
             else:
                 boundaries_final = boundaries_refined
         
         else:
             # Original spectral distance method
             self.debug("Using original spectral distance method")
+            
+            if spectrogram is None:
+                raise ValueError("Spectrogram required for spectral distance method")
+            
             distances = self.compute_frame_distances(spectrogram)
             flux = self.compute_spectral_flux(spectrogram)
             energy = self.compute_energy_contour(spectrogram)
@@ -596,9 +676,10 @@ class AcousticChangeDetector(DebugMixin):
                 
                 if refined_cv <= original_cv * 1.2:
                     boundaries_final = boundaries_refined
-                    self.debug(f"  ✓ Using refined boundaries (CV: {original_cv:.1f}% → {refined_cv:.1f}%)")
+                    self.debug(f"Using refined boundaries (CV: {original_cv:.1f}% to {refined_cv:.1f}%)")
                 else:
                     boundaries_final = boundaries_original
+                    self.debug(f"Using original boundaries (refinement increased CV)")
             else:
                 boundaries_final = boundaries_refined
         
@@ -609,11 +690,15 @@ class AcousticChangeDetector(DebugMixin):
             end = boundaries_final[i + 1]
             
             start = max(0, start)
-            end = min(spectrogram.shape[0], end)
+            end = min(spectrogram.shape[0], end) if spectrogram is not None else end
             
             if start < end:
-                segment = spectrogram[start:end]
-                segments.append(segment)
+                if spectrogram is not None:
+                    segment = spectrogram[start:end]
+                    segments.append(segment)
+                else:
+                    # For audio-only methods, store placeholder
+                    segments.append(np.array([]))
         
         # STEP 3: Calculate boundary times
         boundary_times = boundaries_final * self.config.frameshift    
@@ -632,9 +717,9 @@ class AcousticChangeDetector(DebugMixin):
             'energy': energy,
             'feature_dict': feature_dict,
             'method': 'rms' if (use_rms_boundaries and audio_segment is not None) else 
-                  'wav2vec' if self.use_wav2vec else
-                  'multifeature' if use_multifeature else 
-                  'spectral'
+                      'wav2vec' if self.use_wav2vec else
+                      'multifeature' if use_multifeature else 
+                      'spectral'
         }
         
         return result
@@ -1022,7 +1107,7 @@ class AcousticChangeDetector(DebugMixin):
         return enhanced_batch
     
     def accumulate_phoneme_data(self, split_result, batch_size=32, feature_extraction_method='high_gamma', 
-                                batch_type='train') -> dict:
+                                batch_type='train', standardize_channels=True, standardize_values=False) -> dict:
         """
         Accumulate phoneme data from multiple batches for training.
         
@@ -1088,7 +1173,9 @@ class AcousticChangeDetector(DebugMixin):
             # Prepare features for model training
             phoneme_data = self.prepare_phoneme_training_data(
                 phoneme_batch,
-                feature_extraction_method=feature_extraction_method
+                feature_extraction_method=feature_extraction_method,
+                standardize_channels=self.config.standardize_channels,
+                standardize_values=self.config.standardize_values
             )
             
              # Accumulate mismatch statistics
@@ -1154,6 +1241,10 @@ class AcousticChangeDetector(DebugMixin):
                 Output from process_batch function
         feature_extraction_method : str
                 Method to use for feature extraction ('high_gamma', 'multi_band', etc.)
+        standardize channels: bool
+                Whether to zero pad to a certain number of channels
+        standardize values: bool
+                Whether to standardize the lengths of the signal        
         pca_components : int or None
                 Number of PCA components to use. If None, don't use PCA.
                 
@@ -1169,6 +1260,8 @@ class AcousticChangeDetector(DebugMixin):
                 
         # Extract parameters from config
         feature_extraction_method = config_dict.get('feature_extraction_method', 'high_gamma')
+        standardize_channels = config_dict.get('standardize_channels', True)
+        standardize_values = config_dict.get('standardize_values', True)
         pca_components = config_dict.get('pca_components', None)
             
         self.debug(f"Preparing phoneme training data with PCA components={pca_components}")
@@ -1249,6 +1342,8 @@ class AcousticChangeDetector(DebugMixin):
                     'phoneme_participant_ids': [],
                     'metadata': {
                         'feature_extraction_method': feature_extraction_method,
+                        'standardize_channels': standardize_channels,   
+                        'standardize_values': standardize_values,  
                         'pca_components': pca_components,
                         'n_phonemes': 0,
                         'unique_phonemes': 0
@@ -1281,6 +1376,48 @@ class AcousticChangeDetector(DebugMixin):
         
         self.debug(f"Processed {len(features)} segments successfully")
             
+        # Standardize feature shapes zero padding the channels that are missing to make all data have 133 channels 
+        # (patients with less than 75 channels were filtered out before)
+        
+        if standardize_channels and features: 
+            
+            if feature_extraction_method in ['band_powers', 'combined']:
+                # Band powers: standardize to max_channels × n_bands
+                n_bands = 6  # delta, theta, alpha, beta, low_gamma, high_gamma
+                target_features = self.config.target_channels * n_bands  # 133 × 6 = 798
+                
+                standardized_features = []
+                for feat in features:
+                    result = np.zeros((feat.shape[0], target_features))
+                    min_features = min(feat.shape[1], target_features)
+                    result[:, :min_features] = feat[:, :min_features]
+                    standardized_features.append(result)
+                
+                features = standardized_features
+            else:
+                # Temporal features: standardize channels dimension
+                max_channels = self.config.target_channels
+                self.debug(f"Standardizing channels to {max_channels}")
+                
+                standardized_features = []
+                for feat in features:
+                    result = np.zeros((feat.shape[0], max_channels))
+                    min_channels = min(feat.shape[1], max_channels)
+                    result[:, :min_channels] = feat[:, :min_channels]
+                    standardized_features.append(result)
+
+            features = standardized_features
+        
+        # Standardize features if requested
+        
+        if standardize_values and features:
+            scaler = StandardScaler()
+            self.debug(f"Standardizing feature values (mean=0, std=1)")
+            
+            for i in range(len(features)):
+                # Standardize each feature set independently
+                features[i] = scaler.fit_transform(features[i])
+
         # Apply PCA per patient if requested
         if pca_components is not None and pca_components > 0 and features:
             
@@ -1299,7 +1436,7 @@ class AcousticChangeDetector(DebugMixin):
                 indices = [idx for idx, _ in pid_data]
                 pid_features = [feat for _, feat in pid_data]
                 
-                # Fit PCA on a chosen patient
+                # Fit PCA on THIS patient only
                 pca = PCA(n_components=min(pca_components, min(f.shape[1] for f in pid_features)))
                 
                 try:
@@ -1329,6 +1466,8 @@ class AcousticChangeDetector(DebugMixin):
                 'phoneme_participant_ids': phoneme_participant_ids,
                 'metadata': {
                     'feature_extraction_method': feature_extraction_method,
+                    'standardized_channels': standardize_channels, 
+                    'standardized_values': standardize_values, 
                     'pca_components': pca_components,
                     'n_phonemes': len(phoneme_labels),
                     'unique_phonemes': len(set(phoneme_labels))
@@ -1341,13 +1480,16 @@ class AcousticChangeDetector(DebugMixin):
         return result              
         
     def _build_batch_from_instances(self, instances, word_segments_dict):
-        """helper class for accumulate_phoneme_data()"""
+        """
+        Helper class for accumulate_phoneme_data().
+        Builds a batch from specific instances.
+        """
         batch = {
             'words': [],
             'eeg_segments': [],
             'spectrogram_segments': [],
             'audio_segments': [],
-            'audio_sr': [],
+            'audio_sr': [],  # Add this if sampling rate varies
             'participant_ids': []
         }
         
@@ -1363,7 +1505,8 @@ class AcousticChangeDetector(DebugMixin):
                 batch['words'].append(word)
                 batch['eeg_segments'].append(word_data['eeg_segment'])
                 batch['spectrogram_segments'].append(word_data['spectrogram_segment'])
-                batch['audio_segments'].append(word_data.get('audio_segment'))  
+                batch['audio_segments'].append(word_data.get('audio_segment'))
+                batch['audio_sr'].append(word_data.get('audio_sr', self.config.audio_sr))  # Add this
                 batch['participant_ids'].append(pid)
             except (KeyError, IndexError) as e:
                 self.log(f"Warning: Could not load instance {pid}/{word}/{idx}: {e}")

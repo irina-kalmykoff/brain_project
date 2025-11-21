@@ -20,6 +20,8 @@ import MelFilterBank as mel
 # extract spectorgamm
 from extract_features import extractMelSpecs
 
+from dataset_config import Dutch30Config
+
 class BrainAudioDecoder:
     """
     A class to encapsulate the brain-to-audio decoding pipeline.
@@ -27,9 +29,9 @@ class BrainAudioDecoder:
     a more structured interface to experiment with improvements.
     """
     
-    def __init__(self, path_bids, path_output, path_results, win_length=0.05, 
-                 frameshift=0.01, model_order=4, step_size=5, target_sr=16000, 
-                 n_folds=10, n_components=50, n_random=1000):
+    def __init__(self, path_bids, path_output, path_results, win_length=None, 
+                 frameshift=None, model_order=4, step_size=5, target_sr=None, 
+                 n_folds=10, n_components=50, n_random=1000, config: Dutch30Config = None):
         """
         Initialize the decoder with the given parameters.
         
@@ -58,15 +60,16 @@ class BrainAudioDecoder:
         n_random : int
             Number of random controls to generate
         """
+        self.config = config if config is not None else Dutch30Config()
         self.path_bids = path_bids
         self.path_output = path_output
         self.path_results = path_results
         
-        self.win_length = win_length
-        self.frameshift = frameshift
+        self.win_length = self.config.window_length
+        self.frameshift = self.config.frameshift
         self.model_order = model_order
         self.step_size = step_size
-        self.target_sr = target_sr
+        self.target_sr = self.config.audio_target_sr
         
         self.n_folds = n_folds
         self.n_components = n_components
@@ -99,11 +102,11 @@ class BrainAudioDecoder:
         
         # Get EEG data
         eeg = nwbfile.acquisition['iEEG'].data[:]
-        eeg_sr = 1024
+        eeg_sr = self.config.eeg_sr
         
         # Get audio data
         audio = nwbfile.acquisition['Audio'].data[:]
-        audio_sr = 48000
+        audio_sr = self.config.audio_sr
         
         # Get word markers
         words = nwbfile.acquisition['Stimulus'].data[:]

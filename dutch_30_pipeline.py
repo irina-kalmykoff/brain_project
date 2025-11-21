@@ -475,6 +475,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 
         return self.detector
 
+
     def step5_accumulate_data_dutch30(self):
         """Accumulate all available data for Dutch30"""
         
@@ -520,8 +521,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             batch_size=batch_size,
             feature_extraction_method=self.feature_extraction_method,
             batch_type='train', 
-            standardize_channels=self.config.standardize_channels,
-            standardize_values=self.config.standardize_values   
+  
         )
         self.log(f"  Train accumulated: {len(self.train['features'])} samples, {len(set(self.train['phoneme_labels']))} phonemes")
         
@@ -530,8 +530,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             batch_size=batch_size,
             feature_extraction_method=self.feature_extraction_method,
             batch_type='test', 
-            standardize_channels=self.config.standardize_channels,
-            standardize_values=self.config.standardize_values   
+ 
         )        
         
         if self.feature_extraction_method in ['high_gamma', 'multi_band']:

@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from pynwb import NWBHDF5IO       
 from debugger import DebugMixin
+from dataset_config import Dutch30Config
         
         
 class CustomBrainAudioDecoder(BrainAudioDecoder, DebugMixin):
@@ -33,7 +34,8 @@ class CustomBrainAudioDecoder(BrainAudioDecoder, DebugMixin):
     for experimentation and improvements.
     """
     
-    def __init__(self, path_bids, path_output, path_results, debug_mode=False, config = None, **kwargs):
+    def __init__(self, path_bids, path_output, path_results, debug_mode=False, config: Dutch30Config = None,
+                use_wav2vec = False, **kwargs):
         """
         Initialize with parent class parameters and additional options.
         
@@ -61,20 +63,10 @@ class CustomBrainAudioDecoder(BrainAudioDecoder, DebugMixin):
         self.log(f"Initializing CustomBrainAudioDecoder with debug_mode={self.DEBUG_MODE}")
         
         # Default configuration
-        self.config = {
-            'pca_components': 50,
-            'feature_extraction_method': 'high_gamma',
-            'temporal_context': True,
-            'standardize': True,
-            'frameshift': 0.01,
-            'win_length': 0.05
-        }
-        
-        # Update with user-provided config
-        if config is not None:
-            self.config.update(config)
-            
+        self.config = config if config is not None else Dutch30Config()
         self.debug(f"Initialized with config: {self.config}")
+        
+        self.use_wav2vec = use_wav2vec
         
         # Store PCA models to reuse for test data
         self.pca_models = {}

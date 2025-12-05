@@ -20,7 +20,7 @@ class MarkovPhonemeModel(DebugMixin):
     """
     
     def __init__(self, phonetic_dict=None, order=2, output_dir='./models/markov_phoneme', 
-                 debug_mode=False, use_groups=True):
+             debug_mode=False, use_groups=False):
         """
         Initialize the Markov chain phoneme model.
         
@@ -34,15 +34,18 @@ class MarkovPhonemeModel(DebugMixin):
             Directory to save model outputs
         debug_mode : bool
             Whether to enable debug mode
+        use_groups : bool
+            Whether to use phoneme groups instead of raw phonemes
         """
         super().__init__(class_name="MarkovPhonemeModel", debug_mode=debug_mode)
         if debug_mode is not None:
             self.DEBUG_MODE = debug_mode
         self.log(f"Initialized with DEBUG_MODE={self.DEBUG_MODE}")
         
-        
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+        
+        # Store use_groups setting
         self.use_groups = use_groups
         
         # Set up phonetic dictionary
@@ -263,11 +266,11 @@ class MarkovPhonemeModel(DebugMixin):
         # Train classifier with balanced class weights
         self.neural_classifier = RandomForestClassifier(
             n_estimators=200,
-            max_depth=15,
-            min_samples_split=10,  # to prevent overfitting
+            max_depth=20,
+            #min_samples_split=10,  # to prevent overfitting
             min_samples_leaf=2,   #  to prevent overfitting
-            class_weight='balanced',  # This helps with imbalanced classes
-            max_features='sqrt',        # Add: prevents correlation between trees
+            #class_weight='balanced',  # This helps with imbalanced classes
+            #max_features='sqrt',        # Add: prevents correlation between trees
             random_state=42
         )
         self.neural_classifier.fit(X_scaled, y_encoded)
@@ -468,44 +471,77 @@ class MarkovPhonemeModel(DebugMixin):
     def evaluate(self, features, true_labels, use_viterbi=True):
         """
         Evaluate the model on test data.
+        
+        Args:
+            features: List of feature arrays
+            true_labels: List of true phoneme labels
+            use_viterbi: Whether to use Viterbi decoding
+            
+        Returns:
+            Dict with accuracy, confusion_matrix, and label comparisons
         """
-        # Map true labels to groups
-        true_groups = []
-        for phoneme in true_labels:
-            # Check if it's already a group (from pipeline.get_test_data with use_groups=True)
-            if phoneme in self.phoneme_groups.keys():
-                # It's already a group name
-                true_groups.append(phoneme)
-            elif phoneme == '?' or phoneme == 'unknown':
-                true_groups.append('unknown')
-            elif phoneme in self.phoneme_to_group:
-                # It's a phoneme, map to group
-                true_groups.append(self.phoneme_to_group[phoneme])
-            else:
+        # Get predictions (already in correct format based on self.use_groups)
+        predicted, _ = self.predict(features, use_viterbi=use_viterbi)
+        
+        # Convert true labels to match prediction format
+        if self.use_groups:
+            # Convert true phonemes to groups
+            true_converted = []
+            for phoneme in true_labels:
+                # Already a group name
+                if phoneme in self.phoneme_groups:
+                    true_converted.append(phoneme)
+                # Unknown markers
+                elif phoneme in ('?', 'unknown'):
+                    true_converted.append('unknown')
+                # Known phoneme - map to group
+                elif phoneme in self.phoneme_to_group:
+                    true_converted.append(self.phoneme_to_group[phoneme])
                 # Unknown phoneme
-                true_groups.append('unknown')
+                else:
+                    true_converted.append('unknown')
+            
+            all_labels = list(self.phoneme_groups.keys()) + ['unknown']
+        else:
+            # Raw phoneme mode - no conversion needed
+            true_converted = list(true_labels)
+            
+            # Filter to only labels that exist in both sets for confusion matrix
+            all_labels = sorted(set(true_converted) | set(predicted))
         
-        # Get predictions
-        predicted_groups, _ = self.predict(features, use_viterbi=use_viterbi)
+        # Handle unseen labels in test set (not in training)
+        # This prevents errors when test has phonemes not seen in training
+        train_labels_set = set(self.group_labels) if hasattr(self, 'group_labels') else set()
         
-        # Debug: Print first few comparisons
+        # Debug output
         if self.DEBUG_MODE:
+            self.log(f"Evaluation mode: {'groups' if self.use_groups else 'raw phonemes'}")
+            self.log(f"Unique true labels: {len(set(true_converted))}")
+            self.log(f"Unique predictions: {len(set(predicted))}")
             self.log("First 10 comparisons:")
-            for i in range(min(10, len(true_groups))):
-                self.log(f"  {i}: True='{true_groups[i]}' vs Pred='{predicted_groups[i]}' -> {true_groups[i] == predicted_groups[i]}")
+            for i in range(min(10, len(true_converted))):
+                match = "OK" if true_converted[i] == predicted[i] else "X"
+                self.log(f"  {i}: True='{true_converted[i]}' vs Pred='{predicted[i]}' [{match}]")
         
         # Calculate accuracy
-        accuracy = accuracy_score(true_groups, predicted_groups)
+        correct = sum(1 for t, p in zip(true_converted, predicted) if t == p)
+        accuracy = correct / len(true_converted) if true_converted else 0.0
         
         # Calculate confusion matrix
-        all_groups = list(self.phoneme_groups.keys()) + ['unknown']
-        conf_matrix = confusion_matrix(true_groups, predicted_groups, labels=all_groups)
+        try:
+            conf_matrix = confusion_matrix(true_converted, predicted, labels=all_labels)
+        except Exception as e:
+            if self.DEBUG_MODE:
+                self.log(f"Confusion matrix error: {e}")
+            conf_matrix = None
         
         return {
             'accuracy': accuracy,
             'confusion_matrix': conf_matrix,
-            'true_groups': true_groups,
-            'predicted_groups': predicted_groups
+            'true_labels': true_converted,
+            'predicted_labels': predicted,
+            'n_correct': correct,
+            'n_total': len(true_converted)
         }
     
     def save_model(self, path=None):

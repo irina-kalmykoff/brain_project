@@ -20,6 +20,7 @@ from phonetic_dictionary import PhoneticDictionary
 from dataset_config import Dutch30Config
 
 
+
 class AcousticChangeDetector(DebugMixin):
     """
     Detects acoustic changes in spectrograms to identify potential phoneme boundaries.
@@ -77,6 +78,9 @@ class AcousticChangeDetector(DebugMixin):
             'beta': (13, 30),
             'low_gamma': (30, 70),
             'high_gamma': (70, 170)
+            #'high_gamma_1': (70, 100),
+            #'high_gamma_2': (100, 130),
+            #'high_gamma_3': (130, 170)
         }
         
         n_channels = eeg_segment.shape[1]
@@ -98,6 +102,53 @@ class AcousticChangeDetector(DebugMixin):
                 band_features.append(band_power)
         
         return np.array(band_features).reshape(1, -1)
+        
+    def _extract_hjorth_features(self, eeg_segment: np.ndarray) -> np.ndarray:
+        """
+        Extract Hjorth parameters (Activity, Mobility, Complexity) for each channel.
+        
+        Hjorth parameters are time-domain features that capture:
+            - Activity: Signal power (variance)
+            - Mobility: Mean frequency (std of first derivative / std of signal)
+            - Complexity: Frequency spread (mobility of first derivative / mobility of signal)
+        
+        Args:
+            eeg_segment: EEG data array of shape (n_samples, n_channels)
+        
+        Returns:
+            Fixed-length feature vector of shape (1, n_channels * 3)
+        """
+        n_channels = eeg_segment.shape[1]
+        hjorth_features = []
+        
+        for ch in range(n_channels):
+            signal = eeg_segment[:, ch]
+            
+            # First derivative
+            first_deriv = np.diff(signal)
+            
+            # Second derivative
+            second_deriv = np.diff(first_deriv)
+            
+            # Activity: variance of the signal
+            activity = np.var(signal)
+            
+            # Mobility: std(first_derivative) / std(signal)
+            if activity > 0:
+                mobility = np.sqrt(np.var(first_deriv) / activity)
+            else:
+                mobility = 0.0
+            
+            # Complexity: mobility(first_derivative) / mobility(signal)
+            if np.var(first_deriv) > 0 and mobility > 0:
+                mobility_deriv = np.sqrt(np.var(second_deriv) / np.var(first_deriv))
+                complexity = mobility_deriv / mobility
+            else:
+                complexity = 0.0
+            
+            hjorth_features.extend([activity, mobility, complexity])
+        
+        return np.array(hjorth_features).reshape(1, -1)
 
     def _extract_temporal_stats_features(self, eeg_segment: np.ndarray) -> np.ndarray:
         """
@@ -128,12 +179,9 @@ class AcousticChangeDetector(DebugMixin):
         
         return np.concatenate([band_feats, stat_feats], axis=1)
     
-    #def count_phonemes(self, word):
-    #    """
-    #    Count the number of phonemes in a word based on its transcription.
-        
-    #    """
-    #    return self.phonetic_dict.count_phonemes(word)
+    def count_phonemes(self, word):
+        """ Count the number of phonemes in a word based on its transcription."""
+        return self.phonetic_dict.count_phonemes(word)
     
     def compute_frame_distances(self, spectrogram):
         """
@@ -461,11 +509,6 @@ class AcousticChangeDetector(DebugMixin):
         """Main method to detect phoneme boundaries in a word spectrogram."""
         self.debug(f"Detecting boundaries for word: {word if word else 'unknown'}")
         
-        if word == 'vogelkooitje':
-            print(f"DEBUG vogelkooitje: use_rms={use_rms_boundaries}, audio_exists={audio_segment is not None}")
-            if audio_segment is not None:
-                print(f"  Audio length: {len(audio_segment)}")
-            
         # Determine number of phonemes
         n_phonemes = None
         if word is not None:
@@ -474,7 +517,7 @@ class AcousticChangeDetector(DebugMixin):
         
         # STEP 1: Choose boundary detection method
         if use_rms_boundaries and audio_segment is not None:
-            # NEW: RMS-based detection
+            # RMS-based detection
             self.debug("Using RMS-based boundary detection")
             
             boundaries_original, rms_change = self.compute_rms_boundaries(
@@ -862,8 +905,8 @@ class AcousticChangeDetector(DebugMixin):
                     
                     # Extract individual phonemes
                     phonemes = []
-                    i = 0
-                    while i < len(cleaned):
+                    char_idx = 0
+                    while char_idx < len(cleaned):
                         # Check for complex phonemes (digraphs, diphthongs)
                         complex_found = False
                         # Sort by length to prevent substring matches
@@ -872,21 +915,21 @@ class AcousticChangeDetector(DebugMixin):
                            key=len, reverse=True)
                            
                         for cp in sorted_complex:
-                            if i + len(cp) <= len(cleaned) and cleaned[i:i+len(cp)] == cp:
+                            if  char_idx + len(cp) <= len(cleaned) and cleaned[char_idx:char_idx+len(cp)] == cp:
                                 phonemes.append(cp)
-                                i += len(cp)
+                                char_idx += len(cp)
                                 complex_found = True
                                 break
                         
                         # Check for length markers
-                        if not complex_found and i + 1 < len(cleaned) and cleaned[i+1] == 'ː':
-                            phonemes.append(cleaned[i:i+2])
-                            i += 2
+                        if not complex_found and char_idx + 1 < len(cleaned) and cleaned[char_idx+1] == 'ː':
+                            phonemes.append(cleaned[char_idx:char_idx+2])
+                            char_idx += 2
                             complex_found = True
                         
                         if not complex_found:
-                            phonemes.append(cleaned[i])
-                            i += 1
+                            phonemes.append(cleaned[char_idx])
+                            char_idx += 1
                     
                     # Handle mismatch between segments and phonemes
                     if len(segments) == len(phonemes):
@@ -1071,6 +1114,7 @@ class AcousticChangeDetector(DebugMixin):
         total_mismatches = 0
         total_perfect_matches = 0
         
+    
         # Process multiple batches
         for batch_num in range(num_batches):
             self.log(f"Processing batch {batch_num+1}/{num_batches}")
@@ -1144,19 +1188,15 @@ class AcousticChangeDetector(DebugMixin):
 
         return accumulated_data
     
-    def prepare_phoneme_training_data(self, enhanced_batch, **kwargs):
+    def prepare_phoneme_training_data(self, enhanced_batch: dict, **kwargs):
         """
         Prepare phoneme-level data for model training.
             
         Parameters:
         -----------
-        enhanced_batch : dict
-                Output from process_batch function
-        feature_extraction_method : str
-                Method to use for feature extraction ('high_gamma', 'multi_band', etc.)
-        pca_components : int or None
-                Number of PCA components to use. If None, don't use PCA.
-                
+        enhanced_batch : Output from process_batch function
+        feature_extraction_method : Method to use for feature extraction ('high_gamma', 'multi_band', etc.)
+               
         Returns: Dictionary containing processed data ready for phoneme-based model training
         """
         # Use decoder's config as base, override with kwargs
@@ -1169,9 +1209,6 @@ class AcousticChangeDetector(DebugMixin):
                 
         # Extract parameters from config
         feature_extraction_method = config_dict.get('feature_extraction_method', 'high_gamma')
-        pca_components = config_dict.get('pca_components', None)
-            
-        self.debug(f"Preparing phoneme training data with PCA components={pca_components}")
             
         # Check if we have EEG segments
         if 'phoneme_eeg_segments' not in enhanced_batch or not enhanced_batch['phoneme_eeg_segments']:
@@ -1207,7 +1244,13 @@ class AcousticChangeDetector(DebugMixin):
                     
                     elif feature_extraction_method == 'band_powers':  
                         feat = self._extract_band_power_features(eeg) 
-                        #print(f"DEBUG: Band power shape after extraction: {feat.shape}")
+                        
+                    elif feature_extraction_method == 'hjorth':
+                        feat = self._extract_hjorth_features(eeg) 
+                        
+                    elif feature_extraction_method == 'band_power_hjorth':
+                        feat = self._extract_band_power_hjorth_features(eeg)
+
                     elif feature_extraction_method == 'combined':  
                         feat = self._extract_combined_features(eeg)
             
@@ -1218,7 +1261,7 @@ class AcousticChangeDetector(DebugMixin):
                 
                 else:
                     raise ValueError("No decoder available for feature extraction")
-#added log printout                    
+                   
                 if feat.shape[0] == 0:
                     word = enhanced_batch['phoneme_words'][idx]
                     phoneme = enhanced_batch['phoneme_labels'][idx]
@@ -1249,7 +1292,6 @@ class AcousticChangeDetector(DebugMixin):
                     'phoneme_participant_ids': [],
                     'metadata': {
                         'feature_extraction_method': feature_extraction_method,
-                        'pca_components': pca_components,
                         'n_phonemes': 0,
                         'unique_phonemes': 0
                     }
@@ -1280,44 +1322,7 @@ class AcousticChangeDetector(DebugMixin):
                 phoneme_participant_ids.append(pid)
         
         self.debug(f"Processed {len(features)} segments successfully")
-            
-        # Apply PCA per patient if requested
-        if pca_components is not None and pca_components > 0 and features:
-            
-            # Group features by patient
-            patient_features = {}
-            for i, feat in enumerate(features):
-                pid = phoneme_participant_ids[i]
-                if pid not in patient_features:
-                    patient_features[pid] = []
-                patient_features[pid].append((i, feat))  # Store index and feature
-            
-            # Fit and transform PCA per patient
-            transformed_features = [None] * len(features)
-            
-            for pid, pid_data in patient_features.items():
-                indices = [idx for idx, _ in pid_data]
-                pid_features = [feat for _, feat in pid_data]
-                
-                # Fit PCA on a chosen patient
-                pca = PCA(n_components=min(pca_components, min(f.shape[1] for f in pid_features)))
-                
-                try:
-                    all_pid_features = np.vstack(pid_features)
-                    pca.fit(all_pid_features)
-                    
-                    # Transform this patient's features
-                    for local_idx, global_idx in enumerate(indices):
-                        transformed_features[global_idx] = pca.transform(pid_features[local_idx])
-                    
-                    self.debug(f"Applied per-patient PCA for {pid}")
-                except ValueError as e:
-                    self.log(f"Error during PCA for {pid}: {e}")
-                    # Keep original features
-                    for local_idx, global_idx in enumerate(indices):
-                        transformed_features[global_idx] = pid_features[local_idx]
-            
-            features = transformed_features
+          
             
         # Create result dictionary
         result = {
@@ -1329,7 +1334,6 @@ class AcousticChangeDetector(DebugMixin):
                 'phoneme_participant_ids': phoneme_participant_ids,
                 'metadata': {
                     'feature_extraction_method': feature_extraction_method,
-                    'pca_components': pca_components,
                     'n_phonemes': len(phoneme_labels),
                     'unique_phonemes': len(set(phoneme_labels))
                 }
@@ -1371,6 +1375,7 @@ class AcousticChangeDetector(DebugMixin):
             
         return batch
         
+    '''
     def compute_multifeature_distances(self, spectrogram, audio_segment=None, audio_sr=None):
         """
         Compute boundary detection score using multiple acoustic features.
@@ -1522,7 +1527,7 @@ class AcousticChangeDetector(DebugMixin):
             combined_score += weight * normalized_features[key]
         
         return combined_score, feature_dict
-
+    '''
     def compute_rms_boundaries(self, audio_segment, audio_sr, n_phonemes=None):
         """
         Detect phoneme boundaries using RMS energy changes.
@@ -1796,5 +1801,85 @@ class AcousticChangeDetector(DebugMixin):
             'speech_start': speech_start,
             'speech_end': speech_end
         }
+        
+    def extract_wav2vec_features(self, audio_segment, audio_sr):
+        """
+        Extract wav2vec 2.0 features from audio.
+        
+        Returns:
+            np.ndarray: (n_frames, 768) - contextualized audio features
+        """
+        
+        # Initialize models once (cache them)
+        if not hasattr(self, 'wav2vec_processor'):
+            self.wav2vec_processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
+            self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base")
+            self.wav2vec_model.eval()
+        
+        # CRITICAL: Resample to 16kHz if needed
+        target_sr = self.config.audio_target_sr
+        if audio_sr != target_sr:
+            audio_resampled = librosa.resample(
+                audio_segment, 
+                orig_sr=audio_sr, 
+                target_sr=target_sr
+            )
+            self.debug(f"Resampled audio: {audio_sr}Hz → {target_sr}Hz")
+        else:
+            audio_resampled = audio_segment
+        
+        # Preprocess audio
+        inputs = self.wav2vec_processor(
+            audio_resampled,  # Use resampled audio
+            sampling_rate=target_sr,  
+            return_tensors="pt"
+        )
+        
+        # Extract features
+        with torch.no_grad():
+            outputs = self.wav2vec_model(**inputs)
+            features = outputs.last_hidden_state.squeeze(0).numpy()
+        
+        return features  # Shape: (time_frames, 768)
+        
+    def compute_wav2vec_distances(self, wav2vec_features):
+        """
+        Compute frame-to-frame distances in wav2vec feature space.
+        
+        Parameters:
+        -----------
+        wav2vec_features : np.ndarray
+            Shape (n_frames, 768)
+            
+        Returns:
+        --------
+        np.ndarray: (n_frames-1,) - distance between consecutive frames
+        """
+        # Compute Euclidean distance between consecutive frames
+        distances = np.sqrt(np.sum((wav2vec_features[1:] - wav2vec_features[:-1])**2, axis=1))
+        
+        # Alternative: Cosine distance
+        # from scipy.spatial.distance import cosine
+        # distances = np.array([cosine(wav2vec_features[i], wav2vec_features[i+1]) 
+        #                      for i in range(len(wav2vec_features)-1)])
+        
+        return distances
     
+    
+    def _extract_band_power_hjorth_features(self, eeg_segment: np.ndarray) -> np.ndarray:
+        """
+        Combine band power features with Hjorth parameters.
+        
+        Args:
+            eeg_segment: EEG data array of shape (n_samples, n_channels)
+        
+        Returns:
+            Fixed-length feature vector of shape (1, n_channels * 9)
+            (6 band powers + 3 Hjorth parameters per channel)
+        """
+        band_feats = self._extract_band_power_features(eeg_segment)
+        hjorth_feats = self._extract_hjorth_features(eeg_segment)
+        
+        return np.concatenate([band_feats, hjorth_feats], axis=1)
+        
     

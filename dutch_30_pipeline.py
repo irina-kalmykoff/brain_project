@@ -29,6 +29,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                         decoder=None, feature_extraction_method='high_gamma',
                         pca_components=100, use_phoneme_groups=False, 
                         debug_mode=False, use_rms_boundaries=True, use_multifeature=False,
+                        subtract_baseline=True,
                         **kwargs):
         
         super().__init__(
@@ -48,10 +49,12 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         self.config = config if config is not None else Dutch30Config()
         self.use_rms_boundaries = use_rms_boundaries
         self.use_multifeature = use_multifeature
+        self.subtract_baseline_flag = subtract_baseline
         
         # Log config if in debug mode
         self.debug(str(self.config))
         self.log(f"Pipeline initialized: {feature_extraction_method}, PCA={pca_components}, groups={use_phoneme_groups}")
+        self.log(f"Baseline subtraction: {subtract_baseline}")
         self.log(f"Boundary detection: RMS={use_rms_boundaries}, MultiFeature={use_multifeature}")
         
         # Initialize detector with config
@@ -75,6 +78,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         patient_range : tuple or None
             Range of patients (e.g., (10, 20) → P10 through P20 inclusive)
         """
+        # Clear all previous state
+        self.patient_data = {}
+        self.patient_baselines = {}
+        
         self.log(f"Step 1: Loading Dutch30...")
         
         all_patient_ids = ['P01', 'P02', 'P03', 'P04', 'P06', 'P07', 'P08', 
@@ -468,17 +475,17 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             phonetic_dict=self.phonetic_dict,
             debug_mode=self.DEBUG_MODE,
             feature_extraction_method=self.feature_extraction_method,
-            use_wav2vec=True
+            use_rms_boundaries=self.use_rms_boundaries,
+            use_multifeature=self.use_multifeature,
+            use_wav2vec=self.use_wav2vec, 
         )
         
         self.detector.decoder = self
                 
         return self.detector
 
-
     def step5_accumulate_data_dutch30(self):
-        """Accumulate all available data for Dutch30"""
-        
+        """Accumulate all available data for Dutch30"""        
 
         # Calculate total samples and batches needed
         train_samples = 0
@@ -520,22 +527,29 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             split_result=self.split_result,
             batch_size=batch_size,
             feature_extraction_method=self.feature_extraction_method,
-            batch_type='train', 
-  
+            batch_type='train'
         )
         self.log(f"  Train accumulated: {len(self.train['features'])} samples, {len(set(self.train['phoneme_labels']))} phonemes")
-        
+    
         self.test = self.detector.accumulate_phoneme_data(
             split_result=self.split_result,
             batch_size=batch_size,
             feature_extraction_method=self.feature_extraction_method,
-            batch_type='test', 
- 
+            batch_type='test'
         )        
         
+        train_pids = set(self.train['phoneme_participant_ids'])
+        for pid in sorted(train_pids):
+            pid_features = [self.train['features'][i] for i, p in enumerate(self.train['phoneme_participant_ids']) if p == pid]
+        
         if self.feature_extraction_method in ['high_gamma', 'multi_band']:
+
             # Per-patient trimming
             self._trim_edge_phonemes_per_patient()
+
+            for pid in sorted(train_pids):
+                pid_features = [self.train['features'][i] for i, p in enumerate(self.train['phoneme_participant_ids']) if p == pid]
+
             
             # Duration filtering
             self.train = self.filter_valid_phonemes(
@@ -550,7 +564,11 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 min_duration=self.config.min_phoneme_duration,
                 max_duration=self.config.max_phoneme_duration
             )
-            
+
+            train_pids = set(self.train['phoneme_participant_ids'])
+            for pid in sorted(train_pids):
+                pid_features = [self.train['features'][i] for i, p in enumerate(self.train['phoneme_participant_ids']) if p == pid]
+                    
             if hasattr(self, 'val'):
                 self.val = self.filter_valid_phonemes(
                     dataset='val',
@@ -560,11 +578,26 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         else:
             self.log(f"Skipping trimming for '{self.feature_extraction_method}'")
             
-        # Subtract baselines (already extracted in step 2!)
-        if hasattr(self, 'patient_baselines'):
+            
+        if self.pca_components is not None and self.pca_components > 0:
+            self.train, self.test = self._apply_pca_per_patient(
+                self.train, self.test, self.pca_components
+            )
+            
+        # Subtract baselines (already extracted in step 2)
+        if self.subtract_baseline_flag and hasattr(self, 'patient_baselines'):             
+            
             self.train = self.subtract_baseline(self.train, 'train', self.patient_baselines)
             self.log(f"  After baseline: {len(self.train['features'])} samples")
             self.test = self.subtract_baseline(self.test, 'test', self.patient_baselines)
+
+            train_pids = set(self.train['phoneme_participant_ids'])
+            for pid in sorted(train_pids):
+                pid_features = [self.train['features'][i] for i, p in enumerate(self.train['phoneme_participant_ids']) if p == pid]
+                
+        else:
+            self.log(f"  Baseline subtraction: skipped (subtract_baseline={self.subtract_baseline_flag})")
+
         
         self.debug(f"Train phonemes: {set(self.train['phoneme_labels'])}")
         self.debug(f"Test phonemes: {set(self.test['phoneme_labels'])}")
@@ -605,7 +638,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         """Step 6: Initialize validator to resolve unknown phonemes (Dutch30-specific)"""
         
         self.log(f"Train data keys: {self.train.keys()}")
-        self.log(f"Sample phoneme_labels: {self.train['phoneme_labels'][:5]}")
+       # self.log(f"Sample phoneme_labels: {self.train['phoneme_labels'][:5]}")
         self.log(f"Unknown count: {self.train['phoneme_labels'].count('?')}")
         
         # Initialize validator with detector
@@ -649,6 +682,94 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         self.log(f"  Unknown remaining: {train_unknown_after} train, {test_unknown_after} test")
         
         return self.train, self.test
+    
+    def step8_group_phonemes(self):
+        """
+        Convert raw phoneme labels to phoneme groups.
+        
+        This step maps individual phonemes (e.g., 'p', 't', 'k') to 
+        articulatory groups (e.g., 'plosive').
+        
+        Must be called AFTER step 7 (resolve_unknowns).
+        Stores original labels in 'phoneme_labels_raw' before converting.
+        """
+        self.log("Step 8: Grouping phonemes.")
+        
+        # Get phoneme-to-group mapping from phonetic dictionary
+        if not hasattr(self.detector.phonetic_dict, 'phoneme_to_group'):
+            self.detector.phonetic_dict.add_phoneme_groups()
+        
+        phoneme_to_group = self.detector.phonetic_dict.phoneme_to_group
+        
+        # Process each dataset
+        for dataset_name in ['train', 'test', 'val']:
+            if not hasattr(self, dataset_name):
+                continue
+            
+            data = getattr(self, dataset_name)
+            
+            if 'phoneme_labels' not in data:
+                continue
+            
+            # Store original raw labels
+            data['phoneme_labels_raw'] = data['phoneme_labels'].copy()
+            
+            # Convert to groups
+            grouped_labels = []
+            unknown_count = 0
+            
+            for label in data['phoneme_labels']:
+                if label in phoneme_to_group:
+                    grouped_labels.append(phoneme_to_group[label])
+                elif label in ('?', 'unknown', ''):
+                    grouped_labels.append('unknown')
+                    unknown_count += 1
+                else:
+                    # Phoneme not in mapping - mark as unknown
+                    grouped_labels.append('unknown')
+                    unknown_count += 1
+            
+            data['phoneme_labels'] = grouped_labels
+            
+            # Log statistics
+            unique_raw = len(set(data['phoneme_labels_raw']))
+            unique_grouped = len(set(grouped_labels))
+            self.log(f"  {dataset_name}: {unique_raw} raw phonemes -> {unique_grouped} groups")
+            
+            if unknown_count > 0:
+                self.log(f"    {unknown_count} samples mapped to 'unknown'")
+        
+        # Store flag indicating grouping was applied
+        self.phonemes_grouped = True
+        
+        # Log group distribution for train
+        if hasattr(self, 'train') and 'phoneme_labels' in self.train:
+            from collections import Counter
+            group_counts = Counter(self.train['phoneme_labels'])
+            self.log(f"  Train group distribution:")
+            for group, count in sorted(group_counts.items(), key=lambda x: -x[1]):
+                self.log(f"    {group}: {count}")
+        
+        self.log("Step 8 complete: Phonemes grouped")
+        
+    def revert_to_raw_phonemes(self):
+        """
+        Revert grouped labels back to raw phoneme labels.
+        
+        Only works if step8_group_phonemes was previously called.
+        """
+        for dataset_name in ['train', 'test', 'val']:
+            if not hasattr(self, dataset_name):
+                continue
+            
+            data = getattr(self, dataset_name)
+            
+            if 'phoneme_labels_raw' in data:
+                data['phoneme_labels'] = data['phoneme_labels_raw'].copy()
+                self.log(f"  {dataset_name}: Reverted to raw phoneme labels")
+        
+        self.phonemes_grouped = False
+        self.log("Reverted to raw phonemes")
     
     def analyze_dutch30_channels(self):
         """Run channel analysis for Dutch30 patients"""
@@ -1106,7 +1227,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 word = self.train['phoneme_words'][i]
                 
                 phonemes = self.detector.phonetic_dict.extract_phonemes(word)
-                n_phonemes = len([p for p in phonemes if p != '?']) if phonemes else None
+                n_phonemes = len([ph for ph in phonemes if p != '?']) if phonemes else None
                 
                 if n_phonemes and n_phonemes > 2 and 0 < pos < n_phonemes - 1:
                     middle_lengths.append(feat.shape[0])
@@ -1286,7 +1407,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
     def subtract_baseline(self, data, dataset_name, baseline_dict):
         """
         Subtract per-patient baseline from features.
-        Automatically pads baseline to match feature dimensions.
+        Handles different feature shapes automatically.
         """
         self.log(f"\nSubtracting baseline for {dataset_name}:")
         
@@ -1295,42 +1416,53 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         corrected_features = []
         corrected_count = 0
+        skipped_count = 0
         
         for i, feat in enumerate(features):
             pid = participants[i] if i < len(participants) else None
             
-            if pid in baseline_dict:
-                baseline = baseline_dict[pid]  # Shape: (n_channels,)
+            if pid in baseline_dict and baseline_dict[pid] is not None:
+                baseline = baseline_dict[pid]
                 
-                # Pad baseline to match feature dimensions if needed
-                n_feat_channels = feat.shape[1]
-                n_baseline_channels = baseline.shape[0]
+                # Get feature dimension (handle both 1D and 2D)
+                if feat.ndim == 1:
+                    n_feat_dim = feat.shape[0]
+                else:
+                    n_feat_dim = feat.shape[1]
                 
-                if n_baseline_channels < n_feat_channels:
-                    # Pad baseline with zeros to match
-                    padded_baseline = np.zeros(n_feat_channels)
-                    padded_baseline[:n_baseline_channels] = baseline
-                    baseline = padded_baseline
-                    self.debug(f"Padded baseline for {pid}: {n_baseline_channels} → {n_feat_channels} channels")
-                elif n_baseline_channels > n_feat_channels:
-                    # Trim baseline (shouldn't happen but handle it)
-                    baseline = baseline[:n_feat_channels]
-                    self.debug(f"Trimmed baseline for {pid}: {n_baseline_channels} → {n_feat_channels} channels")
+                n_baseline_dim = baseline.shape[0]
                 
-                # Subtract baseline from all time frames
-                corrected_feat = feat - baseline
+                # Match dimensions
+                if n_baseline_dim != n_feat_dim:
+                    if n_baseline_dim < n_feat_dim:
+                        # Pad baseline
+                        padded_baseline = np.zeros(n_feat_dim)
+                        padded_baseline[:n_baseline_dim] = baseline
+                        baseline = padded_baseline
+                    else:
+                        # Trim baseline
+                        baseline = baseline[:n_feat_dim]
+                
+                # Subtract
+                if feat.ndim == 1:
+                    corrected_feat = feat - baseline
+                else:
+                    corrected_feat = feat - baseline  # Broadcasting handles (n_frames, n_features) - (n_features,)
+                
                 corrected_features.append(corrected_feat)
                 corrected_count += 1
             else:
-                # No baseline for this patient - keep as is
                 corrected_features.append(feat)
+                skipped_count += 1
         
         data['features'] = corrected_features
         
-        self.log(f"  Features corrected: {corrected_count}/{len(features)}")
-        self.log(f"  Features unchanged: {len(features) - corrected_count}")
+        self.log(f"  Baseline corrected: {corrected_count}/{len(features)}")
+        self.log(f"  Skipped (no baseline): {skipped_count}")
         
         return data
+        
+    
         
     def sample_split(self, split_info, sample_fraction):
         """Sample patients from each split proportionally"""
@@ -1347,11 +1479,14 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         return sampled_split
         
     def _extract_baseline_from_silence(self, audio, eeg):
-        """Extract baseline EEG from silence periods in audio."""
+        """
+        Extract baseline EEG from silence periods in audio.
+        Uses the same feature extraction method as the main pipeline.
+        """
         window_size = int(0.5 * self.config.audio_sr)  # 500ms
         silence_threshold = np.sqrt(np.mean(audio**2)) * 0.1
         
-        segment_averages = []  # Store averages, not raw segments
+        baseline_features = []
         
         for i in range(0, len(audio) - window_size, window_size):
             window_rms = np.sqrt(np.mean(audio[i:i+window_size]**2))
@@ -1359,14 +1494,113 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 eeg_start = int(i * len(eeg) / len(audio))
                 eeg_end = int((i + window_size) * len(eeg) / len(audio))
                 
-                # Average THIS segment immediately, don't store raw data
-                segment_avg = np.mean(eeg[eeg_start:eeg_end], axis=0)
-                segment_averages.append(segment_avg)
+                eeg_segment = eeg[eeg_start:eeg_end]
+                
+                # Skip if segment too short
+                min_samples = int((self.config.window_length + self.config.frameshift) * self.config.eeg_sr)
+                if len(eeg_segment) < min_samples:
+                    continue
+                
+                # Extract features using the SAME method as main pipeline
+                try:
+                    if self.feature_extraction_method == 'high_gamma':
+                        feat = extractHG(
+                            eeg_segment, 
+                            self.config.eeg_sr,
+                            windowLength=self.config.window_length,
+                            frameshift=self.config.frameshift
+                        )
+                    elif self.feature_extraction_method == 'band_powers':
+                        feat = self.detector._extract_band_power_features(eeg_segment)
+                    elif self.feature_extraction_method == 'hjorth':
+                        feat = self.detector._extract_hjorth_features(eeg_segment)
+                    elif self.feature_extraction_method == 'temporal_dynamics':
+                        feat = self.detector._extract_temporal_dynamics_features(eeg_segment)
+                    elif self.feature_extraction_method == 'band_power_hjorth':
+                        feat = self.detector._extract_band_power_hjorth_features(eeg_segment)
+                    else:
+                        # Default to high gamma
+                        feat = extractHG(
+                            eeg_segment,
+                            self.config.eeg_sr,
+                            windowLength=self.config.window_length,
+                            frameshift=self.config.frameshift
+                        )
+                    
+                    if feat is not None and feat.shape[0] > 0:
+                        # Average across time if multi-frame
+                        if feat.ndim > 1 and feat.shape[0] > 1:
+                            feat_avg = np.mean(feat, axis=0)
+                        else:
+                            feat_avg = feat.flatten()
+                        baseline_features.append(feat_avg)
+                        
+                except Exception as e:
+                    self.debug(f"Error extracting baseline features: {e}")
+                    continue
         
-        if segment_averages:
-            # Average across segment averages (much smaller!)
-            baseline = np.mean(segment_averages, axis=0)
+        if baseline_features:
+            baseline = np.mean(baseline_features, axis=0)
+            self.debug(f"Baseline extracted: {len(baseline_features)} segments, shape {baseline.shape}")
         else:
-            baseline = np.zeros(eeg.shape[1])
+            # Return zeros matching expected feature dimension
+            if self.feature_extraction_method == 'band_powers':
+                n_features = eeg.shape[1] * 6  # channels x 6 bands
+            elif self.feature_extraction_method == 'hjorth':
+                n_features = eeg.shape[1] * 3  # channels x 3 params
+            elif self.feature_extraction_method == 'temporal_dynamics':
+                n_features = eeg.shape[1] * 4  # channels x 4 features
+            elif self.feature_extraction_method == 'band_power_hjorth':
+                n_features = eeg.shape[1] * 9  # channels x (6 + 3)
+            else:
+                n_features = eeg.shape[1]  # high gamma: just channels
+            
+            baseline = np.zeros(n_features)
+            self.debug(f"Warning: No usable silence blocks, using zero baseline shape {baseline.shape}")
         
         return baseline
+
+
+    def _apply_pca_per_patient(self, train_data, test_data, pca_components):
+        """Fit PCA on train, transform both train and test."""
+        from sklearn.decomposition import PCA
+        import numpy as np
+        
+        # Group by patient
+        train_by_patient = {}
+        for i, pid in enumerate(train_data['phoneme_participant_ids']):
+            if pid not in train_by_patient:
+                train_by_patient[pid] = []
+            train_by_patient[pid].append(i)
+        
+        test_by_patient = {}
+        for i, pid in enumerate(test_data['phoneme_participant_ids']):
+            if pid not in test_by_patient:
+                test_by_patient[pid] = []
+            test_by_patient[pid].append(i)
+        
+        # Fit and transform per patient
+        for pid in train_by_patient:
+            train_indices = train_by_patient[pid]
+            train_features = [train_data['features'][i] for i in train_indices]
+            
+            # Stack all frames for this patient's train data
+            all_train = np.vstack(train_features)
+            
+            # Fit PCA on TRAIN only
+            n_comp = min(pca_components, all_train.shape[1])
+            pca = PCA(n_components=n_comp)
+            pca.fit(all_train)
+            
+            self.log(f"PCA for {pid}: fit on {all_train.shape}, explained var={pca.explained_variance_ratio_.sum():.3f}")
+            
+            # Transform train
+            for i in train_indices:
+                train_data['features'][i] = pca.transform(train_data['features'][i])
+            
+            # Transform test using SAME PCA
+            if pid in test_by_patient:
+                for i in test_by_patient[pid]:
+                    test_data['features'][i] = pca.transform(test_data['features'][i])
+        
+        return train_data, test_data

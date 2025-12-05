@@ -67,6 +67,7 @@ class Dutch30Config:
     min_phoneme_duration: float = 0.025   # 50ms minimum
     max_phoneme_duration: float = 0.40   # 400ms maximum
     min_silence_duration: float = 0.20   # 200ms for baseline
+    boundary_detection_method = 'rms'  # Options: 'rms', 'wav2vec'
     
     """
         phoneme duration

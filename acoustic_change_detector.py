@@ -3,6 +3,7 @@ from scipy import signal
 from scipy.spatial.distance import cosine, euclidean
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, savgol_filter
+from numpy.lib.stride_tricks import sliding_window_view
 from sklearn.preprocessing import normalize
 from scipy.signal import welch
 import os
@@ -551,14 +552,22 @@ class AcousticChangeDetector(DebugMixin):
             # Optional: smooth the distances
             enhanced_distances = gaussian_filter1d(distances, sigma=1.0)
             
-            # Detect peaks in the distance curve
-            boundaries_original = self.detect_peaks(
-                enhanced_distances, 
-                n_phonemes, 
-                participant_id=participant_id, 
-                word=word,
-                word_position=word_position
-            )
+            # Adaptive peak detection for wav2vec
+            if n_phonemes is not None and n_phonemes > 1:
+                boundaries_original = self._adaptive_peak_detection(
+                    enhanced_distances,
+                    n_phonemes,
+                    participant_id=participant_id,
+                    word=word
+                )
+            else:
+                boundaries_original = self.detect_peaks(
+                    enhanced_distances, 
+                    n_phonemes, 
+                    participant_id=participant_id, 
+                    word=word,
+                    word_position=word_position
+                )
             
             # For wav2vec, skip refinement since features are already optimized
             boundaries_final = boundaries_original
@@ -662,6 +671,43 @@ class AcousticChangeDetector(DebugMixin):
         boundary_times = boundaries_final * self.config.frameshift    
         boundary_samples = np.round(boundary_times * self.config.eeg_sr).astype(int)
         
+        # Enforce minimum segment duration for feature extraction
+        # Note: Short segment handling is done in process_batch via _extend_short_segments
+        # This allows overlapping segments rather than shifting boundaries
+        
+        # min_samples = self.config.min_eeg_samples_for_features
+        # boundary_samples = self._enforce_minimum_segment_duration(boundary_samples, min_samples)
+
+        # Update boundaries_final to match adjusted samples
+        boundaries_final = np.round(boundary_samples / self.config.eeg_sr / self.config.frameshift).astype(int)
+        
+        
+        # Only check for segment/phoneme count match - duration handling is in process_batch
+        # Remove the drop_word logic based on duration since we now use _extend_short_segments
+
+        #min_valid_duration = self.config.min_phoneme_duration
+        #max_valid_duration = self.config.max_phoneme_duration
+        #frameshift = self.config.frameshift
+
+        #segment_durations = []
+        #for i in range(len(boundary_samples) - 1):
+        #    dur_samples = boundary_samples[i + 1] - boundary_samples[i]
+        #    dur_seconds = dur_samples / self.config.eeg_sr
+        #    segment_durations.append(dur_seconds)
+
+        #has_invalid = any(d < min_valid_duration or d > max_valid_duration for d in segment_durations)
+
+        # STEP 5: Mark word for dropping if still invalid
+        #if has_invalid:
+         #   self.debug(f"  Marking '{word}' for dropping - invalid segment durations: {segment_durations}")
+            # Return a flag indicating this word should be dropped
+          #  return {
+           #     'boundaries': boundaries_final,
+            #    'boundary_samples': boundary_samples,
+            #    'segments': [],  # Empty segments signal to drop
+            #    'drop_word': True,
+            #    'reason': f"Invalid durations: {[f'{d:.3f}s' for d in segment_durations]}"
+            #}
         # STEP 4: Create result
         result = {
             'boundaries': boundaries_final,
@@ -825,9 +871,6 @@ class AcousticChangeDetector(DebugMixin):
         skip_mismatches :  If True, skip words where detected segments don't match expected phonemes
         """
         self.debug(f"Processing batch with {len(batch.get('words', []))} instances")
-        #self.debug(f"Original batch keys: {list(batch.keys())}")
-        #self.debug(f"EEG segments in batch: {'eeg_segments' in batch}")
-        #self.debug(f"Spectrogram segments in batch: {'spectrogram_segments' in batch}")
         
         if 'eeg_segments' in batch and batch['eeg_segments']:
             self.debug(f"  First EEG segment shape: {batch['eeg_segments'][0].shape}")
@@ -848,7 +891,7 @@ class AcousticChangeDetector(DebugMixin):
   
         # Process each instance in the batch
         for i, word in enumerate(batch.get('words', [])):
-            if i % 10 == 0:
+            if i % 100 == 0:
                 self.debug(f"Processing instance {i}/{len(batch.get('words', []))}: {word}")
             
             # Get data for this instance
@@ -856,7 +899,7 @@ class AcousticChangeDetector(DebugMixin):
             spectrogram_segment = batch['spectrogram_segments'][i] if 'spectrogram_segments' in batch else None
             participant_id = batch['participant_ids'][i] if 'participant_ids' in batch else None
         
-            # VALIDATE SPECTROGRAM SIZE
+            # validate spectrogram size
             if spectrogram_segment is None:
                 self.debug(f"Skipping word '{word}': spectrogram is None")
                 continue
@@ -890,46 +933,31 @@ class AcousticChangeDetector(DebugMixin):
                     audio_segment=audio_segment,   
                     audio_sr=self.config.audio_sr  
                 )
-                
+
+                # Check if word should be dropped due to invalid boundaries
+                if result.get('drop_word', False):
+                    self.debug(f"  Dropping word '{word}' from {participant_id}: {result.get('reason', 'invalid segments')}")
+                    continue
+
                 # Store boundaries
                 word_boundaries.append(result['boundaries'])
+                
+                extended_segments = None
+                if eeg_segment is not None and result.get('boundary_samples') is not None:
+                    min_samples = self.config.min_eeg_samples_for_features
+                    extended_segments = self._extend_short_segments(
+                        result['boundary_samples'],
+                        eeg_segment.shape[0],
+                        min_samples
+                    )
                 
                 # Extract phoneme segments
                 segments = result['segments']
                 
                 # Try to get phoneme transcription
                 if word in self.phonetic_dict:
-                    transcription = self.phonetic_dict[word]
-                    # Clean transcription
-                    cleaned = transcription.replace('ˈ', '').replace('(', '').replace(')', '').replace("'", '').replace("?", '')
-                    
-                    # Extract individual phonemes
-                    phonemes = []
-                    char_idx = 0
-                    while char_idx < len(cleaned):
-                        # Check for complex phonemes (digraphs, diphthongs)
-                        complex_found = False
-                        # Sort by length to prevent substring matches
-                        sorted_complex = sorted(['ɛi', 'œy', 'ɑu', 'ɵ:', 'ɛ:', 'a:', 'o:', 'e:', 'øk', 'ɔf', 
-                            'ts', 'ŋk', 'sx', 'ɔx', 'ɪx', 'aː', 'eː', 'iː', 'oː', 'uː', 'yː', 'øː', 'tʋ', 'ʋɑ', 'ʋɪ', 'ʋə'],
-                           key=len, reverse=True)
-                           
-                        for cp in sorted_complex:
-                            if  char_idx + len(cp) <= len(cleaned) and cleaned[char_idx:char_idx+len(cp)] == cp:
-                                phonemes.append(cp)
-                                char_idx += len(cp)
-                                complex_found = True
-                                break
-                        
-                        # Check for length markers
-                        if not complex_found and char_idx + 1 < len(cleaned) and cleaned[char_idx+1] == 'ː':
-                            phonemes.append(cleaned[char_idx:char_idx+2])
-                            char_idx += 2
-                            complex_found = True
-                        
-                        if not complex_found:
-                            phonemes.append(cleaned[char_idx])
-                            char_idx += 1
+                    # Use the phonetic dictionary's extract_phonemes method
+                    phonemes = self.phonetic_dict.extract_phonemes(word)
                     
                     # Handle mismatch between segments and phonemes
                     if len(segments) == len(phonemes):
@@ -945,14 +973,19 @@ class AcousticChangeDetector(DebugMixin):
                             # Extract corresponding EEG segment if available
                             if eeg_segment is not None and result.get('boundary_samples') is not None:
                                 boundaries = result['boundary_samples']
-                                if j < len(boundaries) - 1:
-                                    start = max(0, boundaries[j])
-                                    end = min(eeg_segment.shape[0], boundaries[j + 1])
+                                if extended_segments is not None and j < len(extended_segments):
+                                    start, end = extended_segments[j]
                                     
                                     if start < end:
-                                        phoneme_eeg_segments.append(eeg_segment[start:end])
+                                        raw_segment = eeg_segment[start:end]
+                                        # Normalize to fixed window size
+                                        fixed_segment = self._extract_fixed_window(
+                                            raw_segment, 
+                                            self.config.fixed_feature_samples
+                                        )
+                                        phoneme_eeg_segments.append(fixed_segment)
                                     else:
-                                        phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))  # Empty with correct channels
+                                        phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
                                 else:
                                     phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
                             else:
@@ -978,16 +1011,20 @@ class AcousticChangeDetector(DebugMixin):
                             # Extract corresponding EEG segment if available
                             if eeg_segment is not None and result.get('boundary_samples') is not None:
                                 boundaries = result['boundary_samples']
-                                if j < len(boundaries) - 1:
-                                    start = boundaries[j]
-                                    end = boundaries[j + 1]
+                                if extended_segments is not None and j < len(extended_segments):
+                                    start, end = extended_segments[j]
                                     
                                     # Ensure valid indices
                                     start = max(0, start)
                                     end = min(eeg_segment.shape[0], end)
                                     
                                     if start < end:
-                                        phoneme_eeg_segments.append(eeg_segment[start:end])
+                                        raw_segment = eeg_segment[start:end]
+                                        fixed_segment = self._extract_fixed_window(
+                                            raw_segment, 
+                                            self.config.fixed_feature_samples
+                                        )
+                                        phoneme_eeg_segments.append(fixed_segment)
                                     else:
                                         phoneme_eeg_segments.append(np.array([]))
                                 else:
@@ -1008,18 +1045,26 @@ class AcousticChangeDetector(DebugMixin):
                         # Extract corresponding EEG segment if available
                         if eeg_segment is not None and result.get('boundary_samples') is not None:
                             boundaries = result['boundary_samples']
-                            if j < len(boundaries) - 1:
-                                start = boundaries[j]
-                                end = boundaries[j + 1]
-                                
-                                # Ensure valid indices
-                                start = max(0, start)
-                                end = min(eeg_segment.shape[0], end)
+                            if extended_segments is not None and j < len(extended_segments):
+                                start, end = extended_segments[j]
                                 
                                 if start < end:
-                                    phoneme_eeg_segments.append(eeg_segment[start:end])
+                                    raw_segment = eeg_segment[start:end]
+                                    # Normalize to fixed window size
+                                    fixed_segment = self._extract_fixed_window(
+                                        raw_segment, 
+                                        self.config.fixed_feature_samples
+                                    )
+                                    phoneme_eeg_segments.append(fixed_segment)
                                 else:
-                                    phoneme_eeg_segments.append(np.array([]))
+                                    phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
+                            else:
+                                # extended_segments is None or j out of range
+                                phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
+                        else:
+                            # No EEG data available
+                            if eeg_segment is not None:
+                                phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
                             else:
                                 phoneme_eeg_segments.append(np.array([]))
             else:
@@ -1095,6 +1140,7 @@ class AcousticChangeDetector(DebugMixin):
                         'word': word,
                         'instance_index': idx
                     })
+                    
         
         
         # STEP 2: Calculate number of batches
@@ -1122,18 +1168,25 @@ class AcousticChangeDetector(DebugMixin):
             start_idx = batch_num * batch_size
             end_idx = min(start_idx + batch_size, len(all_instances))
             batch_instances = all_instances[start_idx:end_idx]
+            
         
             # Build batch from specific instances
+            print(f"          Building batch from {len(batch_instances)} instances...")
             batch = self._build_batch_from_instances(batch_instances, word_segments_dict)
+            print(f"          Batch built: {len(batch.get('words', []))} words")
             
             # Process batch to get phoneme-level data
+            print(f"          Processing batch (phoneme detection)...")
             phoneme_batch = self.process_batch(batch)
+            print(f"          Batch processed")
             
             # Prepare features for model training
+            print(f"          Preparing training data...")
             phoneme_data = self.prepare_phoneme_training_data(
                 phoneme_batch,
                 feature_extraction_method=feature_extraction_method
             )
+            print(f"          Training data prepared: {len(phoneme_data['features'])} features")
             
              # Accumulate mismatch statistics
             if 'total_words' in phoneme_batch['metadata']:
@@ -1229,7 +1282,7 @@ class AcousticChangeDetector(DebugMixin):
             eeg = enhanced_batch['phoneme_eeg_segments'][idx]
             pid = enhanced_batch['phoneme_participant_ids'][idx]
             
-            min_samples = 70  # Minimum to get at least 1 frame from extractHG
+            min_samples = int(self.config.min_phoneme_duration * self.config.eeg_sr)  # Minimum to get at least 1 frame from extractHG
             if eeg.size == 0 or eeg.shape[0] < min_samples:
                 self.debug(f"Skipping segment {idx}: too short ({eeg.shape[0]} samples)")
                 continue
@@ -1375,159 +1428,41 @@ class AcousticChangeDetector(DebugMixin):
             
         return batch
         
-    '''
-    def compute_multifeature_distances(self, spectrogram, audio_segment=None, audio_sr=None):
+    def _detect_boundaries_rms(self, spectrogram, n_phonemes, audio_segment, audio_sr, participant_id=None, word=None):
         """
-        Compute boundary detection score using multiple acoustic features.
+        RMS-based boundary detection as fallback.
         
-        Parameters:
-        -----------
-        spectrogram : ndarray
-            Mel spectrogram (time frames × frequency bins)
-        audio_segment : ndarray or None
-            Raw audio waveform for additional features
-        audio_sr : int or None
-            Audio sampling rate
+        Args:
+            spectrogram: Spectrogram array.
+            n_phonemes: Expected number of phonemes.
+            audio_segment: Audio waveform.
+            audio_sr: Audio sample rate.
+            participant_id: For logging.
+            word: For logging.
             
         Returns:
-        --------
-        combined_score : ndarray
-            Combined boundary detection score
-        feature_dict : dict
-            Individual feature scores for debugging
+            Dict with 'boundaries' and 'boundary_samples'.
         """
+        # Use existing compute_rms_boundaries method
+        boundaries, rms_change = self.compute_rms_boundaries(
+            audio_segment,
+            audio_sr,
+            n_phonemes=n_phonemes
+        )
         
-        n_frames = spectrogram.shape[0]
+        # Convert to EEG samples
+        boundary_times = boundaries * self.config.frameshift
+        boundary_samples = np.round(boundary_times * self.config.eeg_sr).astype(int)
+
         
-        # FEATURE 1: Spectral distance (your current method)
-        self.debug("Computing spectral distances...")
-        spec_distances = self.compute_frame_distances(spectrogram)
+        # Update boundaries to match
+        boundaries = np.round(boundary_samples / self.config.eeg_sr / self.config.frameshift).astype(int)
         
-        # FEATURE 2: Energy envelope changes
-        self.debug("Computing energy changes...")
-        energy = np.sum(spectrogram ** 2, axis=1)
-        energy_gradient = np.abs(np.gradient(energy))
-        # Pad to match spec_distances length
-        energy_change = energy_gradient[:-1] if len(energy_gradient) > len(spec_distances) else energy_gradient
-        
-        # FEATURE 3: Spectral flux (already computed, but let's enhance it)
-        self.debug("Computing spectral flux...")
-        flux = self.compute_spectral_flux(spectrogram)
-        
-        # FEATURE 4: Spectral centroid changes
-        self.debug("Computing spectral centroid changes...")
-        # Compute spectral centroid for each frame
-        freq_bins = np.arange(spectrogram.shape[1])
-        centroids = []
-        for frame in spectrogram:
-            if np.sum(frame) > 0:
-                centroid = np.sum(freq_bins * frame) / np.sum(frame)
-            else:
-                centroid = 0
-            centroids.append(centroid)
-        centroids = np.array(centroids)
-        centroid_change = np.abs(np.gradient(centroids))[:-1]
-        
-        # FEATURE 5: Spectral rolloff changes
-        self.debug("Computing spectral rolloff changes...")
-        rolloffs = []
-        for frame in spectrogram:
-            cumsum = np.cumsum(frame)
-            total = cumsum[-1]
-            if total > 0:
-                rolloff_idx = np.where(cumsum >= 0.85 * total)[0]
-                rolloff = rolloff_idx[0] if len(rolloff_idx) > 0 else 0
-            else:
-                rolloff = 0
-            rolloffs.append(rolloff)
-        rolloffs = np.array(rolloffs)
-        rolloff_change = np.abs(np.gradient(rolloffs))[:-1]
-        
-        # If audio available, add time-domain features
-        if audio_segment is not None and audio_sr is not None:
-            self.debug("Computing audio-based features...")
-            
-            # FEATURE 6: Zero-crossing rate changes
-            hop_length = int(self.config.frameshift * audio_sr)
-            zcr = librosa.feature.zero_crossing_rate(
-                audio_segment, 
-                frame_length=int(self.config.window_length * audio_sr),
-                hop_length=hop_length
-            )[0]
-            
-            # Match length with spectrogram
-            if len(zcr) > n_frames:
-                zcr = zcr[:n_frames]
-            elif len(zcr) < n_frames:
-                zcr = np.pad(zcr, (0, n_frames - len(zcr)), mode='edge')
-            
-            zcr_change = np.abs(np.gradient(zcr))[:-1]
-            
-            # FEATURE 7: RMS energy from audio
-            rms = librosa.feature.rms(
-                y=audio_segment,
-                frame_length=int(self.config.window_length * audio_sr),
-                hop_length=hop_length
-            )[0]
-            
-            if len(rms) > n_frames:
-                rms = rms[:n_frames]
-            elif len(rms) < n_frames:
-                rms = np.pad(rms, (0, n_frames - len(rms)), mode='edge')
-            
-            rms_change = np.abs(np.gradient(rms))[:-1]
-        else:
-            # Use zeros if no audio
-            zcr_change = np.zeros_like(spec_distances)
-            rms_change = np.zeros_like(spec_distances)
-        
-        # Store all features for debugging
-        feature_dict = {
-            'spectral_distance': spec_distances,
-            'energy_change': energy_change,
-            'spectral_flux': flux,
-            'centroid_change': centroid_change,
-            'rolloff_change': rolloff_change,
-            'zcr_change': zcr_change,
-            'rms_change': rms_change
+        return {
+            'boundaries': boundaries,
+            'boundary_samples': boundary_samples
         }
         
-        # Ensure all features have same length
-        min_length = min(len(f) for f in feature_dict.values())
-        for key in feature_dict:
-            feature_dict[key] = feature_dict[key][:min_length]
-        
-        # Normalize each feature to [0, 1]
-        self.debug("Normalizing features...")
-        scaler = MinMaxScaler()
-        normalized_features = {}
-        
-        for key, values in feature_dict.items():
-            if np.max(values) > 0:
-                normalized = scaler.fit_transform(values.reshape(-1, 1)).flatten()
-            else:
-                normalized = values
-            normalized_features[key] = normalized
-        
-        # Weighted combination (tune these weights based on performance)
-        weights = {
-            'spectral_distance': 0.25,
-            'energy_change': 0.15,
-            'spectral_flux': 0.20,
-            'centroid_change': 0.15,
-            'rolloff_change': 0.10,
-            'zcr_change': 0.10,
-            'rms_change': 0.05
-        }
-        
-        self.debug(f"Combining features with weights: {weights}")
-        
-        combined_score = np.zeros(min_length)
-        for key, weight in weights.items():
-            combined_score += weight * normalized_features[key]
-        
-        return combined_score, feature_dict
-    '''
     def compute_rms_boundaries(self, audio_segment, audio_sr, n_phonemes=None):
         """
         Detect phoneme boundaries using RMS energy changes.
@@ -1538,11 +1473,18 @@ class AcousticChangeDetector(DebugMixin):
         hop_length = int(0.005 * audio_sr)  # 5ms hop
         frame_length = int(0.020 * audio_sr)  # 20ms frame
         
-        rms = librosa.feature.rms(
-            y=audio_segment,
-            frame_length=frame_length,
-            hop_length=hop_length
-        )[0]
+        # Manual RMS computation (replaces librosa.feature.rms)
+        from numpy.lib.stride_tricks import sliding_window_view
+
+        audio_float = audio_segment.astype(np.float32)
+        n_frames = 1 + (len(audio_float) - frame_length) // hop_length
+
+        if len(audio_float) >= frame_length:
+            frames = sliding_window_view(audio_float, frame_length)[::hop_length]
+            rms = np.sqrt(np.mean(frames ** 2, axis=1))
+        else:
+            # Audio too short, single frame
+            rms = np.array([np.sqrt(np.mean(audio_float ** 2))])
         
         # Smooth RMS
         rms_smoothed = gaussian_filter1d(rms, sigma=2)
@@ -1802,6 +1744,142 @@ class AcousticChangeDetector(DebugMixin):
             'speech_end': speech_end
         }
         
+    def segment_sentence_by_wav2vec(self, audio_sentence: np.ndarray, audio_sr: int,
+                                 words: list, phonetic_dict) -> dict:
+        """
+        Segment sentence into words using wav2vec feature distances.
+        
+        Args:
+            audio_sentence: Audio waveform for the sentence
+            audio_sr: Sample rate of audio
+            words: List of words in the sentence
+            phonetic_dict: PhoneticDictionary for phoneme counts
+            
+        Returns:
+            dict with word_boundaries_samples, word_segments
+        """
+        self.debug(f"Segmenting sentence with wav2vec: {words}")
+        
+        # Get expected phoneme counts for each word
+        self.debug(f"Segmenting sentence with wav2vec: {words}")
+        
+        # Get expected phoneme counts for each word
+        word_phoneme_counts = []
+        for word in words:
+            phonemes = phonetic_dict.extract_phonemes(word)
+            count = len(phonemes) if phonemes else 3
+            word_phoneme_counts.append(count)
+        
+        total_phonemes = sum(word_phoneme_counts)
+        
+        # Extract wav2vec features
+        wav2vec_features = self.extract_wav2vec_features(audio_sentence, audio_sr)
+        
+        # Compute distances between consecutive frames
+        distances = self.compute_wav2vec_distances(wav2vec_features)
+        
+        # Smooth the distances
+        distances_smoothed = gaussian_filter1d(distances, sigma=2)
+        
+        # Find speech onset and offset using energy threshold
+        threshold = np.mean(distances_smoothed) + 0.5 * np.std(distances_smoothed)
+        above_threshold = np.where(distances_smoothed > threshold * 0.3)[0]
+        
+        if len(above_threshold) > 0:
+            speech_start = above_threshold[0]
+            speech_end = above_threshold[-1]
+        else:
+            speech_start = 0
+            speech_end = len(distances_smoothed) - 1
+        
+        # Focus on speech region
+        distances_speech = distances_smoothed[speech_start:speech_end]
+        
+        # Find boundaries - we need (total_phonemes - 1) boundaries
+        n_boundaries_needed = total_phonemes - 1
+        
+        # Adaptive threshold for peak detection
+        median_val = np.median(distances_speech)
+        mad = np.median(np.abs(distances_speech - median_val))
+        peak_threshold = median_val + 1.0 * mad
+        
+        # Minimum distance between peaks (in wav2vec frames)
+        # wav2vec outputs ~50 frames per second at 16kHz
+        wav2vec_fps = 50
+        min_phoneme_frames = int(self.config.min_phoneme_duration * wav2vec_fps)
+        
+        # Find peaks with adaptive threshold
+        for attempt in range(5):
+            peaks, _ = find_peaks(
+                distances_speech,
+                height=peak_threshold,
+                distance=max(1, min_phoneme_frames),
+                prominence=0.01 * np.max(distances_speech)
+            )
+            
+            self.debug(f"  Attempt {attempt+1}: threshold={peak_threshold:.4f}, found {len(peaks)} peaks (need {n_boundaries_needed})")
+            
+            if len(peaks) >= n_boundaries_needed:
+                # Keep strongest n peaks
+                if len(peaks) > n_boundaries_needed:
+                    peak_heights = distances_speech[peaks]
+                    strongest = np.argsort(peak_heights)[-n_boundaries_needed:]
+                    peaks = peaks[strongest]
+                    peaks = np.sort(peaks)
+                break
+            else:
+                peak_threshold *= 0.75
+        
+        # Convert wav2vec frame indices to audio samples
+        # wav2vec processes at 16kHz with ~320 samples per frame (20ms)
+        target_sr = self.config.audio_target_sr
+        samples_per_frame = int(target_sr / wav2vec_fps)
+        
+        # Adjust for resampling if original audio_sr differs
+        resample_ratio = audio_sr / target_sr
+        
+        peaks_absolute = peaks + speech_start
+        onset_sample = int(speech_start * samples_per_frame * resample_ratio)
+        
+        phoneme_boundaries_samples = [onset_sample]
+        for peak in peaks_absolute:
+            phoneme_boundaries_samples.append(int(peak * samples_per_frame * resample_ratio))
+        phoneme_boundaries_samples.append(len(audio_sentence))
+        
+        phoneme_boundaries_samples = np.array(phoneme_boundaries_samples)
+        
+        # Group phonemes into words based on expected counts
+        word_boundaries_samples = [phoneme_boundaries_samples[0]]
+        
+        phoneme_idx = 0
+        for word_idx, n_phonemes in enumerate(word_phoneme_counts):
+            phoneme_idx += n_phonemes
+            
+            if phoneme_idx < len(phoneme_boundaries_samples):
+                word_boundaries_samples.append(phoneme_boundaries_samples[phoneme_idx])
+            else:
+                word_boundaries_samples.append(phoneme_boundaries_samples[-1])
+        
+        word_boundaries_samples = np.array(word_boundaries_samples)
+        
+        # Extract word segments
+        word_segments = []
+        for i in range(len(word_boundaries_samples) - 1):
+            start = int(word_boundaries_samples[i])
+            end = int(word_boundaries_samples[i + 1])
+            word_segments.append(audio_sentence[start:end])
+        
+        self.debug(f"  Result: {len(word_segments)} words extracted via wav2vec")
+        
+        return {
+            'word_boundaries_samples': word_boundaries_samples,
+            'phoneme_boundaries_samples': phoneme_boundaries_samples,
+            'word_segments': word_segments,
+            'wav2vec_distances': distances_smoothed,
+            'speech_start': speech_start,
+            'speech_end': speech_end
+        }
+        
     def extract_wav2vec_features(self, audio_segment, audio_sr):
         """
         Extract wav2vec 2.0 features from audio.
@@ -1809,7 +1887,6 @@ class AcousticChangeDetector(DebugMixin):
         Returns:
             np.ndarray: (n_frames, 768) - contextualized audio features
         """
-        
         # Initialize models once (cache them)
         if not hasattr(self, 'wav2vec_processor'):
             self.wav2vec_processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
@@ -1819,11 +1896,9 @@ class AcousticChangeDetector(DebugMixin):
         # CRITICAL: Resample to 16kHz if needed
         target_sr = self.config.audio_target_sr
         if audio_sr != target_sr:
-            audio_resampled = librosa.resample(
-                audio_segment, 
-                orig_sr=audio_sr, 
-                target_sr=target_sr
-            )
+            from scipy.signal import resample_poly
+            downsample_factor = int(audio_sr / target_sr)
+            audio_resampled = resample_poly(audio_segment.astype(np.float32), up=1, down=downsample_factor)
             self.debug(f"Resampled audio: {audio_sr}Hz → {target_sr}Hz")
         else:
             audio_resampled = audio_segment
@@ -1839,7 +1914,7 @@ class AcousticChangeDetector(DebugMixin):
         with torch.no_grad():
             outputs = self.wav2vec_model(**inputs)
             features = outputs.last_hidden_state.squeeze(0).numpy()
-        
+            
         return features  # Shape: (time_frames, 768)
         
     def compute_wav2vec_distances(self, wav2vec_features):
@@ -1865,7 +1940,6 @@ class AcousticChangeDetector(DebugMixin):
         
         return distances
     
-    
     def _extract_band_power_hjorth_features(self, eeg_segment: np.ndarray) -> np.ndarray:
         """
         Combine band power features with Hjorth parameters.
@@ -1882,4 +1956,150 @@ class AcousticChangeDetector(DebugMixin):
         
         return np.concatenate([band_feats, hjorth_feats], axis=1)
         
+    def _adaptive_peak_detection(self, distances, n_phonemes, participant_id=None, word=None):
+        """
+        Adaptively find peaks by adjusting threshold until we get the right number.
+        
+        Args:
+            distances: Array of frame-to-frame distances.
+            n_phonemes: Expected number of phonemes.
+            participant_id: For logging.
+            word: For logging.
+            
+        Returns:
+            Array of boundary indices including start (0) and end.
+        """
+        from scipy.signal import find_peaks
+        from scipy.ndimage import gaussian_filter1d
+        
+        n_boundaries_needed = n_phonemes - 1
+        
+        distances_smooth = gaussian_filter1d(distances, sigma=1.0)
+        mean_dist = np.mean(distances_smooth)
+        std_dist = np.std(distances_smooth)
+        
+        min_dist_frames = max(1, int(self.config.min_phoneme_duration / self.config.frameshift))
+        
+        best_peaks = None
+        best_diff = float('inf')
+        
+        threshold_factors = [0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.7, 0.8, 0.9, 1.0, 1.2]
+        
+        for factor in threshold_factors:
+            threshold = mean_dist + factor * std_dist
+            
+            peaks, properties = find_peaks(
+                distances_smooth,
+                height=threshold,
+                distance=min_dist_frames,
+                prominence=0.01 * np.max(distances_smooth)
+            )
+            
+            diff = abs(len(peaks) - n_boundaries_needed)
+            
+            if diff < best_diff:
+                best_diff = diff
+                best_peaks = peaks
+                
+                if diff == 0:
+                    self.debug(f"  Found exact match with threshold factor {factor}")
+                    break
+            
+            if len(peaks) == n_boundaries_needed:
+                break
+            elif len(peaks) > n_boundaries_needed:
+                peak_heights = distances_smooth[peaks]
+                strongest_indices = np.argsort(peak_heights)[-n_boundaries_needed:]
+                best_peaks = np.sort(peaks[strongest_indices])
+                best_diff = 0
+                break
+        
+        if best_peaks is None or len(best_peaks) == 0:
+            self.debug(f"  No peaks found, using equal spacing for '{word}'")
+            best_peaks = np.linspace(0, len(distances), n_phonemes + 1)[1:-1].astype(int)
+        
+        if best_diff > 0:
+            if len(best_peaks) < n_boundaries_needed:
+                self.log(f"  Need {n_boundaries_needed} peaks but only found {len(best_peaks)} for word '{word}' (Patient {participant_id})")
+            
+            if len(best_peaks) > n_boundaries_needed:
+                peak_heights = distances_smooth[best_peaks]
+                strongest_indices = np.argsort(peak_heights)[-n_boundaries_needed:]
+                best_peaks = np.sort(best_peaks[strongest_indices])
+        
+        boundaries = np.concatenate([[0], best_peaks, [len(distances)]])
+        
+        return boundaries
+        
+    def _extend_short_segments(self, boundary_samples, eeg_length, min_samples):
+        """
+        Extend short segments by creating overlaps with neighbors.
+        
+        Args:
+            boundary_samples: Array of boundary positions in EEG samples.
+            eeg_length: Total length of EEG segment.
+            min_samples: Minimum samples per segment.
+            
+        Returns:
+            List of (start, end) tuples for each segment, may have overlaps.
+        """
+        n_segments = len(boundary_samples) - 1
+        segments = []
+        
+        for i in range(n_segments):
+            start = boundary_samples[i]
+            end = boundary_samples[i + 1]
+            duration = end - start
+            
+            if duration >= min_samples:
+                # Segment is long enough, use as-is
+                segments.append((start, end))
+            else:
+                # Segment too short - extend symmetrically
+                shortfall = min_samples - duration
+                extend_before = shortfall // 2
+                extend_after = shortfall - extend_before
+                
+                new_start = max(0, start - extend_before)
+                new_end = min(eeg_length, end + extend_after)
+                
+                # If still too short (at boundaries), extend more in available direction
+                if new_end - new_start < min_samples:
+                    if new_start == 0:
+                        new_end = min(eeg_length, new_start + min_samples)
+                    elif new_end == eeg_length:
+                        new_start = max(0, new_end - min_samples)
+                
+                segments.append((new_start, new_end))
+                self.debug(f"  Segment {i}: extended [{start}:{end}] -> [{new_start}:{new_end}]")
+        
+        return segments
     
+    def _extract_fixed_window(self, eeg_segment, target_samples):
+        """
+        Extract a fixed-size window from the center of the segment.
+        Short segments are padded with edge values, long segments are truncated.
+        
+        Args:
+            eeg_segment: EEG data array (n_samples, n_channels)
+            target_samples: Fixed window size to extract
+            
+        Returns:
+            Fixed-size EEG segment (target_samples, n_channels)
+        """
+        n_samples = eeg_segment.shape[0]
+        
+        if n_samples == target_samples:
+            return eeg_segment
+        
+        elif n_samples > target_samples:
+            # Truncate from center
+            start = (n_samples - target_samples) // 2
+            return eeg_segment[start:start + target_samples]
+        
+        else:
+            # Pad with edge values
+            pad_total = target_samples - n_samples
+            pad_before = pad_total // 2
+            pad_after = pad_total - pad_before
+            return np.pad(eeg_segment, ((pad_before, pad_after), (0, 0)), mode='edge')

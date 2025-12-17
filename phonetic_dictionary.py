@@ -175,7 +175,6 @@ class PhoneticDictionary(DebugMixin):
             'voor': 'voːr',
             'wak': 'ʋɑk',
             'wanneer': 'ʋɑˈneːr',
-            'was': 'ʋɑs',
             'waren': 'ˈʋaːrən',
             'warm': 'ʋɑrm',
             'was': 'ʋɑs',
@@ -954,14 +953,17 @@ class PhoneticDictionary(DebugMixin):
     
     # List of complex phonemes that count as single units
     COMPLEX_PHONEMES = [
-            # Existing complex phonemes
-            'ɛi', 'œy', 'ɑu', 'ɵ:', 
+            # Diphthongs (two vowels pronounced as one)
+            'ɛi', 'œy', 'ɑu',
             
-            # Long vowels with IPA length markers
-            'aː', 'eː', 'iː', 'oː', 'uː', 'yː', 'øː', 'ɑː', 'ɔː', 'ɛː', 'ɛ:',
+            # Long vowels
+            'aː', 'eː', 'iː', 'oː', 'uː', 'yː', 'øː', 'ɑː', 'ɔː', 'ɛː', 'ɛ:', 'ɵ:',
             
-            # Additional complex sequences
-            'tʋ', 'ʋɑ', 'ʋɪ', 'ʋə', 'ŋk', 'sx', 'tʃ', 'dʒ',
+            # True consonant clusters that function as single units
+            'ŋk',  # As in "bank" - velar nasal + stop
+            'sx',  # "sch" sound
+            'tʃ',  # "ch" as in "church"
+            'dʒ',  # "j" as in "judge"
         ]
     
     def __init__(self, custom_dict_path: Optional[str] = None, debug_mode=False):
@@ -1156,10 +1158,10 @@ class PhoneticDictionary(DebugMixin):
             ##'a short': ['a', 'ɑ'],
             ##'a long': ['aː'],
             ##'i/e long': ['iː'],               
-            'a/o long': ['oː', 'aː'],
+            'a/o long': ['oː', 'aː', 'ɔː'],
             'o back':  ['ɔ', 'ə'], 
             'i/e short': ['i', 'ɪ', 'e'],
-            'i/e long': ['eː', 'iː'],   
+            'i/e long': ['eː', 'iː', 'ɛː'],   
             '~e': ['ɛi', 'ɛ'],
             '~a': ['œy'],
             
@@ -1174,15 +1176,17 @@ class PhoneticDictionary(DebugMixin):
             'k/g': ['k', 'g'],
             'p/b': ['p', 'b'],
             'sh/zh': ['ʃ', 'ʒ'], 
-            '~x': ['x', 'h', 'ɦ', 'sx'],
+            '~x': ['x', 'h', 'ɦ', 'sx', 'ɣ', 'χ'],
             'm/n': ['m'],
-            'f/v/w': ['f', 'v', 'w', 'ʋɑ'],
+            'f/v/w': ['f', 'v', 'w', 'ʋ'],
             'r': ['r'],
-            't/d': ['t', 'd', 'tʋ'],
+            't/d': ['t', 'd'],
             's/z': ['s', 'z'],
-            'affricates': ['tʃ', 'dʒ', 'tɕ', 'dʑ'],
+            'affricates': ['tʃ', 'dʒ', 'tɕ', 'dʑ', 'ts'],
             'palatal': ['j', 'ŋ', 'ŋk'],
-            '~x': ['ɣ', 'χ']
+            'ʋ': ['ʋ'],   # labiodental approximant - should be in 'f/v/w' or its own group
+            'ʔ': ['ʔ'],   # glottal stop - mentioned in comments but not in active groups
+
             ##'plosive': ['p', 'b', 't', 'd', 'k', 'g'],
             ##'fricative': ['f', 'v', 's', 'z', 'x', 'h', 'ʃ', 'ʒ', 'sx'],
             ##'nasal': ['m', 'n', 'ŋ', 'ŋk'],

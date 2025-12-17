@@ -43,6 +43,10 @@ class Dutch30Config:
     window_length: float = 0.05    # 50ms window for features
     frameshift: float = 0.01       # 10ms frameshift between windows
     mel_num_filters: int = 23      # Mel filterbank filters
+    # Fixed window for feature extraction (normalizes segment lengths)
+    fixed_feature_window_ms = 100  # 100ms window
+    fixed_feature_samples = 102    # At 1024 Hz: 102 samples
+    
     
     # ============================================================
     # TEMPORAL CONTEXT
@@ -67,7 +71,8 @@ class Dutch30Config:
     min_phoneme_duration: float = 0.025   # 50ms minimum
     max_phoneme_duration: float = 0.40   # 400ms maximum
     min_silence_duration: float = 0.20   # 200ms for baseline
-    boundary_detection_method = 'rms'  # Options: 'rms', 'wav2vec'
+    boundary_detection_method = 'wav2vec'  # Options: 'rms', 'wav2vec'
+    min_eeg_samples_for_features: int = 62  # Minimum EEG samples for extractHG
     
     """
         phoneme duration

@@ -29,7 +29,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                         decoder=None, feature_extraction_method='high_gamma',
                         pca_components=100, use_phoneme_groups=False, 
                         debug_mode=False, use_rms_boundaries=True, use_multifeature=False,
-                        subtract_baseline=True,
+                        use_wav2vec=False, subtract_baseline=True, 
                         **kwargs):
         
         super().__init__(
@@ -50,6 +50,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         self.use_rms_boundaries = use_rms_boundaries
         self.use_multifeature = use_multifeature
         self.subtract_baseline_flag = subtract_baseline
+        self.use_wav2vec = use_wav2vec
         
         # Log config if in debug mode
         self.debug(str(self.config))
@@ -62,7 +63,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             config=self.config,
             feature_extraction_method=self.feature_extraction_method,
             use_rms_boundaries=self.use_rms_boundaries,     
-            use_multifeature=self.use_multifeature         
+            use_multifeature=self.use_multifeature,
+            use_wav2vec = self.use_wav2vec             
         )
     
     def step1_load_dutch30_data(self, num_patients=None, patient_ids=None, patient_range=None):
@@ -126,6 +128,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
     
     def step2_split_by_instances(self, train_fraction=0.7, random_seed=42):
         """Split each patient's word instances into train/test."""
+        
         np.random.seed(random_seed)
         
         self.split_result = {'train': {}, 'test': {}, 'word_segments_dict': {}}
@@ -135,9 +138,12 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                                                                                        'P09', 'P10', 'P11', 'P12', 'P13', 'P14', 'P15',
                                                                                        'P16', 'P17', 'P20', 'P21', 'P22', 'P23', 'P24',
                                                                                        'P25', 'P26', 'P27', 'P28', 'P29', 'P30']
-        
         for pid in patient_ids:
+            # Set per-patient seed so split is identical regardless of other patients
+            patient_seed = random_seed + int(pid[1:])  # P06 -> 42 + 6 = 48
+            np.random.seed(patient_seed)
             try:
+              
                 # Load raw data to extract baseline
                 raw_data = self.dutch30_extractor.load_patient_raw_data(pid)
                 eeg = raw_data['eeg']
@@ -180,8 +186,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             
             train_total = sum(len(v) for v in self.split_result['train'][pid].values())
             test_total = sum(len(v) for v in self.split_result['test'][pid].values())
+
             self.log(f"{pid}: {train_total} train, {test_total} test, baseline: {baseline.shape}")
         
+        print("\n=== step2_split_by_instances complete ===")
         return self.split_result
     
     def segment_data_by_words(self, participant_id):
@@ -205,6 +213,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         # Add baseline to result
         word_segments['baseline'] = baseline
         
+        
         return word_segments
     
     def _segment_by_word_markers(self, eeg: np.ndarray, stimuli: np.ndarray, audio: np.ndarray, 
@@ -214,7 +223,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         Flow:
         1. Identify sentence boundaries from stimuli
-        2. For each sentence: use RMS to find word boundaries
+        2. For each sentence: use RMS or wav2vec to find word boundaries
         3. Extract individual word segments (EEG, audio, spectrogram)
         4. Store words in dictionary
         """
@@ -252,15 +261,30 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 'stim_end_idx': len(stimuli)
             })
         
+        
+        # ===================================================================
+        # STEP 1.5: PRE-RESAMPLE AUDIO FOR WAV2VEC (ONCE, NOT PER SENTENCE)
+        # ===================================================================
+        audio_resampled_16k = None
+        resample_ratio = 1.0
+        
+        if self.use_wav2vec:
+            from scipy.signal import resample_poly
+            downsample_factor = int(self.config.audio_sr / self.config.audio_target_sr)  # 48000/16000 = 3
+            audio_resampled_16k = resample_poly(audio.astype(np.float32), up=1, down=downsample_factor)
+            resample_ratio = len(audio_resampled_16k) / len(audio)
+        
         self.debug(f"Identified {len(sentence_list)} sentences")
         
-        # Step2: Storage for all extracted words
+        # ===================================================================
+        # STEP 2: PROCESS EACH SENTENCE
+        # ===================================================================
         all_word_texts = []
         all_word_eeg_segments = []
         all_word_spec_segments = []
         all_word_audio_segments = []
         
-        for sent_info in sentence_list:
+        for sent_idx, sent_info in enumerate(sentence_list):
             sentence_text = sent_info['text']
             sent_stim_start = sent_info['stim_start_idx']
             sent_stim_end = sent_info['stim_end_idx']
@@ -272,34 +296,61 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             word_texts = [w for w in cleaned_sentence.split() if w]
             
             if not word_texts:
-                self.debug(f"Skipping empty sentence")
+                #self.debug(f"Skipping empty sentence")
                 continue
             
-            self.debug(f"Processing sentence: '{sentence_text}' → {len(word_texts)} words")
+            self.debug(f"Processing sentence: '{sentence_text}' -> {len(word_texts)} words")
             
             # -----------------------------------------------------------
-            # 2B. Extract sentence-level audio
+            # 2B. Extract sentence-level audio (original sample rate)
             # -----------------------------------------------------------
             audio_start_sent = int(sent_stim_start * len(audio) / len(eeg))
             audio_end_sent = int(sent_stim_end * len(audio) / len(eeg))
             audio_sent = audio[audio_start_sent:audio_end_sent].copy()
             
             # -----------------------------------------------------------
-            # 2C. Use RMS to find word boundaries WITHIN this sentence
+            # 2C. Find word boundaries WITHIN this sentence
             # -----------------------------------------------------------
             try:
-                rms_result = self.detector.segment_sentence_by_rms(
-                    audio_sentence=audio_sent,
-                    audio_sr=self.config.audio_sr,
-                    words=word_texts,
-                    phonetic_dict=self.phonetic_dict
-                )
-                
-                word_boundaries_in_sent = rms_result['word_boundaries_samples']
-                word_audio_segments = rms_result['word_segments']
+              
+                if self.use_wav2vec:
+                    # Slice the pre-resampled audio for this sentence
+                    audio_start_16k = int(audio_start_sent * resample_ratio)
+                    audio_end_16k = int(audio_end_sent * resample_ratio)
+                    audio_sent_16k = audio_resampled_16k[audio_start_16k:audio_end_16k]
+                    
+                    result = self.detector.segment_sentence_by_wav2vec(
+                        audio_sentence=audio_sent_16k,
+                        audio_sr=self.config.audio_target_sr,  # Already 16kHz
+                        words=word_texts,
+                        phonetic_dict=self.phonetic_dict
+                    )
+
+                    
+                    # Scale boundaries back to original sample rate
+                    word_boundaries_in_sent = (result['word_boundaries_samples'] / resample_ratio).astype(int)
+                    
+                    # Re-extract word segments from original audio (not resampled)
+                    word_audio_segments = []
+                    for i in range(len(word_boundaries_in_sent) - 1):
+                        start = int(word_boundaries_in_sent[i])
+                        end = int(word_boundaries_in_sent[i + 1])
+                        word_audio_segments.append(audio_sent[start:end])
+                        
+                else:
+                    result = self.detector.segment_sentence_by_rms(
+                        audio_sentence=audio_sent,
+                        audio_sr=self.config.audio_sr,
+                        words=word_texts,
+                        phonetic_dict=self.phonetic_dict
+                    )
+                    
+                    word_boundaries_in_sent = result['word_boundaries_samples']
+                    word_audio_segments = result['word_segments']
                 
             except Exception as e:
-                self.debug(f"Failed RMS segmentation for '{sentence_text}': {e}")
+                print(f"        FAILED: {e}")
+                self.debug(f"Failed segmentation for '{sentence_text}': {e}")
                 continue
             
             # -----------------------------------------------------------
@@ -385,7 +436,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 all_word_texts.append(word_text)
                 all_word_eeg_segments.append(word_eeg)
                 all_word_spec_segments.append(word_spec)
-                all_word_audio_segments.append(word_audio)  # Original, not downsampled
+                all_word_audio_segments.append(word_audio)
         
         # ===================================================================
         # STEP 3: ORGANIZE WORDS INTO DICTIONARY
@@ -409,11 +460,11 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         # RETURN: Word-level data organized by unique words
         # ===================================================================
         return {
-            'words': words_dict,                          # Dict: word → instances
-            'words_list': all_word_texts,                 # List: all words in order
-            'eeg_segments': all_word_eeg_segments,        # List: EEG per word
-            'spectrogram_segments': all_word_spec_segments,  # List: spec per word
-            'audio_segments': all_word_audio_segments,    # List: audio per word
+            'words': words_dict,
+            'words_list': all_word_texts,
+            'eeg_segments': all_word_eeg_segments,
+            'spectrogram_segments': all_word_spec_segments,
+            'audio_segments': all_word_audio_segments,
             'participant_id': participant_id
         }
     
@@ -846,7 +897,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         return super().get_data_batch(split_result, batch_type, **kwargs)
         
-    '''
+    
     def checkpoint_after_step6(self, sample_fraction=None):
         """Save checkpoint with sample fraction in filename"""
         
@@ -942,7 +993,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         except Exception as e:
             self.log(f"Error loading checkpoint: {e}")
             return False
-'''
+
     def run_step1_to_step6(self, sample_fraction=0.0001, force_reprocess=False):
         """Run Dutch30-specific steps 1-6"""
         
@@ -1108,109 +1159,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         self.log("\n" + "="*80)
         
-    '''
-    def trim_edge_phonemes_to_mean(self, dataset='train'):
-        """
-        Trim first and last phonemes to match mean duration of middle phonemes.
-        """
-       
-        data = getattr(self, dataset)
-        
-        features = data['features']
-        positions = data.get('phoneme_positions', [0] * len(features))
-        words = data.get('phoneme_words', ['unknown'] * len(features))
-        
-        # Step 1: Calculate mean length of middle phonemes
-        middle_lengths = []
-        
-        for i, feat in enumerate(features):
-            position = positions[i]
-            word = words[i]
-            
-            # Get expected phoneme count for this word
-            if hasattr(self, 'detector') and hasattr(self.detector, 'phonetic_dict'):
-                try:
-                    expected_phonemes = self.detector.phonetic_dict.extract_phonemes(word)
-                    n_phonemes = len(expected_phonemes)
-                except:
-                    n_phonemes = None
-            else:
-                n_phonemes = None
-            
-            # Check if it's a middle phoneme
-            if n_phonemes and n_phonemes > 2:  # Only for words with 3+ phonemes
-                if position > 0 and position < n_phonemes - 1:
-                    middle_lengths.append(feat.shape[0])
-        
-        if len(middle_lengths) == 0:
-            self.debug("No middle phonemes found - skipping trim")
-            return
-        
-        target_length = int(np.mean(middle_lengths))
-        self.log(f"Middle phonemes: {len(middle_lengths)} samples")
-        self.log(f"Mean length: {target_length} frames ({target_length * self.config.frameshift:.3f}s)")
-        self.log(f"Std: {np.std(middle_lengths):.1f} frames")
-        
-        # Step 2: Trim first and last phonemes
-        trimmed_features = []
-        trim_stats = {'first_trimmed': 0, 'last_trimmed': 0, 'unchanged': 0}
-        
-        for i, feat in enumerate(features):
-            position = positions[i]
-            word = words[i]
-            current_length = feat.shape[0]
-            
-            # Get expected phoneme count
-            if hasattr(self, 'detector') and hasattr(self.detector, 'phonetic_dict'):
-                expected_phonemes = self.detector.phonetic_dict.extract_phonemes(word)
-                # Filter out '?' phonemes
-                valid_phonemes = [p for p in expected_phonemes if p != '?']
-                n_phonemes = len(valid_phonemes) if valid_phonemes else None                
-
-            else:
-                n_phonemes = None
-            
-            # Determine if first or last
-            is_first = (n_phonemes and position == 0)
-            is_last = (n_phonemes and n_phonemes > 1 and position == n_phonemes - 1)
-            
-            if is_first and current_length > target_length:
-                # Trim from START (keep end that borders next phoneme)
-                trim_amount = current_length - target_length
-                trimmed_feat = feat[trim_amount:, :]  # Keep the end
-                trimmed_features.append(trimmed_feat)
-                trim_stats['first_trimmed'] += 1
-                
-            elif is_last and current_length > target_length:
-                # Trim from END (keep start that borders previous phoneme)
-                trimmed_feat = feat[:target_length, :]  # Keep the start
-                trimmed_features.append(trimmed_feat)
-                trim_stats['last_trimmed'] += 1
-                
-            else:
-                # Keep as is (middle phonemes or already short enough)
-                trimmed_features.append(feat)
-                trim_stats['unchanged'] += 1
-        
-        # Step 3: Update the dataset
-        data['features'] = trimmed_features
-        
-        # Print summary
-        self.log(f"\nTrimming summary:")
-        self.log(f"  First phonemes trimmed: {trim_stats['first_trimmed']}")
-        self.log(f"  Last phonemes trimmed: {trim_stats['last_trimmed']}")
-        self.log(f"  Unchanged: {trim_stats['unchanged']}")
-        
-        # Recalculate statistics after trimming
-        new_lengths = [f.shape[0] for f in trimmed_features]
-        self.log(f"\nAfter trimming:")
-        self.log(f"  Mean length: {np.mean(new_lengths):.1f} frames ({np.mean(new_lengths) * self.config.frameshift:.3f}s)")
-        self.log(f"  Std: {np.std(new_lengths):.1f} frames")
-        self.log(f"  CV: {(np.std(new_lengths) / np.mean(new_lengths) * 100):.1f}%")
-        
-        return data
-        '''
-        
     def _trim_edge_phonemes_per_patient(self):
         """Calculate per-patient targets from train, apply to all datasets."""
         
@@ -1279,31 +1227,69 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             'train', 'test', or 'val'
 
         """
-        min_duration = self.config.min_phoneme_duration
-        max_duration = self.config.max_phoneme_duration
+        min_duration = min_duration or self.config.min_phoneme_duration
+        max_duration = max_duration or self.config.max_phoneme_duration
         self.log(f"\nFiltering {dataset} phonemes by duration [{min_duration}, {max_duration}]s")
         
-        data = getattr(self, dataset)  # Get self.train or self.test or self.val
+        data = getattr(self, dataset)
         
+        features = data['features']
+        labels = data['phoneme_labels']
+        words = data['phoneme_words']
+        positions = data['phoneme_positions']
+        pids = data['phoneme_participant_ids']
+        specs = data.get('spectrograms', [])
+        
+        # First pass: check duration validity for each phoneme
+        is_valid_duration = []
+        for feat in features:
+            duration = feat.shape[0] * self.config.frameshift
+            is_valid_duration.append(min_duration <= duration <= max_duration)
+        
+        # Second pass: group by word instance and keep only if ALL phonemes valid
         valid_indices = []
+        i = 0
         
-        for i, feat in enumerate(data['features']):
-            duration = feat.shape[0] * self.config.frameshift  # frames to seconds
-            if min_duration <= duration <= max_duration:
-                valid_indices.append(i)
+        instances_total = 0
+        instances_dropped = 0
         
-        removed = len(data['features']) - len(valid_indices)
-        self.log(f"Filtered out {removed}/{len(data['features'])} phonemes "
-                 f"({removed/len(data['features'])*100:.1f}%) outside duration range")
+        while i < len(features):
+            # Find word instance boundary
+            start = i
+            word = words[i]
+            pid = pids[i]
+            
+            # Find end of this instance (next position=0 or different word/patient)
+            i += 1
+            while i < len(features):
+                if positions[i] == 0:  # New instance starts
+                    break
+                if words[i] != word or pids[i] != pid:  # Different word/patient
+                    break
+                i += 1
+            
+            # Check if ALL phonemes in this instance are valid
+            instance_indices = list(range(start, i))
+            all_valid = all(is_valid_duration[j] for j in instance_indices)
+            
+            instances_total += 1
+            
+            if all_valid:
+                valid_indices.extend(instance_indices)
+            else:
+                instances_dropped += 1
         
-        # Return filtered data
+        removed_phonemes = len(features) - len(valid_indices)
+        self.log(f"Dropped {instances_dropped}/{instances_total} word instances ({100*instances_dropped/instances_total:.1f}%)")
+        self.log(f"Removed {removed_phonemes}/{len(features)} phonemes ({100*removed_phonemes/len(features):.1f}%)")
+        
         return {
-            'features': [data['features'][i] for i in valid_indices],
-            'phoneme_labels': [data['phoneme_labels'][i] for i in valid_indices],
-            'phoneme_words': [data['phoneme_words'][i] for i in valid_indices],
-            'phoneme_positions': [data['phoneme_positions'][i] for i in valid_indices] if 'phoneme_positions' in data else [],
-            'phoneme_participant_ids': [data['phoneme_participant_ids'][i] for i in valid_indices] if 'phoneme_participant_ids' in data else [],
-            'spectrograms': [data['spectrograms'][i] for i in valid_indices] if 'spectrograms' in data else [],
+            'features': [features[i] for i in valid_indices],
+            'phoneme_labels': [labels[i] for i in valid_indices],
+            'phoneme_words': [words[i] for i in valid_indices],
+            'phoneme_positions': [positions[i] for i in valid_indices],
+            'phoneme_participant_ids': [pids[i] for i in valid_indices],
+            'spectrograms': [specs[i] for i in valid_indices] if specs else [],
             'metadata': data.get('metadata', {})
         }
         
@@ -1462,8 +1448,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         return data
         
-    
-        
     def sample_split(self, split_info, sample_fraction):
         """Sample patients from each split proportionally"""
         sampled_split = {}
@@ -1559,7 +1543,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             self.debug(f"Warning: No usable silence blocks, using zero baseline shape {baseline.shape}")
         
         return baseline
-
 
     def _apply_pca_per_patient(self, train_data, test_data, pca_components):
         """Fit PCA on train, transform both train and test."""

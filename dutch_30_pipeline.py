@@ -9,6 +9,7 @@ import glob
 
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 
 from datetime import datetime
 from collections import Counter, defaultdict
@@ -517,6 +518,195 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             }
         }
     
+    def step3_analyze_channel_quality(self, visualize=False):
+        """
+        Analyze channel quality per patient and create exclusion masks.
+        
+        Call after step2_split_by_instances, before step4.
+        Identifies and marks outlier channels (high variance, flat, or spiky)
+        for exclusion. Masks are applied during feature extraction.
+        
+        Args:
+            visualize: Whether to show diagnostic plots
+            
+        Returns:
+            dict: channel_masks per patient
+        """        
+        self.log("Step 3: Analyzing channel quality...")
+        
+        word_segments_dict = self.split_result['word_segments_dict']
+        
+        self.channel_masks = {}
+        
+        for pid in sorted(word_segments_dict.keys()):
+            self.debug(f"Analyzing {pid}...")
+            
+            words_data = word_segments_dict[pid]['words']
+            
+            # Collect EEG from multiple words
+            all_eeg = []
+            for word, word_info in list(words_data.items())[:50]:
+                for instance in word_info['instances'][:5]:
+                    eeg = instance['eeg_segment']
+                    if eeg is not None and eeg.size > 0:
+                        all_eeg.append(eeg)
+            
+            if not all_eeg:
+                self.log(f"  {pid}: No EEG data found")
+                continue
+            
+            # Concatenate all segments
+            eeg_concat = np.vstack(all_eeg)
+            n_samples, n_channels = eeg_concat.shape
+            
+            # Calculate per-channel statistics
+            channel_std = np.std(eeg_concat, axis=0)
+            channel_mean = np.mean(eeg_concat, axis=0)
+            channel_kurtosis = np.array([
+                ((eeg_concat[:, ch] - channel_mean[ch])**4).mean() / (channel_std[ch]**4 + 1e-10)
+                for ch in range(n_channels)
+            ])
+            
+            # Get thresholds from config
+            median_std = np.median(channel_std)
+            std_threshold = median_std * self.config.channel_outlier_threshold
+            flat_threshold = median_std * self.config.channel_flat_threshold
+            
+            median_kurtosis = np.median(channel_kurtosis)
+            kurtosis_threshold = median_kurtosis * self.config.channel_kurtosis_threshold
+            
+            # Mark channels to exclude
+            exclude_high_std = channel_std > std_threshold
+            exclude_flat = channel_std < flat_threshold
+            exclude_spiky = channel_kurtosis > kurtosis_threshold
+            
+            exclude_mask = exclude_high_std | exclude_flat | exclude_spiky
+            
+            # Ensure we keep minimum channels
+            n_excluded = np.sum(exclude_mask)
+            min_channels = self.config.min_channels_to_keep
+            
+            if n_channels - n_excluded < min_channels:
+                # Keep top channels by inverse outlier score
+                outlier_score = (channel_std / median_std) + (channel_kurtosis / median_kurtosis)
+                sorted_indices = np.argsort(outlier_score)
+                keep_indices = sorted_indices[:min_channels]
+                exclude_mask = np.ones(n_channels, dtype=bool)
+                exclude_mask[keep_indices] = False
+                n_excluded = np.sum(exclude_mask)
+                self.debug(f"  {pid}: Forced to keep {min_channels} best channels")
+            
+            exclude_indices = np.where(exclude_mask)[0]
+            keep_indices = np.where(~exclude_mask)[0]
+            
+            # Store results
+            self.channel_masks[pid] = {
+                'exclude_indices': exclude_indices.tolist(),
+                'keep_indices': keep_indices.tolist(),
+                'n_original': n_channels,
+                'n_kept': len(keep_indices),
+                'n_excluded': len(exclude_indices),
+                'stats': {
+                    'median_std': float(median_std),
+                    'std_threshold': float(std_threshold),
+                    'flat_threshold': float(flat_threshold),
+                    'n_high_std': int(np.sum(exclude_high_std)),
+                    'n_flat': int(np.sum(exclude_flat)),
+                    'n_spiky': int(np.sum(exclude_spiky)),
+                    'channel_std': channel_std.tolist(),
+                }
+            }
+            
+            self.log(f"  {pid}: {len(keep_indices)}/{n_channels} channels kept "
+                    f"(excluded: {np.sum(exclude_high_std)} high_std, "
+                    f"{np.sum(exclude_flat)} flat, {np.sum(exclude_spiky)} spiky)")
+        
+        # Visualize if requested
+        if visualize:
+            self._visualize_channel_exclusions()
+        
+        # Summary
+        self.log("\nChannel quality summary:")
+        total_original = sum(m['n_original'] for m in self.channel_masks.values())
+        total_kept = sum(m['n_kept'] for m in self.channel_masks.values())
+        self.log(f"  Total channels: {total_kept}/{total_original} kept "
+                f"({100*total_kept/total_original:.1f}%)")
+        
+        return self.channel_masks
+        
+    def _visualize_channel_exclusions(self):
+        """Visualize channel exclusion results."""
+        patient_ids = list(self.channel_masks.keys())[:8]
+        n_patients = len(patient_ids)
+        
+        if n_patients == 0:
+            return
+        
+        n_cols = min(4, n_patients)
+        n_rows = (n_patients + n_cols - 1) // n_cols
+        
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 4*n_rows))
+        if n_patients == 1:
+            axes = np.array([axes])
+        axes = np.array(axes).flatten()
+        
+        for idx, pid in enumerate(patient_ids):
+            ax = axes[idx]
+            mask = self.channel_masks[pid]
+            stats = mask['stats']
+            
+            channel_std = np.array(stats['channel_std'])
+            n_channels = len(channel_std)
+            
+            colors = ['red' if i in mask['exclude_indices'] else 'blue' 
+                      for i in range(n_channels)]
+            
+            ax.bar(range(n_channels), channel_std, color=colors, alpha=0.7, width=1.0)
+            ax.axhline(stats['std_threshold'], color='red', linestyle='--', 
+                       label=f"threshold={stats['std_threshold']:.1f}")
+            ax.axhline(stats['flat_threshold'], color='orange', linestyle=':', 
+                       label=f"flat={stats['flat_threshold']:.1f}")
+            
+            ax.set_title(f"{pid}: {mask['n_kept']}/{mask['n_original']} kept")
+            ax.set_xlabel("Channel")
+            ax.set_ylabel("Std")
+            ax.legend(fontsize=7, loc='upper right')
+        
+        for idx in range(n_patients, len(axes)):
+            axes[idx].set_visible(False)
+        
+        plt.suptitle("Channel Exclusions (red = excluded)", fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.show()
+    
+    def _apply_channel_mask(self, eeg_segment, participant_id):
+        """
+        Apply channel mask to an EEG segment.
+        
+        Args:
+            eeg_segment: EEG array (n_samples, n_channels)
+            participant_id: Patient ID for mask lookup
+            
+        Returns:
+            Filtered EEG segment with outlier channels removed
+        """
+        if not hasattr(self, 'channel_masks') or self.channel_masks is None:
+            return eeg_segment
+        
+        if participant_id not in self.channel_masks:
+            return eeg_segment
+        
+        mask = self.channel_masks[participant_id]
+        keep_indices = mask['keep_indices']
+        
+        # Validate dimensions
+        if eeg_segment.shape[1] != mask['n_original']:
+            self.debug(f"Channel mismatch for {participant_id}: "
+                      f"expected {mask['n_original']}, got {eeg_segment.shape[1]}")
+            return eeg_segment
+        
+        return eeg_segment[:, keep_indices]
+        
     def step4_custom_detector(self):
         """Initialize detector without BIDS decoder"""
         self.log("Step 4: Initializing detector...")
@@ -896,7 +1086,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 segments['words'] = words_dict
         
         return super().get_data_batch(split_result, batch_type, **kwargs)
-        
     
     def checkpoint_after_step6(self, sample_fraction=None):
         """Save checkpoint with sample fraction in filename"""
@@ -1242,8 +1431,12 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         # First pass: check duration validity for each phoneme
         is_valid_duration = []
-        for feat in features:
-            duration = feat.shape[0] * self.config.frameshift
+        for i, feat in enumerate(features):
+            if 'phoneme_durations_samples' in data and i < len(data['phoneme_durations_samples']):
+                duration = data['phoneme_durations_samples'][i] / self.config.eeg_sr
+            else:
+                # Fallback to frame-based calculation (less accurate)
+                duration = feat.shape[0] * self.config.frameshift
             is_valid_duration.append(min_duration <= duration <= max_duration)
         
         # Second pass: group by word instance and keep only if ALL phonemes valid
@@ -1289,6 +1482,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             'phoneme_words': [words[i] for i in valid_indices],
             'phoneme_positions': [positions[i] for i in valid_indices],
             'phoneme_participant_ids': [pids[i] for i in valid_indices],
+            'phoneme_durations_samples': [data['phoneme_durations_samples'][i] for i in valid_indices] 
+                                  if 'phoneme_durations_samples' in data else [],
             'spectrograms': [specs[i] for i in valid_indices] if specs else [],
             'metadata': data.get('metadata', {})
         }
@@ -1587,3 +1782,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                     test_data['features'][i] = pca.transform(test_data['features'][i])
         
         return train_data, test_data
+        
+        
+    

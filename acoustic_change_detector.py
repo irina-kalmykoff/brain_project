@@ -884,10 +884,12 @@ class AcousticChangeDetector(DebugMixin):
         phoneme_words = []  # Original words these phonemes come from
         phoneme_positions = []  # Position within word
         phoneme_participant_ids = []
+        phoneme_durations_samples = []
         word_boundaries = []  # Store phoneme boundaries for each word
         total_words = 0
         mismatched_words = 0
         perfect_match_words = 0
+        
   
         # Process each instance in the batch
         for i, word in enumerate(batch.get('words', [])):
@@ -978,6 +980,7 @@ class AcousticChangeDetector(DebugMixin):
                                     
                                     if start < end:
                                         raw_segment = eeg_segment[start:end]
+                                        phoneme_durations_samples.append(end - start)
                                         # Normalize to fixed window size
                                         fixed_segment = self._extract_fixed_window(
                                             raw_segment, 
@@ -986,14 +989,18 @@ class AcousticChangeDetector(DebugMixin):
                                         phoneme_eeg_segments.append(fixed_segment)
                                     else:
                                         phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
+                                        phoneme_durations_samples.append(0)
                                 else:
                                     phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
+                                    phoneme_durations_samples.append(0)
                             else:
                                 # No EEG data - append empty array with correct shape
                                 if eeg_segment is not None:
                                     phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
+                                    phoneme_durations_samples.append(0)
                                 else:
                                     phoneme_eeg_segments.append(np.array([]))
+                                    phoneme_durations_samples.append(0)
                     else:
                         # Mismatch - use a simple distribution based on segment count
                         mismatched_words += 1
@@ -1020,6 +1027,7 @@ class AcousticChangeDetector(DebugMixin):
                                     
                                     if start < end:
                                         raw_segment = eeg_segment[start:end]
+                                        phoneme_durations_samples.append(end - start)
                                         fixed_segment = self._extract_fixed_window(
                                             raw_segment, 
                                             self.config.fixed_feature_samples
@@ -1027,8 +1035,10 @@ class AcousticChangeDetector(DebugMixin):
                                         phoneme_eeg_segments.append(fixed_segment)
                                     else:
                                         phoneme_eeg_segments.append(np.array([]))
+                                        phoneme_durations_samples.append(0)
                                 else:
                                     phoneme_eeg_segments.append(np.array([]))
+                                    phoneme_durations_samples.append(0)
                 else:
                     # No transcription available
                     self.debug(f"No transcription for word '{word}'")
@@ -1050,6 +1060,7 @@ class AcousticChangeDetector(DebugMixin):
                                 
                                 if start < end:
                                     raw_segment = eeg_segment[start:end]
+                                    phoneme_durations_samples.append(end - start)
                                     # Normalize to fixed window size
                                     fixed_segment = self._extract_fixed_window(
                                         raw_segment, 
@@ -1058,15 +1069,19 @@ class AcousticChangeDetector(DebugMixin):
                                     phoneme_eeg_segments.append(fixed_segment)
                                 else:
                                     phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
+                                    phoneme_durations_samples.append(0)
                             else:
                                 # extended_segments is None or j out of range
                                 phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
+                                phoneme_durations_samples.append(0)
                         else:
                             # No EEG data available
                             if eeg_segment is not None:
                                 phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
+                                phoneme_durations_samples.append(0)
                             else:
                                 phoneme_eeg_segments.append(np.array([]))
+                                phoneme_durations_samples.append(0)
             else:
                 # Use whole segments as is (no phoneme segmentation)
                 if spectrogram_segment is not None:
@@ -1086,6 +1101,7 @@ class AcousticChangeDetector(DebugMixin):
             'phoneme_words': phoneme_words,
             'phoneme_positions': phoneme_positions,
             'phoneme_participant_ids': phoneme_participant_ids,
+            'phoneme_durations_samples': phoneme_durations_samples, 
             'word_boundaries': word_boundaries,
             'original_batch': batch
         }
@@ -1155,6 +1171,7 @@ class AcousticChangeDetector(DebugMixin):
         accumulated_words = []
         accumulated_participant_ids = []
         accumulated_positions = []
+        accumulated_durations_samples = []
         # vars for statistics
         total_words_processed = 0
         total_mismatches = 0
@@ -1167,8 +1184,7 @@ class AcousticChangeDetector(DebugMixin):
             
             start_idx = batch_num * batch_size
             end_idx = min(start_idx + batch_size, len(all_instances))
-            batch_instances = all_instances[start_idx:end_idx]
-            
+            batch_instances = all_instances[start_idx:end_idx]            
         
             # Build batch from specific instances
             print(f"          Building batch from {len(batch_instances)} instances...")
@@ -1204,6 +1220,10 @@ class AcousticChangeDetector(DebugMixin):
                 accumulated_positions.extend(phoneme_data.get('phoneme_positions', 
                                     [0] * len(phoneme_data['phoneme_labels'])))
             self.log(f"Accumulated {len(accumulated_features)} phoneme segments so far")
+            
+            if 'phoneme_durations_samples' in phoneme_data:
+                accumulated_durations_samples.extend(phoneme_data['phoneme_durations_samples'])
+
         
         # Create result dictionary
         accumulated_data = {
@@ -1212,6 +1232,7 @@ class AcousticChangeDetector(DebugMixin):
             'phoneme_labels': accumulated_labels,
             'phoneme_words': accumulated_words,
             'phoneme_participant_ids': accumulated_participant_ids,
+            'phoneme_durations_samples': accumulated_durations_samples,
             'phoneme_positions': accumulated_positions,
             'metadata': {
                 'feature_extraction_method': feature_extraction_method,
@@ -1385,6 +1406,8 @@ class AcousticChangeDetector(DebugMixin):
                 'phoneme_words': phoneme_words,
                 'phoneme_positions': phoneme_positions,
                 'phoneme_participant_ids': phoneme_participant_ids,
+                'phoneme_durations_samples': [enhanced_batch['phoneme_durations_samples'][idx] 
+                                   for idx in valid_indices],
                 'metadata': {
                     'feature_extraction_method': feature_extraction_method,
                     'n_phonemes': len(phoneme_labels),

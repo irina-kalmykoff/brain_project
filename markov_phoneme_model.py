@@ -269,7 +269,7 @@ class MarkovPhonemeModel(DebugMixin):
             max_depth=20,
             #min_samples_split=10,  # to prevent overfitting
             min_samples_leaf=2,   #  to prevent overfitting
-            #class_weight='balanced',  # This helps with imbalanced classes
+            class_weight='balanced',  # This helps with imbalanced classes
             #max_features='sqrt',        # Add: prevents correlation between trees
             random_state=42
         )

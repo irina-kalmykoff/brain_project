@@ -885,7 +885,9 @@ class AcousticChangeDetector(DebugMixin):
         phoneme_positions = []  # Position within word
         phoneme_participant_ids = []
         phoneme_durations_samples = []
+        phoneme_instance_indices = []
         word_boundaries = []  # Store phoneme boundaries for each word
+        
         total_words = 0
         mismatched_words = 0
         perfect_match_words = 0
@@ -900,6 +902,7 @@ class AcousticChangeDetector(DebugMixin):
             eeg_segment = batch['eeg_segments'][i] if 'eeg_segments' in batch else None
             spectrogram_segment = batch['spectrogram_segments'][i] if 'spectrogram_segments' in batch else None
             participant_id = batch['participant_ids'][i] if 'participant_ids' in batch else None
+            instance_idx = batch['instance_indices'][i] if 'instance_indices' in batch else None
         
             # validate spectrogram size
             if spectrogram_segment is None:
@@ -971,6 +974,7 @@ class AcousticChangeDetector(DebugMixin):
                             phoneme_words.append(word)
                             phoneme_positions.append(j)
                             phoneme_participant_ids.append(participant_id)
+                            phoneme_instance_indices.append(instance_idx) 
                             
                             # Extract corresponding EEG segment if available
                             if eeg_segment is not None and result.get('boundary_samples') is not None:
@@ -1156,8 +1160,6 @@ class AcousticChangeDetector(DebugMixin):
                         'word': word,
                         'instance_index': idx
                     })
-                    
-        
         
         # STEP 2: Calculate number of batches
         num_batches = (len(all_instances) + batch_size - 1) // batch_size
@@ -1172,6 +1174,7 @@ class AcousticChangeDetector(DebugMixin):
         accumulated_participant_ids = []
         accumulated_positions = []
         accumulated_durations_samples = []
+        accumulated_instance_indices = []
         # vars for statistics
         total_words_processed = 0
         total_mismatches = 0
@@ -1212,6 +1215,8 @@ class AcousticChangeDetector(DebugMixin):
             
             # Accumulate data
             accumulated_features.extend(phoneme_data['features'])
+            accumulated_instance_indices.extend(phoneme_data['phoneme_instance_indices'])
+            
             if 'spectrograms' in phoneme_data and phoneme_data['spectrograms']:
                 accumulated_spectrograms.extend(phoneme_data['spectrograms'])
                 accumulated_labels.extend(phoneme_data['phoneme_labels'])
@@ -1233,6 +1238,7 @@ class AcousticChangeDetector(DebugMixin):
             'phoneme_words': accumulated_words,
             'phoneme_participant_ids': accumulated_participant_ids,
             'phoneme_durations_samples': accumulated_durations_samples,
+            'phoneme_instance_indices': accumulated_instance_indices,
             'phoneme_positions': accumulated_positions,
             'metadata': {
                 'feature_extraction_method': feature_extraction_method,
@@ -1349,7 +1355,8 @@ class AcousticChangeDetector(DebugMixin):
                     'label': enhanced_batch['phoneme_labels'][idx],
                     'word': enhanced_batch['phoneme_words'][idx],
                     'position': enhanced_batch['phoneme_positions'][idx],
-                    'spectrogram': enhanced_batch['phoneme_spectrogram_segments'][idx]
+                    'spectrogram': enhanced_batch['phoneme_spectrogram_segments'][idx],
+                    'instance_idx': enhanced_batch['phoneme_instance_indices'][idx]
                 })
                 
             except Exception as e:
@@ -1394,6 +1401,7 @@ class AcousticChangeDetector(DebugMixin):
                 phoneme_words.append(data['word'])
                 phoneme_positions.append(data['position'])
                 phoneme_participant_ids.append(pid)
+                phoneme_instance_indices.append(data['instance_idx'])
         
         self.debug(f"Processed {len(features)} segments successfully")
           
@@ -1406,6 +1414,7 @@ class AcousticChangeDetector(DebugMixin):
                 'phoneme_words': phoneme_words,
                 'phoneme_positions': phoneme_positions,
                 'phoneme_participant_ids': phoneme_participant_ids,
+                'phoneme_instance_indices': phoneme_instance_indices, 
                 'phoneme_durations_samples': [enhanced_batch['phoneme_durations_samples'][idx] 
                                    for idx in valid_indices],
                 'metadata': {
@@ -1428,7 +1437,8 @@ class AcousticChangeDetector(DebugMixin):
             'spectrogram_segments': [],
             'audio_segments': [],
             'audio_sr': [],
-            'participant_ids': []
+            'participant_ids': [],
+            'instance_indices': []
         }
         
         for inst in instances:
@@ -1445,6 +1455,7 @@ class AcousticChangeDetector(DebugMixin):
                 batch['spectrogram_segments'].append(word_data['spectrogram_segment'])
                 batch['audio_segments'].append(word_data.get('audio_segment'))  
                 batch['participant_ids'].append(pid)
+                batch['instance_indices'].append(idx)
             except (KeyError, IndexError) as e:
                 self.log(f"Warning: Could not load instance {pid}/{word}/{idx}: {e}")
                 continue

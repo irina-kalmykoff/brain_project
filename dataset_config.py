@@ -61,7 +61,7 @@ class Dutch30Config:
     # CHANNEL PROCESSING
     # ============================================================
     
-    min_channels: int = 75         # Minimum channels per patient
+    min_channels: int = 10         # Minimum channels per patient
     target_channels: int = 133     # Standardized channel count
     
     # ============================================================
@@ -91,6 +91,8 @@ class Dutch30Config:
     
     silence_threshold_factor: float = 0.45
     # threshold = (max_energy + min_energy) * 0.45
+    # Line ~93, add:
+    electrode_exclusion_file: str = "electrode_exclusions.json"
     
     # ============================================================
     # AUDIO NORMALIZATION

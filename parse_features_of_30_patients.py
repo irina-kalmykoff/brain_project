@@ -1,7 +1,11 @@
 # Converted from parse_features_of_30_patients.ipynb
 
 import os
+import gc
 import glob
+import json
+import h5py
+
 import numpy as np
 import pickle
 import pandas as pd
@@ -13,10 +17,6 @@ import scipy.signal
 
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-import h5py
-import gc
-import json
 
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.svm import SVC
@@ -62,325 +62,104 @@ path_results = RESULTS_PATH #'./results'  # Path to save results
 paths_30 = get_dataset_paths('dutch30')
 visualizer = PhonemeFeatureVisualizer(output_dir='./phoneme_visualizations')
 
-# # Step 3: Test phoneme boundary detection
-# print("\n[3/5] Testing phoneme boundary detection...")
-# batch = None  # Initialize for error handling
-# try:
-#     if pipeline is None:
-#         raise RuntimeError("Pipeline not initialized from previous step")
-    
-#     # FIXED: Call step4 BEFORE trying to access decoder
-#     pipeline.step4_custom_detector()
-    
-#     # Verify decoder exists
-#     if not hasattr(pipeline, 'detector'):
-#         print("ERROR: Detector not created")
-#         exit(1)
-    
-#     # Get a batch using the decoder's method
-#     batch = pipeline.get_data_batch(
-#         split_result=pipeline.split_result,
-#         batch_type='train',
-#         batch_size=3
-#     )
-    
-#     print(f"  Batch has {len(batch.get('words', []))} samples")
-    
-#     if not batch.get('spectrogram_segments') or batch['spectrogram_segments'][0] is None:
-#         print("ERROR: No spectrograms in batch")
-#         exit(1)
-    
-#     # Check spectrogram is 2D
-#     spec = batch['spectrogram_segments'][0]
-#     print(f"  Spectrogram shape: {spec.shape}")
-    
-#     if len(spec.shape) != 2:
-#         print("ERROR: Spectrogram should be 2D (time, frequency)")
-#         exit(1)
-    
-#     # Test boundary detection on one word
-#     word = batch['words'][0]
-#     result = pipeline.detector.detect_boundaries(
-#         spectrogram=spec,
-#         word=word,
-#         frameshift=0.01
-#     )
-    
-#     print(f"  Word: '{word}'")
-#     print(f"  Expected phonemes: {result.get('n_phonemes', '?')}")
-#     print(f"  Detected segments: {len(result['segments'])}")
-    
-#     if result['segments']:
-#         print(f"  Segment lengths: {[s.shape[0] for s in result['segments'][:5]]}")
-        
-#         # Check segments have different lengths
-#         lengths = [s.shape[0] for s in result['segments']]
-#         unique_lengths = len(set(lengths))
-        
-#         print(f"  Unique segment lengths: {unique_lengths}/{len(lengths)}")
-        
-#         if unique_lengths == 1:
-#             print("WARNING: All segments same length - boundary detection may not be working")
-#         else:
-#             print("OK: Segments have varying lengths")
-#     else:
-#         print("ERROR: No segments detected")
-#         exit(1)
-    
-# except Exception as e:
-#     print(f"ERROR: {e}")
-#     import traceback
-#     traceback.print_exc()
-#     if batch is None:
-#         print("\n Cannot continue - batch creation failed")
-#         exit(1)
-
-# result = pipeline.detector.detect_boundaries(
-#     spectrogram=spec,
-#     word=word,
-#     frameshift=0.01
-# )
-
-# # Step 4: Process batch and check phoneme-level data
-# print("\n[4/5] Testing phoneme segmentation...")
-# enhanced_batch = None  # Initialize for error handling
-# try:
-#     if batch is None:
-#         raise RuntimeError("Batch not created from previous step")
-    
-#     enhanced_batch = pipeline.detector.process_batch(
-#         batch,
-#         apply_segmentation=True,
-#         detect_phonemes=True
-#     )
-    
-#     n_phonemes = len(enhanced_batch.get('phoneme_labels', []))
-#     unique_phonemes = set(enhanced_batch.get('phoneme_labels', []))
-#     unique_count = len(unique_phonemes)
-    
-#     print(f"  Total phoneme segments: {n_phonemes}")
-#     print(f"  Unique phonemes: {unique_count}")
-    
-#     if n_phonemes == 0:
-#         print("  ✗ ERROR: No phoneme segments extracted")
-#         exit(1)
-    
-#     # Check for unknowns
-#     unknown_count = enhanced_batch['phoneme_labels'].count('?')
-#     unknown_pct = (unknown_count / n_phonemes) * 100 if n_phonemes > 0 else 0
-    
-#     print(f"  Unknown phonemes: {unknown_count} ({unknown_pct:.1f}%)")
-    
-#     # Show sample phonemes
-#     sample_phonemes = [p for p in list(unique_phonemes)[:5] if p != '?']
-#     if sample_phonemes:
-#         print(f"  Sample phonemes: {sample_phonemes}")
-    
-#     if unknown_pct > 80:
-#         print("  ⚠ WARNING: Too many unknown phonemes (>80%)")
-#         print("     This suggests the phonetic dictionary may not cover these words")
-#     elif unknown_pct > 50:
-#         print("  ⚠ WARNING: Many unknown phonemes (>50%)")
-#     else:
-#         print("  ✓ OK: Most phonemes identified")
-    
-# except Exception as e:
-#     print(f"  ✗ ERROR: {e}")
-#     import traceback
-#     traceback.print_exc()
-#     if enhanced_batch is None:
-#         print("\n⚠ Cannot continue - phoneme segmentation failed")
-#         exit(1)
-
-# result = pipeline.detector.detect_boundaries(
-#     spectrogram=spec,
-#     word=word,
-#     frameshift=0.01
-# )
-
-# # DEBUG CODE - ADD THIS:
-# print(f"\n=== DEBUG for '{word}' ===")
-# print(f"Spectrogram shape: {spec.shape}")
-# print(f"Spectrogram min/max: [{np.min(spec):.3f}, {np.max(spec):.3f}]")
-# print(f"Spectrogram std: {np.std(spec):.3f}")
-
-# if 'distances' in result:
-#     dists = result['distances']
-#     print(f"\nDistances shape: {dists.shape}")
-#     print(f"Distances min/max: [{np.min(dists):.3f}, {np.max(dists):.3f}]")
-#     print(f"Distances mean: {np.mean(dists):.3f}")
-#     print(f"Distances std: {np.std(dists):.3f}")
-    
-#     # Show distribution
-#     percentiles = [25, 50, 75, 90, 95, 99]
-#     print(f"Percentiles: {[f'{p}%={np.percentile(dists, p):.3f}' for p in percentiles]}")
-    
-#     # Show enhanced distances if available
-#     if 'enhanced_distances' in result:
-#         enh = result['enhanced_distances']
-#         print(f"\nEnhanced distances min/max: [{np.min(enh):.3f}, {np.max(enh):.3f}]")
-#         print(f"Enhanced mean: {np.mean(enh):.3f}")
-        
-#     # Plot
-#     plt.figure(figsize=(12, 4))
-#     plt.subplot(1, 2, 1)
-#     plt.imshow(spec.T, aspect='auto', origin='lower', cmap='viridis')
-#     plt.title(f"Spectrogram: '{word}'")
-#     plt.ylabel('Mel Bin')
-#     plt.xlabel('Frame')
-    
-#     plt.subplot(1, 2, 2)
-#     plt.plot(dists, label='distances')
-#     if 'enhanced_distances' in result:
-#         plt.plot(result['enhanced_distances'], label='enhanced', alpha=0.7)
-#     plt.title('Frame-to-Frame Distances')
-#     plt.xlabel('Frame')
-#     plt.ylabel('Distance')
-#     plt.legend()
-#     plt.tight_layout()
-#     plt.savefig(f'debug_{word}.png')
-#     print(f"Saved plot to debug_{word}.png")
-#     plt.close()
-
-# print("="*40)
-
-# # Step 5: Extract features and check variance
-# print("\n[5/5] Testing feature extraction and variance...")
-# try:
-#     if enhanced_batch is None:
-#         raise RuntimeError("Enhanced batch not created from previous step")
-    
-#     prepared = pipeline.detector.prepare_phoneme_training_data(
-#         enhanced_batch,
-#         feature_extraction_method='high_gamma'
-#     )
-    
-#     features = prepared['features']
-#     labels = prepared['phoneme_labels']
-    
-#     print(f"  Features extracted: {len(features)}")
-#     if features:
-#         print(f"  Sample feature shape: {features[0].shape}")
-    
-#     if not features:
-#         print("  ERROR: No features extracted")
-#         exit(1)
-    
-#     # Calculate variance for one phoneme
-#     phoneme_features = defaultdict(list)
-    
-#     for feat, label in zip(features[:50], labels[:50]):
-#         if label != '?':  # Skip unknowns
-#             phoneme_features[label].append(feat)
-    
-#     # Check variance for most common phoneme
-#     if phoneme_features:
-#         most_common = max(phoneme_features.keys(), key=lambda k: len(phoneme_features[k]))
-#         n_samples = len(phoneme_features[most_common])
-        
-#         print(f"  Most common phoneme: '{most_common}' ({n_samples} samples)")
-        
-#         if n_samples >= 2:
-#             feats = phoneme_features[most_common][:min(5, n_samples)]
-#             flat_feats = [f.flatten() for f in feats]
-            
-#             # Calculate pairwise distances
-#             distances = []
-#             for i in range(len(flat_feats)):
-#                 for j in range(i+1, len(flat_feats)):
-#                     min_len = min(len(flat_feats[i]), len(flat_feats[j]))
-#                     if min_len > 0:
-#                         dist = cosine(flat_feats[i][:min_len], flat_feats[j][:min_len])
-#                         distances.append(dist)
-            
-#             if distances:
-#                 avg_distance = np.mean(distances)
-#                 min_distance = np.min(distances)
-#                 max_distance = np.max(distances)
-                
-#                 print(f"  Pairwise distances: min={min_distance:.3f}, avg={avg_distance:.3f}, max={max_distance:.3f}")
-                
-#                 if avg_distance > 0.8:
-#                     print("  WARNING: High variance (>0.8) - features may be inconsistent")
-#                     print("     This suggests phoneme boundaries may not be working correctly")
-#                 elif avg_distance < 0.5:
-#                     print("  OK: Good consistency (<0.5)")
-#                 else:
-#                     print("  OK: Acceptable consistency (0.5-0.8)")
-#             else:
-#                 print(" Could not calculate distances")
-#         else:
-#             print(f"  Only {n_samples} sample(s) - cannot check variance")
-#             print("     Try increasing batch_size or sample_fraction")
-#     else:
-#         print("  WARNING: No phoneme features to check variance")
-#         print("     All phonemes may be unknown '?'")
-    
-# except Exception as e:
-#     print(f"  ERROR: {e}")
-#     import traceback
-#     traceback.print_exc()
-#     exit(1)
-
-# print("="*70)
-# print("\nYou can now run the full pipeline:")
-# print("  pipeline.run_step1_to_step6(sample_fraction=0.01)")
-# print("\nExpected improvements over previous version:")
-# print("  ✓ Variance should be < 0.8 (was 0.95+)")
-# print("  ✓ Unknown phonemes should be < 30% (was >80%)")
-# print("  ✓ Features should vary by phoneme, not just word")
-
 # Create config
 config = Dutch30Config()
 
 # Pass config to both extractor and pipeline
 extractor = Dutch30FeatureExtractor(config=config)
 
-pipeline_debug = Dutch30Pipeline(
+pipeline = Dutch30Pipeline(
     dutch30_extractor=extractor,
     config=config, 
     debug_mode=True,
     pca_components=100,
     feature_extraction_method='high_gamma',
-    use_phoneme_groups=True
+    use_rms_boundaries=True,   
+    use_multifeature=False
 )
 
-# Debug a specific patient
-pipeline_debug.debug_sentence_parsing('sub-p21', max_samples=3)
-print([attr for attr in dir(pipeline_debug) if 'detect' in attr.lower()])
+# # Debug a specific patient
+# pipeline.debug_sentence_parsing('sub-p21', max_samples=3)
+# print([attr for attr in dir(pipeline_debug) if 'detect' in attr.lower()])
 
-diag = Dutch30PhonemeDetectionDiagnostic(pipeline_debug)
+pipeline.step1_load_dutch30_data(num_patients = 10)
+#pipeline.step2_3_use_existing_split()
+pipeline.step2_split_by_instances()
 
-# Visualize word #5 from patient P21
-diag.visualize_word_analysis('sub-p01', word_index=4, 
-                             save_path='p21_word5.png')
+pid = 'P01'
+word_segments = pipeline.split_result['word_segments_dict'][pid]
+word = list(word_segments['words'].keys())[0]
+instance = word_segments['words'][word]['instances'][0]
 
-# Quick check first 10 words
-diag.batch_diagnostic('sub-p21', num_samples=10)
+print(f"Audio available: {'audio_segment' in instance}")
+print(f"Audio shape: {instance['audio_segment'].shape if 'audio_segment' in instance else 'N/A'}")
+
+diag = Dutch30PhonemeDetectionDiagnostic(pipeline)
+diag.visualize_word_analysis('P01', word_name = 'vogelkooitje', save_path='p21_word5.png')
+
+#diag.visualize_multifeature_analysis('P01', word_index=50)
+diag.visualize_rms_boundaries('P01',  word_name = 'vogelkooitje')
+
+# See how many instances exist
+pid = 'P01'
+word = 'zevenduizend'
+word_data = pipeline.split_result['word_segments_dict'][pid]['words'][word]
+print(f"'{word}' has {len(word_data['instances'])} instances")
+
+# What settings does training use?
+print(f"use_multifeature: {pipeline.detector.use_multifeature}")
+print(f"use_rms_boundaries: {pipeline.detector.use_rms_boundaries}")
+
+# Diagnostic hardcodes use_multifeature=True
+
+# # Quick check first 10 words
+# diag.batch_diagnostic('sub-p21', num_samples=5)
 
 config = Dutch30Config()
 extractor = Dutch30FeatureExtractor(config=config)
 
 pipeline = Dutch30Pipeline(
     dutch30_extractor=extractor,
-    config = config,
-    pca_components = 100,
-    feature_extraction_method= 'band_powers', #'high_gamma',
-    debug_mode=False
+    config=config, 
+    debug_mode=False,
+    pca_components=100,
+    feature_extraction_method = 'high_gamma', # 'band_powers', # 
+    use_rms_boundaries=True,   
+    use_multifeature=False    
 )
 
 # step_0
 # pipeline.analyze_dutch30_channels()
 
-# pipeline.step1_load_dutch30_data(sample_fraction=0.000001)
-# pipeline.step2_3_use_existing_split()
-# pipeline.step4_custom_detector()
-# pipeline.step5_accumulate_data_dutch30()
+#pipeline.step1_load_dutch30_data(num_patients = 20)
+pipeline.step1_load_dutch30_data(patient_range=(26,30))
 
-# pipeline.dutch30_step6_resolve_unknowns();
+pipeline.split_result = None
+pipeline.step2_split_by_instances();
+#pipeline.step2_3_use_existing_split()
 
-pipeline.run_step1_to_step6(sample_fraction=0.0001, force_reprocess=True)
+# # Check how many sentences you actually have
+# for pid in ['P20', 'P21', 'P22', 'P23']:
+#     word_segments = pipeline.split_result['word_segments_dict'][pid]
+#     print(f"{pid}:")
+#     print(f"  Total word instances: {len(word_segments['words_list'])}")
+#     print(f"  Unique words: {len(word_segments['words'])}")
+    
+#     # Check if sentences are being split properly
+#     sentences = [w for w in word_segments['words_list'] if len(w.split()) > 3]
+#     print(f"  Multi-word entries: {len(sentences)}")  # Should be 0!
+
+pipeline.step4_custom_detector()
+pipeline.step5_accumulate_data_dutch30()
+
+pipeline.dutch30_step6_resolve_unknowns();
+
+# After step4 or step5
+print(pipeline.phonetic_dict.get_missing_words_summary())
+
+# pipeline.run_step1_to_step6(sample_fraction=0.0001, force_reprocess=True)
 #pipeline.run_step1_to_step6(sample_fraction=0.0001)
+#pipeline.step1_load_dutch30_data(num_patients = 10)
 # pipeline.step2_3_use_existing_split()
 # pipeline.step4_custom_detector()
 # pipeline.step5_accumulate_data()
@@ -395,8 +174,7 @@ pipeline.run_step1_to_step6(sample_fraction=0.0001, force_reprocess=True)
 
 # pipeline.analyze_phoneme_lengths()
 
-pipeline.step7_filter_unknowns(unknown_keep_ratio=0.1)
-#pipeline.step8_convert_to_groups()
+pipeline.step7_filter_unknowns(unknown_keep_ratio=0.05);
 
 def analyze_phoneme_positions_and_patients(pipeline, long_threshold=0.5):
     """
@@ -586,593 +364,263 @@ def analyze_phoneme_positions_and_patients(pipeline, long_threshold=0.5):
     
     return patient_stats, position_stats
 
-# Run it after step 5
-patient_stats, position_stats = analyze_phoneme_positions_and_patients(pipeline, long_threshold=0.4)
+# patient_stats, position_stats = analyze_phoneme_positions_and_patients(pipeline, long_threshold=0.4)
 
-# # Now you can use the pipeline's training methods
-train_data = pipeline.get_training_data(filtered=True)
-test_data = pipeline.get_test_data()
+def train_per_patient(pipeline):
+    """Train and evaluate separate model for each patient."""
+    
+    results = {}
+    
+    for pid in set(pipeline.train['phoneme_participant_ids']):
+        # Filter data for this patient
+        train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+        test_mask = [p == pid for p in pipeline.test['phoneme_participant_ids']]
+        
+        train_feat = [pipeline.train['features'][i] for i, m in enumerate(train_mask) if m]
+        train_labels = [pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m]
+        test_feat = [pipeline.test['features'][i] for i, m in enumerate(test_mask) if m]
+        test_labels = [pipeline.test['phoneme_labels'][i] for i, m in enumerate(test_mask) if m]
+        
+        if len(train_feat) < 10 or len(test_feat) < 5:
+            print(f"{pid}: Skipped (train={len(train_feat)}, test={len(test_feat)})")
+            continue
+        
+        # Train Markov model
+        model = MarkovPhonemeModel(
+            phonetic_dict=pipeline.phonetic_dict,
+            order=1,
+            use_groups=False
+        )
+        
+        model.train(features=train_feat, phoneme_labels=train_labels)
+        eval_result = model.evaluate(features=test_feat, true_labels=test_labels, use_viterbi=True)
+        
+        results[pid] = {
+            'model': model,
+            'accuracy': eval_result['accuracy'],
+            'train_size': len(train_feat),
+            'test_size': len(test_feat)
+        }
+        
+        print(f"{pid}: Acc={eval_result['accuracy']:.3f} (train={len(train_feat)}, test={len(test_feat)})")
+    
+    # Summary
+    accs = [r['accuracy'] for r in results.values()]
+    print(f"\nAverage: {np.mean(accs):.3f} ± {np.std(accs):.3f}")
+    
+    return results
 
-def plot_detailed_confusion_matrix(model, test_features, true_labels, save_path=None):
-    """Create detailed confusion matrix for phoneme predictions"""
+def visualize_patient_model(pid, patient_results, pipeline):
+    """Detailed analysis for one patient."""
+    
+    if pid not in patient_results:
+        print(f"{pid} not found")
+        return
+    
+    # Filter data
+    train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+    test_mask = [p == pid for p in pipeline.test['phoneme_participant_ids']]
+    
+    train_labels = [pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m]
+    train_feat = [pipeline.train['features'][i] for i, m in enumerate(train_mask) if m]
+    test_feat = [pipeline.test['features'][i] for i, m in enumerate(test_mask) if m]
+    test_labels = [pipeline.test['phoneme_labels'][i] for i, m in enumerate(test_mask) if m]
     
     # Get predictions
-    predictions, _ = model.predict(test_features, use_viterbi=True)
+    model = patient_results[pid]['model']
+    preds, _ = model.predict(test_feat, use_viterbi=True)
     
-    # Get unique labels
-    unique_labels = sorted(set(true_labels + predictions))
+    # Setup figure - 3 plots in 1 row
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    fig.suptitle(f'{pid} - Accuracy: {patient_results[pid]["accuracy"]:.3f}', fontsize=14, fontweight='bold')
     
-    # Filter to show only phonemes that actually appear
-    label_to_idx = {label: i for i, label in enumerate(unique_labels)}
-    n_classes = len(unique_labels)
+    # 1. Combined train/test distribution
+    train_counts = Counter(train_labels)
+    test_counts = Counter(test_labels)
+    all_phonemes = sorted(set(list(train_counts.keys()) + list(test_counts.keys())))
     
-    # Build confusion matrix
-    conf_matrix = np.zeros((n_classes, n_classes))
-    for true, pred in zip(true_labels, predictions):
-        if true in label_to_idx and pred in label_to_idx:
-            conf_matrix[label_to_idx[true], label_to_idx[pred]] += 1
+    x = np.arange(len(all_phonemes))
+    width = 0.35
+    axes[0].bar(x - width/2, [train_counts.get(p, 0) for p in all_phonemes], width, label='Train', color='cornflowerblue')
+    axes[0].bar(x + width/2, [test_counts.get(p, 0) for p in all_phonemes], width, label='Test', color='coral')
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels(all_phonemes, rotation=90)
+    axes[0].set_title(f'Distribution (train={len(train_labels)}, test={len(test_labels)})')
+    axes[0].set_ylabel('Count')
+    axes[0].legend()
     
-    # Create figure
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+    # 2. Per-phoneme accuracy
+    test_phonemes = sorted(test_counts.keys())
+    phoneme_acc = {}
+    for p in test_phonemes:
+        mask = [l == p for l in test_labels]
+        correct = sum(1 for i, m in enumerate(mask) if m and preds[i] == p)
+        total = sum(mask)
+        phoneme_acc[p] = correct / total if total > 0 else 0
     
-    # Raw counts
-    im1 = ax1.imshow(conf_matrix, cmap='Blues', aspect='auto')
-    ax1.set_xticks(range(n_classes))
-    ax1.set_yticks(range(n_classes))
-    ax1.set_xticklabels(unique_labels, rotation=90, ha='right')
-    ax1.set_yticklabels(unique_labels)
-    ax1.set_xlabel('Predicted Phoneme')
-    ax1.set_ylabel('True Phoneme')
-    ax1.set_title('Confusion Matrix (Counts)')
+    axes[1].bar(range(len(test_phonemes)), [phoneme_acc[p] for p in test_phonemes], color='green')
+    axes[1].set_xticks(range(len(test_phonemes)))
+    axes[1].set_xticklabels(test_phonemes, rotation=90)
+    axes[1].set_title('Per-Phoneme Accuracy')
+    axes[1].set_ylim([0, 1])
+    axes[1].axhline(patient_results[pid]['accuracy'], color='red', linestyle='--', alpha=0.5)
     
-    # Add text annotations for non-zero values
-    for i in range(n_classes):
-        for j in range(n_classes):
-            if conf_matrix[i, j] > 0:
-                text = ax1.text(j, i, int(conf_matrix[i, j]),
-                              ha="center", va="center", color="white" if conf_matrix[i, j] > conf_matrix.max()/2 else "black")
+    # 3. Confusion matrix
+    from sklearn.metrics import confusion_matrix
+    unique_labels = sorted(set(test_labels + preds))
+    cm = confusion_matrix(test_labels, preds, labels=unique_labels)
     
-    plt.colorbar(im1, ax=ax1)
-    
-    # Normalized by row (recall per phoneme)
-    conf_norm = conf_matrix / (conf_matrix.sum(axis=1, keepdims=True) + 1e-10)
-    im2 = ax2.imshow(conf_norm, cmap='RdYlGn', vmin=0, vmax=1, aspect='auto')
-    ax2.set_xticks(range(n_classes))
-    ax2.set_yticks(range(n_classes))
-    ax2.set_xticklabels(unique_labels, rotation=90, ha='right')
-    ax2.set_yticklabels(unique_labels)
-    ax2.set_xlabel('Predicted Phoneme')
-    ax2.set_ylabel('True Phoneme')
-    ax2.set_title('Confusion Matrix (Normalized by True)')
-    
-    plt.colorbar(im2, ax=ax2)
-    
-    plt.tight_layout()
-    
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    plt.show()
-    
-    # Print accuracy per phoneme
-    print("\nPer-phoneme accuracy:")
-    phoneme_correct = {}
-    phoneme_total = {}
-    
-    for true, pred in zip(true_labels, predictions):
-        if true not in phoneme_total:
-            phoneme_total[true] = 0
-            phoneme_correct[true] = 0
-        phoneme_total[true] += 1
-        if true == pred:
-            phoneme_correct[true] += 1
-    
-    for phoneme in sorted(phoneme_total.keys()):
-        acc = phoneme_correct[phoneme] / phoneme_total[phoneme]
-        print(f"  {phoneme:5s}: {acc:.3f} ({phoneme_correct[phoneme]}/{phoneme_total[phoneme]})")
-    
-    return conf_matrix
-
-def train_phoneme_model(pipeline, output_base='./results/dutch30', use_balanced=True,  use_filtered=True):
-    
-    if use_filtered and hasattr(pipeline, 'train_filtered'):
-        train_data = pipeline.train_filtered
-        print(f"Using FILTERED data with {len(train_data['features'])} train samples")
-    else:
-        train_data = pipeline.train
-        print(f"Using ORIGINAL data with {len(train_data['features'])} train samples")
-    
-    # Choose which dataset to use
-    if use_balanced and hasattr(pipeline, 'train_balanced'):
-        train_data = pipeline.train_balanced
-        print(f"Using BALANCED data with {len(train_data['features'])} train samples")
-    else:
-        train_data = pipeline.train
-        print(f"Using ORIGINAL data with {len(train_data['features'])} train samples")
-    
-    # Count phonemes in training data
-    train_counts = Counter(pipeline.train['phoneme_labels'])
-    test_counts = Counter(pipeline.test['phoneme_labels'])
-    
-    print(f"\nTraining data summary, total samples: {len(pipeline.train['phoneme_labels'])}")
-    print(f"  Unique phonemes: {len(train_counts)}, most common: {train_counts.most_common(5)}, least common: {train_counts.most_common()[-5:]}")
-    
-    # Initialize
-    model_phonemes = MarkovPhonemeModel(
-        phonetic_dict=pipeline.phonetic_dict,
-        order=2,
-        output_dir=os.path.join(output_base, 'markov_phonemes'),
-        debug_mode=False, 
-        use_groups=False
-    )
-    
-    # Train
-    results_phonemes = model_phonemes.train(
-        features=pipeline.train['features'],
-        phoneme_labels=pipeline.train['phoneme_labels'],
-        words=pipeline.train.get('phoneme_words'),
-        participant_ids=pipeline.train.get('phoneme_participant_ids')
-    )
-    
-    # Evaluate
-    eval_phonemes = model_phonemes.evaluate(
-        features=pipeline.test['features'],
-        true_labels=pipeline.test['phoneme_labels'],
-        use_viterbi=True
-    )
-    
-    print(f"\nOverall Accuracy: {eval_phonemes['accuracy']:.4f}")
-    
-    # Create histogram of samples per phoneme
-    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-    
-    # 1. Training data distribution
-    phonemes = list(train_counts.keys())
-    counts = list(train_counts.values())
-    
-    axes[0, 0].bar(range(len(phonemes)), counts, color='cornflowerblue')
-    axes[0, 0].set_xticks(range(len(phonemes)))
-    axes[0, 0].set_xticklabels(phonemes, rotation=90)
-    axes[0, 0].set_ylabel('Number of samples')
-    axes[0, 0].set_title(f'Training Data Distribution ({len(pipeline.train["phoneme_labels"])} total samples)')
-    axes[0, 0].axhline(y=np.mean(counts), color='red', linestyle='--', label=f'Mean: {np.mean(counts):.0f}')
-    axes[0, 0].legend()
-    
-    # 2. Test data distribution
-    test_phonemes = list(test_counts.keys())
-    test_values = list(test_counts.values())
-    
-    axes[0, 1].bar(range(len(test_phonemes)), test_values, color='coral')
-    axes[0, 1].set_xticks(range(len(test_phonemes)))
-    axes[0, 1].set_xticklabels(test_phonemes, rotation=90)
-    axes[0, 1].set_ylabel('Number of samples')
-    axes[0, 1].set_title(f'Test Data Distribution ({len(pipeline.test["phoneme_labels"])} total samples)')
-    axes[0, 1].axhline(y=np.mean(test_values), color='red', linestyle='--', label=f'Mean: {np.mean(test_values):.0f}')
-    axes[0, 1].legend()
-    
-    # 3. Per-phoneme accuracy
-    predictions, _ = model_phonemes.predict(pipeline.test['features'], use_viterbi=True)
-    
-    phoneme_correct = {}
-    phoneme_total = {}
-    
-    for true, pred in zip(pipeline.test['phoneme_labels'], predictions):
-        if true not in phoneme_total:
-            phoneme_total[true] = 0
-            phoneme_correct[true] = 0
-        phoneme_total[true] += 1
-        if true == pred:
-            phoneme_correct[true] += 1
-    
-    accuracies = []
-    phoneme_list = []
-    for phoneme in sorted(phoneme_total.keys()):
-        acc = phoneme_correct[phoneme] / phoneme_total[phoneme] if phoneme_total[phoneme] > 0 else 0
-        accuracies.append(acc)
-        phoneme_list.append(phoneme)
-    
-    axes[1, 0].bar(range(len(phoneme_list)), accuracies, color='mediumseagreen')
-    axes[1, 0].set_xticks(range(len(phoneme_list)))
-    axes[1, 0].set_xticklabels(phoneme_list, rotation=90)
-    axes[1, 0].set_ylabel('Accuracy')
-    axes[1, 0].set_title('Per-Phoneme Accuracy')
-    axes[1, 0].set_ylim([0, 1])
-    axes[1, 0].axhline(y=eval_phonemes['accuracy'], color='red', linestyle='--', 
-                       label=f'Overall: {eval_phonemes["accuracy"]:.3f}')
-    axes[1, 0].legend()
-    
-    # 4. Accuracy vs Sample Count
-    sample_counts = [test_counts.get(p, 0) for p in phoneme_list]
-    
-    axes[1, 1].scatter(sample_counts, accuracies, alpha=0.6, s=50)
-    axes[1, 1].set_xlabel('Number of test samples')
-    axes[1, 1].set_ylabel('Accuracy')
-    axes[1, 1].set_title('Accuracy vs Sample Count')
-    axes[1, 1].axhline(y=eval_phonemes['accuracy'], color='red', linestyle='--', alpha=0.5)
-    axes[1, 1].axvline(x=10, color='orange', linestyle='--', alpha=0.5, label='10 samples')
-    axes[1, 1].axvline(x=50, color='green', linestyle='--', alpha=0.5, label='50 samples')
-    
-    # Add phoneme labels for outliers
-    for i, (x, y, p) in enumerate(zip(sample_counts, accuracies, phoneme_list)):
-        if y > 0.1 or x > 200:  # Label high accuracy or high count phonemes
-            axes[1, 1].annotate(p, (x, y), fontsize=8, alpha=0.7)
-    
-    axes[1, 1].legend()
-    axes[1, 1].set_xlim([-5, max(sample_counts) + 10])
-    axes[1, 1].set_ylim([-0.05, 1.05])
+    im = axes[2].imshow(cm, cmap='Blues')
+    axes[2].set_xticks(range(len(unique_labels)))
+    axes[2].set_yticks(range(len(unique_labels)))
+    axes[2].set_xticklabels(unique_labels, rotation=90, fontsize=8)
+    axes[2].set_yticklabels(unique_labels, fontsize=8)
+    axes[2].set_xlabel('Predicted')
+    axes[2].set_ylabel('True')
+    axes[2].set_title('Confusion Matrix')
+    plt.colorbar(im, ax=axes[2])
     
     plt.tight_layout()
-    #plt.savefig(os.path.join(output_base, 'phoneme_analysis.png'), dpi=150, bbox_inches='tight')
     plt.show()
     
-    # Print summary statistics
-    print("\n" + "="*60)
-    print("ANALYSIS SUMMARY")
-    print("="*60)
-    print(f"Overall accuracy: {eval_phonemes['accuracy']:.4f}")
-    print(f"Average per-phoneme accuracy: {np.mean(accuracies):.4f}")
-    print(f"Phonemes with >5% accuracy: {sum(1 for a in accuracies if a > 0.05)}/{len(accuracies)}")
-    print(f"Phonemes with 0% accuracy: {sum(1 for a in accuracies if a == 0)}/{len(accuracies)}")
-    
-    # Identify problem areas
-    print("\nPhonemes needing more data (< 50 training samples):")
-    for phoneme, count in sorted(train_counts.items(), key=lambda x: x[1]):
-        if count < 50:
-            acc = phoneme_correct.get(phoneme, 0) / phoneme_total.get(phoneme, 1)
-            print(f"  {phoneme:5s}: {count:3d} samples, {acc:.3f} accuracy")
-    
-    print("\nBest performing phonemes:")
-    best_phonemes = [(p, phoneme_correct[p]/phoneme_total[p]) 
-                     for p in phoneme_total if phoneme_total[p] > 0]
-    best_phonemes.sort(key=lambda x: x[1], reverse=True)
-    for phoneme, acc in best_phonemes[:5]:
-        print(f"  {phoneme:5s}: {acc:.3f} ({phoneme_correct[phoneme]}/{phoneme_total[phoneme]})")
-    
-    return model_phonemes, eval_phonemes
-
-def balance_phoneme_data(pipeline, strategy='quality_sample', target_samples=None, 
-                        min_samples=50, outlier_threshold=2.0):
-    """
-    Balance phoneme data by selecting quality samples
-    
-    Parameters:
-    -----------
-    strategy : str
-        'quality_sample' - pick samples closest to phoneme centroid
-        'random_sample' - random sampling (old behavior)
-    target_samples : int or None
-        Number of samples per phoneme. If None, use median count
-    min_samples : int
-        Minimum samples required to keep a phoneme
-    outlier_threshold : float
-        Z-score threshold for outlier removal (default 2.0 = within 2 std devs)
-    """
-    from scipy.spatial.distance import cosine, euclidean
-    
-    # Count samples per phoneme
-    train_counts = Counter(pipeline.train['phoneme_labels'])
-    
+    # Print stats
     print(f"\n{'='*70}")
-    print("BALANCING PHONEME DATA")
+    print(f"{pid} - PER-PHONEME ACCURACY & DURATION")
     print(f"{'='*70}")
-    print(f"Original distribution:")
-    print(f"  Total samples: {len(pipeline.train['phoneme_labels'])}")
-    print(f"  Unique phonemes: {len(train_counts)}")
-    print(f"  Max samples: {max(train_counts.values())}")
-    print(f"  Min samples: {min(train_counts.values())}")
-    print(f"  Mean samples: {np.mean(list(train_counts.values())):.0f}")
-    print(f"  Median samples: {np.median(list(train_counts.values())):.0f}")
+    print(f"{'Phoneme':<8} {'Acc':<6} {'Count':<6} {'Duration (ms)':<20}")
+    print(f"{'':8} {'':6} {'':6} {'Min':>6} {'Mean':>6} {'Max':>6}")
+    print('-'*70)
     
-    # Set target samples
-    if target_samples is None:
-        target_samples = int(np.median(list(train_counts.values())))
+    frameshift = pipeline.config.frameshift * 1000
     
-    print(f"\nTarget samples per phoneme: {target_samples}")
-    print(f"Outlier threshold: {outlier_threshold} std devs")
-    
-    # Filter out rare phonemes first
-    common_phonemes = {p: c for p, c in train_counts.items() if c >= min_samples}
-    print(f"\nRemoving {len(train_counts) - len(common_phonemes)} rare phonemes (< {min_samples} samples)")
-    print(f"Removed: {set(train_counts.keys()) - set(common_phonemes.keys())}")
-    
-    if strategy == 'quality_sample':
-        balanced_features = []
-        balanced_labels = []
-        balanced_words = []
-        balanced_participant_ids = []
+    for p in test_phonemes:
+        phoneme_lengths = [test_feat[i].shape[0] for i, label in enumerate(test_labels) if label == p]
+        durations_ms = [length * frameshift for length in phoneme_lengths]
         
-        outliers_removed_total = 0
-        
-        for phoneme in common_phonemes:
-            # Get all samples for this phoneme
-            indices = [i for i, label in enumerate(pipeline.train['phoneme_labels']) 
-                      if label == phoneme]
-            
-            # Get features for this phoneme
-            phoneme_features = [pipeline.train['features'][idx] for idx in indices]
-            
-            # Flatten features for distance calculation
-            flattened = []
-            for feat in phoneme_features:
-                if feat.ndim > 1:
-                    flattened.append(feat.flatten())
-                else:
-                    flattened.append(feat)
-            
-            # Pad to same length (use max length)
-            max_len = max(len(f) for f in flattened)
-            padded = []
-            for f in flattened:
-                if len(f) < max_len:
-                    padded_f = np.zeros(max_len)
-                    padded_f[:len(f)] = f
-                    padded.append(padded_f)
-                else:
-                    padded.append(f)
-            
-            features_array = np.array(padded)
-            
-            # Calculate centroid (mean feature vector)
-            centroid = np.mean(features_array, axis=0)
-            
-            # Calculate distance of each sample to centroid
-            distances = []
-            for feat in features_array:
-                dist = euclidean(feat, centroid)
-                distances.append(dist)
-            
-            distances = np.array(distances)
-            
-            # Remove outliers (samples too far from centroid)
-            mean_dist = np.mean(distances)
-            std_dist = np.std(distances)
-            
-            inlier_mask = distances < (mean_dist + outlier_threshold * std_dist)
-            inlier_indices = [indices[i] for i in range(len(indices)) if inlier_mask[i]]
-            
-            outliers_removed = len(indices) - len(inlier_indices)
-            outliers_removed_total += outliers_removed
-            
-            if len(inlier_indices) == 0:
-                print(f"  WARNING: All samples removed as outliers for '{phoneme}'!")
-                continue
-            
-            # Sample from inliers
-            current_count = len(inlier_indices)
-            
-            if current_count >= target_samples:
-                # We have enough inliers - pick the closest ones to centroid
-                inlier_distances = distances[inlier_mask]
-                sorted_inlier_idx = np.argsort(inlier_distances)[:target_samples]
-                selected = [inlier_indices[i] for i in sorted_inlier_idx]
-            else:
-                # Not enough inliers - use all inliers and repeat closest ones
-                print(f"  '{phoneme}': Only {current_count} inliers, upsampling to {target_samples}")
-                inlier_distances = distances[inlier_mask]
-                sorted_inlier_idx = np.argsort(inlier_distances)
-                
-                # Use all inliers
-                selected = inlier_indices.copy()
-                
-                # Repeat closest samples to reach target
-                n_repeats_needed = target_samples - current_count
-                closest_indices = [inlier_indices[i] for i in sorted_inlier_idx[:n_repeats_needed]]
-                selected.extend(closest_indices)
-            
-            # Add to balanced dataset
-            for idx in selected:
-                balanced_features.append(pipeline.train['features'][idx])
-                balanced_labels.append(pipeline.train['phoneme_labels'][idx])
-                if 'phoneme_words' in pipeline.train:
-                    balanced_words.append(pipeline.train['phoneme_words'][idx])
-                if 'phoneme_participant_ids' in pipeline.train:
-                    balanced_participant_ids.append(pipeline.train['phoneme_participant_ids'][idx])
-        
-        print(f"\nTotal outliers removed: {outliers_removed_total}")
-        
-    elif strategy == 'random_sample':
-        # Old random sampling behavior
-        balanced_features = []
-        balanced_labels = []
-        balanced_words = []
-        balanced_participant_ids = []
-        
-        for phoneme in common_phonemes:
-            indices = [i for i, label in enumerate(pipeline.train['phoneme_labels']) 
-                      if label == phoneme]
-            
-            current_count = len(indices)
-            
-            if current_count > target_samples:
-                selected = np.random.choice(indices, target_samples, replace=False)
-            else:
-                selected = np.random.choice(indices, target_samples, replace=True)
-            
-            for idx in selected:
-                balanced_features.append(pipeline.train['features'][idx])
-                balanced_labels.append(pipeline.train['phoneme_labels'][idx])
-                if 'phoneme_words' in pipeline.train:
-                    balanced_words.append(pipeline.train['phoneme_words'][idx])
-                if 'phoneme_participant_ids' in pipeline.train:
-                    balanced_participant_ids.append(pipeline.train['phoneme_participant_ids'][idx])
+        print(f"{p:<8} {phoneme_acc[p]:>5.2f} {test_counts[p]:>6} "
+              f"{min(durations_ms):>6.0f} {np.mean(durations_ms):>6.0f} {max(durations_ms):>6.0f}")
     
-    # Shuffle
-    indices = np.random.permutation(len(balanced_features))
+    print(f"{'='*70}\n")
+
+patient_results = train_per_patient(pipeline)
+
+# Check actual sample counts after all fixes
+print("="*70)
+print("DATA SUMMARY")
+print("="*70)
+
+for pid in patient_results.keys():
+    train_size = patient_results[pid]['train_size']
+    test_size = patient_results[pid]['test_size']
+    accuracy = patient_results[pid]['accuracy']
     
-    pipeline.train_balanced = {
-        'features': [balanced_features[i] for i in indices],
-        'phoneme_labels': [balanced_labels[i] for i in indices],
-        'phoneme_words': [balanced_words[i] for i in indices] if balanced_words else [],
-        'phoneme_participant_ids': [balanced_participant_ids[i] for i in indices] if balanced_participant_ids else []
+    patient_type = "SENTENCE" if int(pid[1:]) >= 20 else "WORD"
+    
+    print(f"{pid} ({patient_type}): {train_size} train, {test_size} test → Acc: {accuracy:.3f}")
+
+for pid in sorted(patient_results.keys()):
+    visualize_patient_model(pid, patient_results, pipeline)
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
+
+def train_simple_classifiers(pipeline):
+    """Test multiple simple classifiers per patient."""
+    
+    classifiers = {
+        'LogisticRegression': LogisticRegression(max_iter=1000, random_state=42),
+        'RandomForest_Simple': RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42),
+        'RandomForest_Deep': RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42),
+        'GaussianNB': GaussianNB(),
+        'KNN': KNeighborsClassifier(n_neighbors=5)
     }
     
-    new_counts = Counter(pipeline.train_balanced['phoneme_labels'])
-    print(f"\n{'='*70}")
-    print("BALANCED DATASET CREATED")
-    print(f"{'='*70}")
-    print(f"  Total samples: {len(pipeline.train_balanced['phoneme_labels'])}")
-    print(f"  Unique phonemes: {len(new_counts)}")
-    print(f"  Samples per phoneme: {target_samples}")
-    print(f"  Total samples: {len(new_counts) * target_samples}")
+    results = {}
     
-    return pipeline
-
-# Balance data for training
-pipeline = balance_phoneme_data(
-    pipeline, 
-    strategy='quality_sample',
-    target_samples=100,      # 100 samples per phoneme
-    min_samples=100,          # Remove phonemes with < x samples
-    outlier_threshold=2.0    # Remove samples >2 std devs from centroid
-)
-
-print("First feature shape:", pipeline.train['features'][0].shape)
-print("First feature sample:", pipeline.train['features'][0][0, :5])
-print(pipeline.train['metadata'])
-
-# Prepare data
-X_train = np.array([f.flatten() for f in pipeline.train['features']])
-y_train = np.array(pipeline.train['phoneme_labels'])
-
-X_test = np.array([f.flatten() for f in pipeline.test['features']])
-y_test = np.array(pipeline.test['phoneme_labels'])
-
-print(f"Training: {X_train.shape}, Test: {X_test.shape}")
-print(f"Unique phonemes: {len(set(y_train))}")
-
-# 1. LDA
-print("\n" + "="*70)
-print("LINEAR DISCRIMINANT ANALYSIS")
-print("="*70)
-
-lda = LinearDiscriminantAnalysis()
-lda.fit(X_train, y_train)
-
-train_acc = lda.score(X_train, y_train)
-test_acc = lda.score(X_test, y_test)
-
-print(f"Train accuracy: {train_acc:.1%}")
-print(f"Test accuracy:  {test_acc:.1%}")
-
-y_pred_lda = lda.predict(X_test)
-print("\nPer-phoneme performance:")
-print(classification_report(y_test, y_pred_lda, zero_division=0))
-
-# 2. SVM
-print("\n" + "="*70)
-print("SUPPORT VECTOR MACHINE (RBF)")
-print("="*70)
-
-svm = SVC(kernel='rbf', gamma='scale', C=1.0)
-svm.fit(X_train, y_train)
-
-train_acc = svm.score(X_train, y_train)
-test_acc = svm.score(X_test, y_test)
-
-print(f"Train accuracy: {train_acc:.1%}")
-print(f"Test accuracy:  {test_acc:.1%}")
-
-y_pred_svm = svm.predict(X_test)
-print("\nPer-phoneme performance:")
-print(classification_report(y_test, y_pred_svm, zero_division=0))
-
-# Quick comparison
-print("\n" + "="*70)
-print("SUMMARY")
-print("="*70)
-print(f"LDA:  {lda.score(X_test, y_test):.1%}")
-print(f"SVM:  {svm.score(X_test, y_test):.1%}")
-
-stats, distances, phonemes = comprehensive_phoneme_analysis(pipeline)
-
-# train
-model_phonemes, eval_phonemes = train_phoneme_model(pipeline, use_balanced=True)
-
-# 1. Check feature shapes and consistency
-print("\n1. FEATURE SHAPES:")
-train_shapes = [f.shape for f in pipeline.train['features'][:10]]
-print(f"   First 10 train feature shapes: {train_shapes}")
-unique_shapes = set([f.shape[1] for f in pipeline.train['features']])
-print(f"   Unique channel counts: {unique_shapes}")
-print(f"   Expected: {133} channels")
-
-if len(unique_shapes) > 1:
-    print("   ERROR: Features have inconsistent shapes!")
-elif 133 not in unique_shapes:
-    print(f"   ERROR: Features have {unique_shapes} channels, expected 133!")
-
-# 2. Check for actual data (not all zeros)
-print("\n2. FEATURE VALUES:")
-sample_feature = pipeline.train['features'][0]
-print(f"   Sample feature stats: min={sample_feature.min():.4f}, max={sample_feature.max():.4f}, mean={sample_feature.mean():.4f}")
-
-zero_features = sum(1 for f in pipeline.train['features'] if np.allclose(f, 0))
-print(f"   Zero features: {zero_features}/{len(pipeline.train['features'])}")
-
-if zero_features > len(pipeline.train['features']) * 0.1:
-    print(f"   WARNING: {zero_features/len(pipeline.train['features'])*100:.1f}% features are all zeros!")
-
-# 3. Check label distribution
-print("\n3. LABEL DISTRIBUTION:")
-train_counts = Counter(pipeline.train['phoneme_labels'])
-print(f"   Unique labels: {len(train_counts)}")
-print(f"   Unknown '?': {train_counts.get('?', 0)} ({train_counts.get('?', 0)/len(pipeline.train['phoneme_labels'])*100:.1f}%)")
-
-if train_counts.get('?', 0) > len(pipeline.train['phoneme_labels']) * 0.3:
-    print("   WARNING: >30% of labels are unknown!")
-
-# 4. Check train-test alignment
-print("\n4. TRAIN-TEST CONSISTENCY:")
-print(f"   Train samples: {len(pipeline.train['features'])}")
-print(f"   Train labels: {len(pipeline.train['phoneme_labels'])}")
-print(f"   Test samples: {len(pipeline.test['features'])}")
-print(f"   Test labels: {len(pipeline.test['phoneme_labels'])}")
-
-if len(pipeline.train['features']) != len(pipeline.train['phoneme_labels']):
-    print("   ERROR: Train features and labels misaligned!")
-
-# 5. Visualize sample features
-print("\n5. VISUALIZING SAMPLE FEATURES:")
-fig, axes = plt.subplots(2, 3, figsize=(15, 8))
-
-for i in range(6):
-    ax = axes[i//3, i%3]
-    feat = pipeline.train['features'][i]
-    label = pipeline.train['phoneme_labels'][i]
-    word = pipeline.train.get('phoneme_words', ['?'])[i]
+    for pid in set(pipeline.train['phoneme_participant_ids']):
+        print(f"\n{pid}:")
+        print("="*60)
+        
+        # Filter data
+        train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+        test_mask = [p == pid for p in pipeline.test['phoneme_participant_ids']]
+        
+        train_feat = [pipeline.train['features'][i] for i, m in enumerate(train_mask) if m]
+        train_labels = [pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m]
+        test_feat = [pipeline.test['features'][i] for i, m in enumerate(test_mask) if m]
+        test_labels = [pipeline.test['phoneme_labels'][i] for i, m in enumerate(test_mask) if m]
+        
+        if len(train_feat) < 10 or len(test_feat) < 5:
+            print(f"Skipped (insufficient data)")
+            continue
+        
+        # Flatten features
+        X_train = []
+        for feat in train_feat:
+            if feat.ndim > 1:
+                X_train.append(np.mean(feat, axis=0))
+            else:
+                X_train.append(feat)
+        X_train = np.array(X_train)
+        
+        X_test = []
+        for feat in test_feat:
+            if feat.ndim > 1:
+                X_test.append(np.mean(feat, axis=0))
+            else:
+                X_test.append(feat)
+        X_test = np.array(X_test)
+        
+        # Check for NaN/Inf
+        valid_train = ~(np.isnan(X_train).any(axis=1) | np.isinf(X_train).any(axis=1))
+        valid_test = ~(np.isnan(X_test).any(axis=1) | np.isinf(X_test).any(axis=1))
+        
+        X_train = X_train[valid_train]
+        y_train = [train_labels[i] for i in range(len(train_labels)) if valid_train[i]]
+        X_test = X_test[valid_test]
+        y_test = [test_labels[i] for i in range(len(test_labels)) if valid_test[i]]
+        
+        print(f"Samples: {len(X_train)} train, {len(X_test)} test")
+        print(f"Features: {X_train.shape[1]}")
+        print(f"Classes: {len(set(y_train))}")
+        
+        # Scale features
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        # Test each classifier
+        results[pid] = {}
+        
+        for name, clf in classifiers.items():
+            try:
+                clf.fit(X_train_scaled, y_train)
+                preds = clf.predict(X_test_scaled)
+                acc = accuracy_score(y_test, preds)
+                
+                results[pid][name] = acc
+                print(f"  {name:25s}: {acc:.3f}")
+                
+            except Exception as e:
+                print(f"  {name:25s}: FAILED ({e})")
+                results[pid][name] = 0.0
     
-    ax.imshow(feat.T, aspect='auto', cmap='viridis', origin='lower')
-    ax.set_title(f"'{label}' in '{word}'\n{feat.shape}")
-    ax.set_xlabel('Time frames')
-    ax.set_ylabel('Channels')
+    # Summary
+    print("\n" + "="*70)
+    print("SUMMARY ACROSS ALL PATIENTS")
+    print("="*70)
+    
+    for clf_name in classifiers.keys():
+        accs = [results[pid][clf_name] for pid in results if clf_name in results[pid]]
+        if accs:
+            print(f"{clf_name:25s}: {np.mean(accs):.3f} ± {np.std(accs):.3f}")
+    
+    return results
 
-plt.tight_layout()
-plt.show()
-
-# Use it
-conf_matrix = plot_detailed_confusion_matrix(
-    model_phonemes, 
-    pipeline.test['features'], 
-    pipeline.test['phoneme_labels'],
-    save_path='./results/dutch30/phoneme_confusion_matrix.png'
-)
-
-predictions, _ = model_phonemes.predict(pipeline.test['features'], use_viterbi=True)
-
-# Now create the confusion matrix analysis
-print("\nMost confused phoneme pairs:")
-conf_copy = conf_matrix.copy()
-np.fill_diagonal(conf_copy, 0)
-
-# Get the correct label list used for the confusion matrix
-unique_labels = sorted(set(pipeline.test['phoneme_labels'] + predictions))
-
-for _ in range(5):
-    i, j = np.unravel_index(np.argmax(conf_copy), conf_copy.shape)
-    if conf_copy[i, j] > 0 and i < len(unique_labels) and j < len(unique_labels):
-        true_phoneme = unique_labels[i]
-        pred_phoneme = unique_labels[j]
-        print(f"  {true_phoneme} → {pred_phoneme}: {int(conf_copy[i, j])} times")
-        conf_copy[i, j] = 0
+simple_results = train_simple_classifiers(pipeline)
 
 def analyze_phoneme_confusions_with_context(model, features, true_labels, words, top_n=10):
     """Analyze confused phonemes with their word context"""
@@ -1964,3 +1412,255 @@ def visualize_length_variance_relationship(pipeline):
 
 # Run it
 visualize_length_variance_relationship(pipeline)
+
+def visualize_sentence_segmentation(pipeline, participant_id, sentence_idx=0, play_audio=True):
+    """Visualize sentence division into words with RMS-based phoneme boundaries"""
+    from IPython.display import Audio, display
+    from scipy.ndimage import gaussian_filter1d
+    
+    # Use existing segmented data
+    if hasattr(pipeline, 'split_result') and participant_id in pipeline.split_result['word_segments_dict']:
+        word_segments = pipeline.split_result['word_segments_dict'][participant_id]
+    else:
+        word_segments = pipeline.segment_data_by_words(participant_id)
+    
+    # Load raw data
+    raw_data = pipeline.dutch30_extractor.load_patient_raw_data(participant_id)
+    stimuli = raw_data['stimuli']
+    eeg_sr = raw_data['eeg_sr']
+    
+    # Find sentences
+    sentences = []
+    current = None
+    for i, stim in enumerate(stimuli):
+        sent = stim.decode() if isinstance(stim, bytes) else str(stim)
+        sent = sent.strip()
+        if sent != current:
+            if current: 
+                sentences.append(current)
+            current = sent
+    if current:
+        sentences.append(current)
+    
+    sentence = sentences[sentence_idx]
+    print(f"Sentence: '{sentence}'")
+    
+    # Get words from this sentence
+    import re
+    cleaned = re.sub(r'["""„"''\r\n]+', '', sentence)
+    sentence_words = [w for w in cleaned.split() if w]
+    
+    # Gather data
+    word_specs = []
+    word_durations = []
+    phoneme_counts = []
+    actual_words = []
+    word_audios = []
+    word_phoneme_boundaries = []
+    word_expected_phonemes = []
+    
+    for word in sentence_words:
+        if word in word_segments['words']:
+            instance = word_segments['words'][word]['instances'][0]
+            spec = instance['spectrogram_segment']
+            audio_seg = instance.get('audio_segment', None)
+            
+            # Skip if too short
+            if spec.shape[0] < 3 or audio_seg is None:
+                continue
+            
+            word_specs.append(spec)
+            word_durations.append(spec.shape[0] * pipeline.config.frameshift)
+            word_audios.append(audio_seg)
+            
+            phonemes = pipeline.phonetic_dict.extract_phonemes(word)
+            phoneme_counts.append(len(phonemes) if phonemes else 3)
+            word_expected_phonemes.append(phonemes if phonemes else ['?'])
+            actual_words.append(word)
+            
+            # Detect phoneme boundaries using RMS
+            result = pipeline.detector.detect_boundaries(
+                spec,
+                word=word,
+                use_multifeature=False,
+                use_rms_boundaries=True,
+                audio_segment=audio_seg,
+                audio_sr=pipeline.config.audio_sr
+            )
+            
+            word_phoneme_boundaries.append(result['boundaries'])
+    
+    if not word_specs:
+        print(f"No words found for sentence {sentence_idx}")
+        return
+    
+    # Play audio
+    if play_audio and word_audios:
+        print("\n" + "="*70)
+        print("FULL SENTENCE AUDIO")
+        print("="*70)
+        full_audio = np.concatenate(word_audios)
+        display(Audio(full_audio, rate=int(pipeline.config.audio_sr)))
+
+        print("\n" + "="*70)
+        print("INDIVIDUAL WORD AUDIO")
+        print("="*70)
+        for word, audio_seg in zip(actual_words, word_audios):
+            print(f"\n'{word}':")
+            display(Audio(audio_seg, rate=int(pipeline.config.audio_sr)))
+    
+    # Concatenate spectrograms and compute RMS
+    full_spec = np.vstack(word_specs)
+    full_audio_concat = np.concatenate(word_audios)
+    
+    # Compute RMS for full sentence
+    sr = pipeline.config.audio_sr
+    hop_length = int(0.005 * sr)
+    frame_length = int(0.020 * sr)
+    
+    rms = []
+    for i in range(0, len(full_audio_concat) - frame_length, hop_length):
+        frame = full_audio_concat[i:i+frame_length]
+        rms.append(np.sqrt(np.mean(frame**2)))
+    rms = np.array(rms)
+    rms_smoothed = gaussian_filter1d(rms, sigma=2)
+    rms_change = np.abs(np.gradient(rms_smoothed))
+    rms_change_smoothed = gaussian_filter1d(rms_change, sigma=1.5)
+    
+    # Calculate word boundaries in spectrogram frames
+    word_boundaries_frames = [0]
+    for spec in word_specs:
+        word_boundaries_frames.append(word_boundaries_frames[-1] + spec.shape[0])
+    
+    # Calculate all phoneme boundaries (word-level to sentence-level)
+    all_phoneme_boundaries_frames = []
+    for i, boundaries in enumerate(word_phoneme_boundaries):
+        offset = word_boundaries_frames[i]
+        for b in boundaries[1:-1]:  # Skip word start/end
+            all_phoneme_boundaries_frames.append(offset + b)
+    
+    # Visualization
+    fig = plt.figure(figsize=(20, 14))
+    gs = fig.add_gridspec(6, 1, height_ratios=[1.5, 1, 1, 1, 0.8, 1.2])
+    axes = [fig.add_subplot(gs[i]) for i in range(6)]
+    
+    # 1. Spectrogram with word AND phoneme boundaries
+    axes[0].imshow(full_spec.T, aspect='auto', origin='lower', cmap='viridis')
+    axes[0].set_title(f"Sentence: '{sentence}' | RMS-Based Phoneme Segmentation", 
+                     fontweight='bold', fontsize=14)
+    axes[0].set_ylabel('Mel Bin')
+    
+    # Word boundaries (red)
+    for i, boundary in enumerate(word_boundaries_frames[:-1]):
+        axes[0].axvline(boundary, color='red', linestyle='--', linewidth=3, alpha=0.8)
+        mid = (word_boundaries_frames[i] + word_boundaries_frames[i+1]) / 2
+        axes[0].text(mid, full_spec.shape[1] * 0.95, actual_words[i], 
+                    ha='center', va='top', color='white', fontweight='bold', fontsize=11,
+                    bbox=dict(boxstyle='round', facecolor='red', alpha=0.8))
+    
+    # Phoneme boundaries (yellow)
+    for boundary in all_phoneme_boundaries_frames:
+        axes[0].axvline(boundary, color='yellow', linestyle=':', linewidth=1.5, alpha=0.6)
+    
+    # 2. Energy contour
+    energy = np.sum(full_spec ** 2, axis=1)
+    axes[1].plot(energy, linewidth=2, color='blue')
+    axes[1].set_ylabel('Energy')
+    axes[1].set_title('Spectrogram Energy', fontweight='bold')
+    axes[1].grid(alpha=0.3)
+    
+    for boundary in word_boundaries_frames[:-1]:
+        axes[1].axvline(boundary, color='red', linestyle='--', linewidth=2, alpha=0.7)
+    for boundary in all_phoneme_boundaries_frames:
+        axes[1].axvline(boundary, color='yellow', linestyle=':', linewidth=1, alpha=0.5)
+    
+    # 3. RMS envelope
+    rms_time_frames = np.linspace(0, len(full_spec), len(rms_smoothed))
+    axes[2].plot(rms_time_frames, rms_smoothed, linewidth=2, color='darkblue')
+    axes[2].fill_between(rms_time_frames, 0, rms_smoothed, alpha=0.3, color='blue')
+    axes[2].set_ylabel('RMS Power')
+    axes[2].set_title('RMS Envelope (Speech Energy)', fontweight='bold')
+    axes[2].grid(alpha=0.3)
+    
+    for boundary in word_boundaries_frames[:-1]:
+        axes[2].axvline(boundary, color='red', linestyle='--', linewidth=2, alpha=0.7)
+    for boundary in all_phoneme_boundaries_frames:
+        axes[2].axvline(boundary, color='yellow', linestyle=':', linewidth=1, alpha=0.5)
+    
+    # 4. RMS change (boundary detection signal)
+    axes[3].plot(rms_time_frames, rms_change_smoothed, linewidth=2, color='darkred')
+    axes[3].fill_between(rms_time_frames, 0, rms_change_smoothed, alpha=0.3, color='red')
+    axes[3].set_ylabel('RMS Change')
+    axes[3].set_title('RMS Change (Phoneme Boundary Detection Signal)', fontweight='bold')
+    axes[3].grid(alpha=0.3)
+    
+    # Mark threshold
+    median_val = np.median(rms_change_smoothed)
+    mad = np.median(np.abs(rms_change_smoothed - median_val))
+    threshold = median_val + 1.2 * mad
+    axes[3].axhline(threshold, color='orange', linestyle=':', linewidth=2, label=f'Threshold: {threshold:.4f}')
+    axes[3].legend()
+    
+    for boundary in word_boundaries_frames[:-1]:
+        axes[3].axvline(boundary, color='red', linestyle='--', linewidth=2, alpha=0.7)
+    for boundary in all_phoneme_boundaries_frames:
+        axes[3].axvline(boundary, color='yellow', linestyle=':', linewidth=1, alpha=0.5)
+    
+    # 5. Word durations
+    colors = plt.cm.viridis(np.linspace(0, 1, len(actual_words)))
+    bars = axes[4].bar(range(len(actual_words)), word_durations, color=colors, 
+                      edgecolor='black', linewidth=2)
+    axes[4].set_xticks(range(len(actual_words)))
+    axes[4].set_xticklabels(actual_words, rotation=45, ha='right')
+    axes[4].set_ylabel('Duration (s)')
+    axes[4].set_title('Word Durations', fontweight='bold')
+    axes[4].grid(axis='y', alpha=0.3)
+    
+    for i, (bar, n_ph) in enumerate(zip(bars, phoneme_counts)):
+        height = bar.get_height()
+        axes[4].text(bar.get_x() + bar.get_width()/2, height + 0.01,
+                    f'{n_ph}ph', ha='center', va='bottom', fontsize=9)
+    
+    # 6. Phoneme segmentation details per word
+    axes[5].axis('off')
+    axes[5].set_xlim(0, 1)
+    axes[5].set_ylim(0, len(actual_words))
+    axes[5].set_title('Detected Phoneme Boundaries per Word', fontweight='bold', fontsize=12)
+    
+    for i, (word, boundaries, expected) in enumerate(zip(actual_words, word_phoneme_boundaries, word_expected_phonemes)):
+        y_pos = len(actual_words) - i - 0.5
+        
+        n_segments = len(boundaries) - 1
+        n_expected = len(expected)
+        match = "✓" if n_segments == n_expected else "✗"
+        color = 'green' if n_segments == n_expected else 'red'
+        
+        text = f"{word:15s}: Expected {n_expected} ({expected}) → Detected {n_segments} {match}"
+        axes[5].text(0.02, y_pos, text, fontsize=10, verticalalignment='center',
+                    color=color, fontweight='bold' if color == 'red' else 'normal')
+    
+    plt.tight_layout()
+    plt.savefig(f'rms_sentence_segmentation_{participant_id}_sent{sentence_idx}.png', dpi=150, bbox_inches='tight')
+    plt.show()
+    
+    # Summary
+    print(f"\n{'='*70}")
+    print("RMS-BASED PHONEME SEGMENTATION SUMMARY")
+    print("="*70)
+    for word, dur, boundaries, expected in zip(actual_words, word_durations, word_phoneme_boundaries, word_expected_phonemes):
+        n_detected = len(boundaries) - 1
+        n_expected = len(expected)
+        match = "✓ MATCH" if n_detected == n_expected else "✗ MISMATCH"
+        
+        print(f"\n  {word:15s}: {dur:.2f}s")
+        print(f"    Expected: {n_expected} phonemes {expected}")
+        print(f"    Detected: {n_detected} segments {match}")
+        
+        if n_detected > 0:
+            segment_durations = [(boundaries[i+1] - boundaries[i]) * pipeline.config.frameshift 
+                               for i in range(len(boundaries)-1)]
+            avg_duration = np.mean(segment_durations)
+            print(f"    Avg segment: {avg_duration*1000:.0f}ms")
+
+# Use it
+visualize_sentence_segmentation(pipeline, 'P22', sentence_idx=2, play_audio=True)

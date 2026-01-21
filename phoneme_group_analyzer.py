@@ -18,6 +18,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from collections import defaultdict
 import os
+import pandas as pd
+from config import DUTCH_30_PATH
 
 
 # Phoneme group definitions based on Dutch phonology
@@ -42,6 +44,14 @@ PHONEME_GROUPS = {
     'labial_consonants': {'p', 'b', 'f', 'v', 'm', 'ʋ', 'w'},
     'alveolar_consonants': {'t', 'd', 's', 'z', 'n', 'l', 'r'},
     'velar_consonants': {'k', 'g', 'x', 'ɣ', 'ŋ'},
+    
+    # All vowels combined
+    'vowels': {'i', 'ɪ', 'e', 'ɛ', 'y', 'ʏ', 'ø', 'u', 'ʊ', 'o', 'ɔ', 'a', 'ɑ', 'ə',
+               'iː', 'i:', 'eː', 'e:', 'yː', 'y:', 'øː', 'ø:', 'uː', 'u:', 'oː', 'o:', 
+               'aː', 'a:', 'ɑː', 'ɑ:'},
+    
+    # Alias for consistency with one-vs-rest analysis
+    'liquids': {'l', 'r', 'ʋ', 'j', 'w'},
     
     # Combined vowel groups
     'all_front_vowels': {'i', 'ɪ', 'e', 'ɛ', 'y', 'ʏ', 'ø', 'iː', 'i:', 'eː', 'e:', 'yː', 'y:', 'øː', 'ø:'},
@@ -75,7 +85,125 @@ COMPARISONS = [
     ('plosives', 'liquids_glides', 'Plosives vs Liquids/Glides'),
 ]
 
+SPEECH_REGIONS = {
+        'precentral': ['G_precentral', 'S_precentral'],
+        'postcentral': ['G_postcentral', 'S_postcentral'],
+        'inferior_frontal': ['G_front_inf', 'S_front_inf', 'Opercular', 'Triangul', 'Orbital'],
+        'superior_temporal': ['G_temp_sup', 'S_temporal_sup', 'G_T_transv', 'Plan_tempo'],
+        'middle_temporal': ['G_temporal_middle', 'G_temp_mid'],
+        'insula': ['Ins_lg', 'insular_short', 'circular_insula', 'S_circular'],
+        'supramarginal': ['Supramar', 'G_pariet_inf-Supramar'],
+        'angular': ['Angular', 'G_pariet_inf-Angular'],
+        'subcentral': ['subcentral', 'G_subcentral'],
+    }
 
+REGION_CATEGORIES = {
+        'speech': ['precentral', 'postcentral', 'inferior_frontal', 'insula', 'subcentral'],
+        'auditory': ['superior_temporal', 'middle_temporal'],
+        'language': ['supramarginal', 'angular', 'inferior_frontal'],
+    }
+
+def load_electrode_locations(patient_id, data_dir=None):
+    """
+    Load electrode locations for a patient.
+    
+    Args:
+        patient_id: Patient ID (e.g., 'P06')
+        data_dir: Path to data directory. If None, uses DUTCH_30_PATH/raw
+    
+    Returns:
+        DataFrame with electrode locations
+    """
+    import os
+    
+    if data_dir is None:
+        data_dir = os.path.join(DUTCH_30_PATH, 'raw')
+    
+    file_prefix = patient_id.upper()
+    electrode_file = os.path.join(data_dir, f'{file_prefix}_electrode_locations.csv')
+    
+    if not os.path.exists(electrode_file):
+        print(f"Electrode file not found: {electrode_file}")
+        return None
+    
+    return pd.read_csv(electrode_file)
+
+
+def categorize_electrodes(electrode_df):
+    """
+    Categorize electrodes by brain region.
+    
+    Args:
+        electrode_df: DataFrame from load_electrode_locations
+    
+    Returns:
+        dict with region counts and categorization
+    """
+    if electrode_df is None:
+        return None
+    
+    locations = electrode_df['location'].tolist()
+    total = len(locations)
+    
+    region_counts = {region: 0 for region in SPEECH_REGIONS.keys()}
+    category_counts = {'speech': 0, 'auditory': 0, 'language': 0, 'other': 0}
+    
+    for loc in locations:
+        loc_str = str(loc)
+        matched_region = None
+        
+        for region, patterns in SPEECH_REGIONS.items():
+            if any(pattern in loc_str for pattern in patterns):
+                region_counts[region] += 1
+                matched_region = region
+                break
+        
+        if matched_region:
+            for category, regions in REGION_CATEGORIES.items():
+                if matched_region in regions:
+                    category_counts[category] += 1
+                    break
+        else:
+            category_counts['other'] += 1
+    
+    return {
+        'total_electrodes': total,
+        'region_counts': region_counts,
+        'category_counts': category_counts,
+        'speech_ratio': category_counts['speech'] / total if total > 0 else 0,
+        'auditory_ratio': category_counts['auditory'] / total if total > 0 else 0,
+        'language_ratio': category_counts['language'] / total if total > 0 else 0,
+    }
+
+
+def analyze_patient_with_electrodes(pipeline, patient_id, data_dir=None, save_path=None):
+    """
+    Run phoneme group analysis and correlate with electrode locations.
+    
+    Args:
+        pipeline: Dutch30Pipeline with train data
+        patient_id: Patient ID
+        data_dir: Path to electrode data
+        save_path: Directory to save figures
+    
+    Returns:
+        dict with classification results and electrode info
+    """
+    classification_results = analyze_phoneme_groups(
+        pipeline, 
+        patient_id=patient_id, 
+        save_path=save_path
+    )
+    
+    electrode_df = load_electrode_locations(patient_id, data_dir)
+    electrode_info = categorize_electrodes(electrode_df)
+    
+    return {
+        'patient': patient_id,
+        'classification': classification_results,
+        'electrodes': electrode_info,
+    }
+    
 def extract_summary_features(feat):
     """
     Extract summary statistics from pipeline feature matrix.

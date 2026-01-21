@@ -1018,6 +1018,7 @@ class AcousticChangeDetector(DebugMixin):
                             phoneme_words.append(word)
                             phoneme_positions.append(j)
                             phoneme_participant_ids.append(participant_id)
+                            phoneme_instance_indices.append(instance_idx)
                             
                             # Extract corresponding EEG segment if available
                             if eeg_segment is not None and result.get('boundary_samples') is not None:
@@ -1055,6 +1056,7 @@ class AcousticChangeDetector(DebugMixin):
                         phoneme_words.append(word)
                         phoneme_positions.append(j)
                         phoneme_participant_ids.append(participant_id)
+                        phoneme_instance_indices.append(instance_idx) 
                         
                         # Extract corresponding EEG segment if available
                         if eeg_segment is not None and result.get('boundary_samples') is not None:
@@ -1094,6 +1096,7 @@ class AcousticChangeDetector(DebugMixin):
                     phoneme_words.append(word)
                     phoneme_positions.append(0)  # Single position
                     phoneme_participant_ids.append(participant_id)
+                    phoneme_instance_indices.append(instance_idx)
                     
                     if eeg_segment is not None:
                         phoneme_eeg_segments.append(eeg_segment)
@@ -1106,6 +1109,7 @@ class AcousticChangeDetector(DebugMixin):
             'phoneme_positions': phoneme_positions,
             'phoneme_participant_ids': phoneme_participant_ids,
             'phoneme_durations_samples': phoneme_durations_samples, 
+            'phoneme_instance_indices': phoneme_instance_indices, 
             'word_boundaries': word_boundaries,
             'original_batch': batch
         }
@@ -1386,6 +1390,7 @@ class AcousticChangeDetector(DebugMixin):
         phoneme_words = []
         phoneme_positions = []
         phoneme_participant_ids = []
+        phoneme_instance_indices = []
         
         for pid, patient_data in patient_features.items():
             # Find expected dimension for this patient

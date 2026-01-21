@@ -1143,35 +1143,23 @@ class PhoneticDictionary(DebugMixin):
         """
         # Define phoneme groups
         self.phoneme_groups = {
-            ##'alveolar': ['t', 'd', 's', 'z', 'n', 'l'],
-             
-            ##'alveolar other': ['n', 'l'],
-            ##'back_vowels': ['u', 'o', 'ɔ', 'a', 'ɑ', 'ɑu', 'œy', 'ə', 'oː', 'aː', 'ɔː', 'ɑː'],
-            ##'front_vowels': ['i', 'ɪ', 'e', 'ɛ', 'ɛi', 'y', 'ʏ', 'eː', 'iː', 'ɪː'],
             
-            '~u': ['u', 'uː', 'y', 'ɑu'],
+         #   '~u': ['u', 'uː', 'y', 'yː', 'ʏ', 'ɑu'],           
+         #   'a/o long': ['oː', 'aː', 'ɔː'],
+         #   'o back': ['ɔ', 'ə', 'o'],
+         #   'i/e': ['i', 'ɪ', 'e'],
+         #   'i/e long': ['eː', 'iː', 'ɛː', 'øː'],
+         #   '~e': ['ɛi', 'ɛ'],
+         #  '~a': ['œy', 'a', 'ɑ'],      
+         # Vowels - short names
+            'i-type': ['i', 'iː', 'ɪ', 'y', 'yː', 'ʏ'],     # high front
+            'u-type': ['u', 'uː'],                           # high back
+            'e-type': ['e', 'eː', 'ɛ', 'ɛː', 'øː'],         # mid front
+            'o-type': ['o', 'oː', 'ɔ', 'ɔː'],               # mid back
+            'a-type': ['a', 'aː', 'ɑ', 'ɑː'],               # low
+            'schwa': ['ə'],                                  # reduced
+            'diph': ['ɛi', 'ɑu', 'œy'],                     # diphthongs
             
-            ##'short': ['o', 'ə', 'i', 'ɪ'],
-            ##'long': ['oː', 'øː', 'eː'],
-            
-            ##'o short': ['o', 'øː'],
-            ##'a short': ['a', 'ɑ'],
-            ##'a long': ['aː'],
-            ##'i/e long': ['iː'],               
-            'a/o long': ['oː', 'aː', 'ɔː'],
-            'o back':  ['ɔ', 'ə'], 
-            'i/e short': ['i', 'ɪ', 'e'],
-            'i/e long': ['eː', 'iː', 'ɛː'],   
-            '~e': ['ɛi', 'ɛ'],
-            '~a': ['œy'],
-            
-            #'back vowels close': ['u'],
-            #'back vowels mid-close': ['u', 'ɑu', 'œy', 'o', 'ɔ', 'ə'],
-            #'back vowels open': ['a', 'ɑ', 'œy'],            
-            ##'dorsal': ['k', 'g', 'x', 'ɣ', 'ŋ', 'χ', 'ʁ', 'ŋk'],            
-            ##'labial': ['p', 'b', 'f', 'v', 'm', 'ʋ', 'w'],  #'w' is not consistent with Dutch IPA, but it was parsed by the dictionary so I added it as a hotfix
-            ##'palatal': ['ŋ', 'j', 'r', 'tʃ', 'dʒ', 'tɕ', 'dʑ'], 
-            ##'glottal': ['h', 'ɦ', 'ʔ'],
             'l/n': ['l', 'n'],
             'k/g': ['k', 'g'],
             'p/b': ['p', 'b'],
@@ -1187,11 +1175,6 @@ class PhoneticDictionary(DebugMixin):
             'ʋ': ['ʋ'],   # labiodental approximant - should be in 'f/v/w' or its own group
             'ʔ': ['ʔ'],   # glottal stop - mentioned in comments but not in active groups
 
-            ##'plosive': ['p', 'b', 't', 'd', 'k', 'g'],
-            ##'fricative': ['f', 'v', 's', 'z', 'x', 'h', 'ʃ', 'ʒ', 'sx'],
-            ##'nasal': ['m', 'n', 'ŋ', 'ŋk'],
-            ##'approximant': ['l', 'j', 'w'],
-            ##'rhotic': ['r']
         }
         
         # Create reverse mapping from phoneme to group

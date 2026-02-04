@@ -6,6 +6,7 @@ import os
 import re
 import json
 import glob
+import string
 
 import pickle
 import numpy as np
@@ -294,7 +295,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             # 2A. Parse sentence text into individual words
             # -----------------------------------------------------------
             cleaned_sentence = re.sub(r'["""„"''\r\n]+', '', sentence_text)
-            word_texts = [w for w in cleaned_sentence.split() if w]
+            #word_texts = [w for w in cleaned_sentence.split() if w]
+            word_texts = [w.strip(string.punctuation).lower() for w in cleaned_sentence.split() if w.strip(string.punctuation)]
             
             if not word_texts:
                 #self.debug(f"Skipping empty sentence")
@@ -580,6 +582,48 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         return self.channel_masks
         
+    def apply_channel_exclusions(self):
+        """
+        Apply loaded channel exclusions to EEG data in word_segments_dict.
+        Call this AFTER step3_load_channel_exclusions.
+        """
+        if not hasattr(self, 'channel_masks') or not self.channel_masks:
+            self.log("ERROR: Run step3_load_channel_exclusions first")
+            return
+        
+        self.log("\nApplying channel exclusions...")
+        
+        for pid, mask in self.channel_masks.items():
+            if mask['n_excluded'] == 0:
+                continue
+            
+            keep = mask['keep_indices']
+            words_data = self.split_result['word_segments_dict'][pid]['words']
+            
+            for word_info in words_data.values():
+                for instance in word_info['instances']:
+                    if instance['eeg_segment'] is not None:
+                        instance['eeg_segment'] = instance['eeg_segment'][:, keep]
+            
+            self.log(f"  {pid}: {mask['n_original']} -> {mask['n_kept']} channels")
+        
+    def get_channel_counts(self):
+        """Return current channel count per patient."""
+        counts = {}
+        for pid, patient_data in self.split_result['word_segments_dict'].items():
+            first_word = list(patient_data['words'].keys())[0]
+            eeg = patient_data['words'][first_word]['instances'][0]['eeg_segment']
+            counts[pid] = eeg.shape[1]
+        return counts
+
+    def print_channel_counts(self):
+        """Print channel counts for all patients."""
+        counts = self.get_channel_counts()
+        print(f"{'Patient':<10} {'Channels':<10}")
+        print("-"*20)
+        for pid in sorted(counts.keys()):
+            print(f"{pid:<10} {counts[pid]:<10}")
+    
     def step4_custom_detector(self):
         """Initialize detector without BIDS decoder"""
         self.log("Step 4: Initializing detector...")
@@ -628,9 +672,9 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         # flexible batch sizing logic
         if train_samples < 5000:
-            batch_size = 128
-        elif train_samples < 20000:
             batch_size = 256
+        elif train_samples < 20000:
+            batch_size = 512
         else:
             batch_size = 128
         
@@ -748,6 +792,323 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             if (np.std(durations)/np.mean(durations)) > self.config.max_phoneme_duration:
                 self.log(f"HIGH LENGTH VARIATION!")
 
+    def step5b_normalize_lengths(self, target_frames=None, use_augmentation=True, 
+                             balance_classes=True, n_chunks=5, random_state=42):
+        """
+        Normalize feature lengths with optional balanced augmentation.
+        
+        Args:
+            target_frames: Target number of frames (default from config)
+            use_augmentation: Whether to apply stretch augmentation
+            balance_classes: Whether to balance phoneme classes
+            n_chunks: Number of chunks for balancing
+            random_state: For reproducibility
+        """
+        if target_frames is None:
+            target_frames = self.config.target_frames
+        
+        stretch_factors = self.config.augment_stretch_factors if use_augmentation else (1.0,)
+        
+        self.log(f"Normalizing features: target_frames={target_frames}, augment={use_augmentation}, balance={balance_classes}")
+        
+        if balance_classes and use_augmentation:
+            # Balanced augmentation (recommended for training)
+            self.train = self._normalize_with_balanced_augmentation(
+                self.train, 
+                target_frames, 
+                stretch_factors,
+                n_chunks=n_chunks,
+                random_state=random_state
+            )
+        elif use_augmentation:
+            # Regular augmentation (all samples)
+            self.train = self._normalize_with_augmentation(
+                self.train, 
+                target_frames, 
+                stretch_factors
+            )
+        else:
+            # No augmentation, just normalize lengths
+            self.train = self._normalize_with_augmentation(
+                self.train, 
+                target_frames, 
+                (1.0,)  # Only factor 1.0 = no stretch
+            )
+        
+        # Test data: normalize only, no augmentation, no balancing
+        self.test = self._normalize_with_augmentation(
+            self.test, 
+            target_frames, 
+            (1.0,)
+        )
+        
+        return self
+    
+    def _normalize_segments(self, data, target_frames):
+        """
+        Resample all segments to target_frames using scipy.signal.resample.
+        
+        Args:
+            data: Dictionary with 'features' list and metadata lists.
+            target_frames: Target number of frames.
+            
+        Returns:
+            Modified data dictionary with resampled features.
+        """
+        from scipy.signal import resample
+        
+        normalized_features = []
+        
+        for feat in data['features']:
+            n_frames, n_channels = feat.shape
+            
+            if n_frames == target_frames:
+                normalized_features.append(feat)
+            else:
+                # Resample along time axis (axis=0)
+                resampled = resample(feat, target_frames, axis=0)
+                normalized_features.append(resampled)
+        
+        data['features'] = normalized_features
+        return data
+    
+    def _normalize_with_augmentation(self, data, target_frames, stretch_factors):
+        """
+        Resample segments with augmentation: create multiple versions
+        at different effective durations.
+        
+        For each sample, creates len(stretch_factors) versions by first
+        resampling to target_frames * stretch_factor, then to target_frames.
+        This simulates the phoneme being spoken faster or slower.
+        
+        Args:
+            data: Dictionary with 'features' list and metadata lists.
+            target_frames: Base target number of frames.
+            stretch_factors: Tuple of factors (e.g., (0.8, 1.0, 1.2)).
+            
+        Returns:
+            Modified data dictionary with augmented samples.
+        """
+        from scipy.signal import resample
+        
+        augmented_features = []
+        augmented_labels = []
+        augmented_words = []
+        augmented_positions = []
+        augmented_pids = []
+        
+        # Handle optional keys
+        has_specs = 'spectrograms' in data and len(data.get('spectrograms', [])) > 0
+        augmented_specs = [] if has_specs else None
+        
+        for i, feat in enumerate(data['features']):
+            n_frames, n_channels = feat.shape
+            
+            for factor in stretch_factors:
+                # Stretch factor < 1 means fewer frames (faster speech)
+                # Stretch factor > 1 means more frames (slower speech)
+                intermediate_frames = int(target_frames * factor)
+                intermediate_frames = max(2, intermediate_frames)  # Minimum 2 frames
+                
+                # First resample to intermediate length
+                if n_frames != intermediate_frames:
+                    intermediate = resample(feat, intermediate_frames, axis=0)
+                else:
+                    intermediate = feat
+                
+                # Then resample to final target (only if different)
+                if intermediate_frames != target_frames:
+                    final = resample(intermediate, target_frames, axis=0)
+                else:
+                    final = intermediate
+                
+                augmented_features.append(final)
+                augmented_labels.append(data['phoneme_labels'][i])
+                augmented_words.append(data['phoneme_words'][i])
+                augmented_positions.append(data['phoneme_positions'][i])
+                augmented_pids.append(data['phoneme_participant_ids'][i])
+                
+                if has_specs:
+                    augmented_specs.append(data['spectrograms'][i])
+        
+        # Build output dictionary
+        result = {
+            'features': augmented_features,
+            'phoneme_labels': augmented_labels,
+            'phoneme_words': augmented_words,
+            'phoneme_positions': augmented_positions,
+            'phoneme_participant_ids': augmented_pids,
+        }
+        
+        if has_specs:
+            result['spectrograms'] = augmented_specs
+        
+        # Copy any other keys that exist
+        for key in data:
+            if key not in result:
+                result[key] = data[key]
+        
+        return result
+        
+    def _normalize_with_balanced_augmentation(self, data, target_frames, stretch_factors, 
+                                           n_chunks=5, random_state=42):
+        """
+        Normalize all samples and augment ONLY underrepresented phonemes per patient.
+        
+        Strategy:
+        1. Normalize ALL samples to target_frames
+        2. Per patient: find max phoneme count
+        3. For phonemes below max, add augmented samples to reach max
+        4. Result: original data + augmented samples for rare phonemes
+        """
+        from scipy.signal import resample
+        from collections import Counter, defaultdict
+        
+        rng = np.random.default_rng(random_state)
+        
+        labels = data['phoneme_labels']
+        pids = data['phoneme_participant_ids']
+        
+        self.log(f"Original total samples: {len(labels)}")
+        self.log(f"Original distribution: {dict(Counter(labels))}")
+        
+        # First: normalize ALL original samples (no augmentation yet)
+        normalized_features = []
+        for feat in data['features']:
+            if feat.ndim == 1:
+                feat = feat.reshape(-1, 1)
+            n_frames = feat.shape[0]
+            if n_frames != target_frames:
+                normalized_features.append(resample(feat, target_frames, axis=0))
+            else:
+                normalized_features.append(feat.copy())
+        
+        # Start with ALL original data
+        result_features = list(normalized_features)
+        result_labels = list(data['phoneme_labels'])
+        result_words = list(data['phoneme_words'])
+        result_positions = list(data['phoneme_positions'])
+        result_pids = list(data['phoneme_participant_ids'])
+        
+        has_specs = 'spectrograms' in data and len(data.get('spectrograms', [])) > 0
+        result_specs = list(data['spectrograms']) if has_specs else None
+        
+        # Group indices by patient
+        patient_indices = defaultdict(list)
+        for i, pid in enumerate(pids):
+            patient_indices[pid].append(i)
+        
+        # Augment underrepresented phonemes per patient
+        total_augmented = 0
+        
+        for pid, indices in patient_indices.items():
+            # Get phoneme counts for this patient
+            patient_labels = [labels[i] for i in indices]
+            counts = Counter(patient_labels)
+            
+            if len(counts) == 0:
+                continue
+            
+            max_count = max(counts.values())
+            
+            # Build index lists per phoneme for this patient
+            phoneme_indices = defaultdict(list)
+            for i in indices:
+                phoneme_indices[labels[i]].append(i)
+            
+            patient_augmented = 0
+            
+            # Augment phonemes that are below max_count
+            for label, ph_indices in phoneme_indices.items():
+                current_count = len(ph_indices)
+                n_needed = max_count - current_count
+                
+                if n_needed <= 0:
+                    continue  # This phoneme already at max, skip
+                
+                # Shuffle indices for variety
+                ph_indices_shuffled = ph_indices.copy()
+                rng.shuffle(ph_indices_shuffled)
+                
+                # Generate augmented samples
+                augmented_count = 0
+                sample_idx = 0
+                
+                while augmented_count < n_needed:
+                    # Cycle through available samples
+                    i = ph_indices_shuffled[sample_idx % len(ph_indices_shuffled)]
+                    sample_idx += 1
+                    
+                    # Pick a random stretch factor (excluding 1.0 to avoid duplicates)
+                    aug_factors = [f for f in stretch_factors if f != 1.0]
+                    if not aug_factors:
+                        aug_factors = stretch_factors
+                    factor = rng.choice(aug_factors)
+                    
+                    feat = normalized_features[i]
+                    n_frames = feat.shape[0]
+                    
+                    # Apply stretch augmentation
+                    intermediate_frames = max(2, int(target_frames * factor))
+                    
+                    if n_frames != intermediate_frames:
+                        intermediate = resample(feat, intermediate_frames, axis=0)
+                    else:
+                        intermediate = feat.copy()
+                    
+                    if intermediate_frames != target_frames:
+                        final = resample(intermediate, target_frames, axis=0)
+                    else:
+                        final = intermediate
+                    
+                    # Add augmented sample
+                    result_features.append(final)
+                    result_labels.append(data['phoneme_labels'][i])
+                    result_words.append(data['phoneme_words'][i])
+                    result_positions.append(data['phoneme_positions'][i])
+                    result_pids.append(data['phoneme_participant_ids'][i])
+                    
+                    if has_specs:
+                        result_specs.append(data['spectrograms'][i])
+                    
+                    augmented_count += 1
+                    patient_augmented += 1
+            
+            if patient_augmented > 0:
+                self.log(f"  {pid}: added {patient_augmented} augmented samples (max_count={max_count})")
+            
+            total_augmented += patient_augmented
+        
+        self.log(f"Total augmented samples added: {total_augmented}")
+        
+        # Shuffle final result
+        n_samples = len(result_labels)
+        shuffle_idx = rng.permutation(n_samples)
+        
+        result = {
+            'features': [result_features[i] for i in shuffle_idx],
+            'phoneme_labels': [result_labels[i] for i in shuffle_idx],
+            'phoneme_words': [result_words[i] for i in shuffle_idx],
+            'phoneme_positions': [result_positions[i] for i in shuffle_idx],
+            'phoneme_participant_ids': [result_pids[i] for i in shuffle_idx],
+        }
+        
+        if has_specs:
+            result['spectrograms'] = [result_specs[i] for i in shuffle_idx]
+        
+        # Copy any other keys
+        for key in data:
+            if key not in result:
+                result[key] = data[key]
+        
+        # Log final distribution
+        final_counts = Counter(result['phoneme_labels'])
+        self.log(f"Final distribution: {dict(final_counts)}")
+        self.log(f"Total samples: {len(labels)} -> {len(result['phoneme_labels'])} (+{total_augmented} augmented)")
+        
+        return result
+    
+    
     def dutch30_step6_resolve_unknowns(self):
         """Step 6: Initialize validator to resolve unknown phonemes (Dutch30-specific)"""
         
@@ -1617,7 +1978,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
     def _apply_pca_per_patient(self, train_data, test_data, pca_components):
         """Fit PCA on train, transform both train and test."""
         from sklearn.decomposition import PCA
-        import numpy as np
         
         # Group by patient
         train_by_patient = {}
@@ -1658,5 +2018,5 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         return train_data, test_data
         
-        
+
     

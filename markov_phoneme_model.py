@@ -13,14 +13,19 @@ import pickle
 from debugger import DebugMixin
 
 class MarkovPhonemeModel(DebugMixin):
-    """
-    A Markov chain-based model for phoneme sequence prediction.
-    This model combines local acoustic features with transition probabilities
-    between phoneme groups to improve prediction accuracy.
+    
+    """A Markov chain-based model for phoneme sequence prediction.
+    
+       Combines a neural signal classifier (trained on EEG features) with
+       phonotactic transition probabilities (derived from the phonetic
+       dictionary corpus) to improve prediction accuracy. The transition
+       model captures which phonemes are likely to follow each other in
+       Dutch, while the neural signal classifier provides per-phoneme
+       evidence from intracranial EEG recordings.
     """
     
     def __init__(self, phonetic_dict=None, order=2, output_dir='./models/markov_phoneme', 
-             debug_mode=False, use_groups=False):
+             debug_mode=False, use_groups=False, class_weight='balanced', classifier_type='random_forest'):
         """
         Initialize the Markov chain phoneme model.
         
@@ -36,6 +41,16 @@ class MarkovPhonemeModel(DebugMixin):
             Whether to enable debug mode
         use_groups : bool
             Whether to use phoneme groups instead of raw phonemes
+        class_weight : str or dict or None
+            Class weight for classifiers that support it
+        classifier_type : str
+            Type of classifier to use. Options:
+            - 'random_forest': RandomForestClassifier (default)
+            - 'extra_trees': ExtraTreesClassifier
+            - 'gradient_boosting': GradientBoostingClassifier
+            - 'logistic_regression': LogisticRegression
+            - 'knn': KNeighborsClassifier
+            - 'gaussian_nb': GaussianNB
         """
         super().__init__(class_name="MarkovPhonemeModel", debug_mode=debug_mode)
         if debug_mode is not None:
@@ -45,8 +60,9 @@ class MarkovPhonemeModel(DebugMixin):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
         
-        # Store use_groups setting
         self.use_groups = use_groups
+        self.class_weight = class_weight
+        self.classifier_type = classifier_type
         
         # Set up phonetic dictionary
         if phonetic_dict is None:
@@ -68,7 +84,7 @@ class MarkovPhonemeModel(DebugMixin):
         self.emission_probs = {}
         self.initial_probs = {}
         
-        # Simple acoustic classifier (will be trained on features)
+        # Neural signal classifier (trained on EEG features)
         self.neural_classifier = None
         self.feature_scaler = None
         self.trained_classes = None
@@ -158,9 +174,10 @@ class MarkovPhonemeModel(DebugMixin):
         self.log(f"Group distribution: {dict(label_counter)}")
         
         # Rest of the training continues as normal
-        self._build_transition_model(training_labels, words)
-        self._build_neural_model(features, training_labels)
-        self._build_initial_probs(training_labels, words)
+        self._build_corpus_transition_model()
+        self._build_neural_classifier(features, training_labels)
+        #self._build_neural_model(features, training_labels)
+        #self._build_initial_probs(training_labels, words)
         
         #self.save_model()
         
@@ -171,7 +188,7 @@ class MarkovPhonemeModel(DebugMixin):
             'group_distribution': dict(label_counter)
         }
 
-    
+    '''
     def _build_transition_model(self, group_labels, words=None):
         """
         Build transition probability matrix from training sequences.
@@ -223,23 +240,35 @@ class MarkovPhonemeModel(DebugMixin):
                                   for state in self.trained_classes}
                                   
         self.log(f"Built transition model with {len(self.transition_probs)} contexts")
+    '''
     
     def _build_neural_model(self, features, group_labels):
         """
-        Build a simple emission model using averaged features per group.
+         Trains the neural signal classifier on EEG features.
+
+       Fits a RandomForest classifier on pooled EEG feature vectors
+       to produce per-phoneme (or per-group) emission probabilities.
+       Features are flattened by averaging across the temporal axis,
+       then scaled before training.
+
+       Args:
+           features: List of EEG feature arrays, one per phoneme
+               segment. Each array has shape (n_frames, n_channels)
+               or (n_channels,) if already pooled.
+           group_labels: List of target labels corresponding to each
+               feature array. These are either raw phoneme strings or
+               group names depending on self.use_groups.
         """
-        self.log("Building neural model")
-    
-        # Flatten features
-        flattened_features = []
-        for feat in features:
-            if feat.ndim > 1:
-                pooled = np.mean(feat, axis=0)
-            else:
-                pooled = feat
-            flattened_features.append(pooled)
+        from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.neighbors import KNeighborsClassifier
+        from sklearn.naive_bayes import GaussianNB
+        from sklearn.preprocessing import StandardScaler
         
-        X = np.array(flattened_features)
+        self.log(f"Building neural model with classifier: {self.classifier_type}")
+
+        # Flatten features
+        X = self._flatten_features(features)
         
         # Filter out invalid samples
         valid_indices = []
@@ -250,11 +279,11 @@ class MarkovPhonemeModel(DebugMixin):
         X = X[valid_indices]
         y = [group_labels[i] for i in valid_indices]
         
-        # IMPORTANT: Track which groups we're training on
+        # Track which groups we're training on
         self.trained_groups = sorted(list(set(y)))
         self.log(f"Training on groups: {self.trained_groups}")
         
-        # Create a mapping from group names to indices for the classifier
+        # Create mapping from group names to indices
         self.group_to_classifier_idx = {group: i for i, group in enumerate(self.trained_classes)}
         y_encoded = np.array([self.group_to_classifier_idx[label] for label in y])
         
@@ -262,20 +291,57 @@ class MarkovPhonemeModel(DebugMixin):
         self.feature_scaler = StandardScaler()
         X_scaled = self.feature_scaler.fit_transform(X)
         
-        X_scaled += np.random.normal(0, 0.01, X_scaled.shape)
-        # Train classifier with balanced class weights
-        self.neural_classifier = RandomForestClassifier(
-            n_estimators=200,
-            max_depth=20,
-            #min_samples_split=10,  # to prevent overfitting
-            min_samples_leaf=2,   #  to prevent overfitting
-            class_weight='balanced',  # This helps with imbalanced classes
-            #max_features='sqrt',        # Add: prevents correlation between trees
-            random_state=42
-        )
+        # Add small noise for regularization
+        rng = np.random.default_rng(42)
+        X_scaled += rng.normal(0, 0.01, X_scaled.shape)
+        
+        # Select classifier based on type
+        if self.classifier_type == 'extra_trees':
+            self.neural_classifier = ExtraTreesClassifier(
+                n_estimators=200,
+                max_depth=20,
+                min_samples_leaf=2,
+                class_weight=self.class_weight,
+                random_state=42,
+                n_jobs=-1
+            )
+        elif self.classifier_type == 'gradient_boosting':
+            # Note: GradientBoosting doesn't support class_weight directly
+            self.neural_classifier = GradientBoostingClassifier(
+                n_estimators=100,
+                max_depth=5,
+                learning_rate=0.1,
+                random_state=42
+            )
+        elif self.classifier_type == 'logistic_regression':
+            self.neural_classifier = LogisticRegression(
+                max_iter=1000,
+                class_weight=self.class_weight,
+                random_state=42,
+                n_jobs=-1
+            )
+        elif self.classifier_type == 'knn':
+            # Note: KNN doesn't support class_weight
+            self.neural_classifier = KNeighborsClassifier(
+                n_neighbors=30,
+                n_jobs=-1
+            )
+        elif self.classifier_type == 'gaussian_nb':
+            # Note: GaussianNB doesn't support class_weight
+            self.neural_classifier = GaussianNB()
+        else:  # Default: random_forest
+            self.neural_classifier = RandomForestClassifier(
+                n_estimators=200,
+                max_depth=20,
+                min_samples_leaf=2,
+                class_weight=self.class_weight,
+                random_state=42,
+                n_jobs=-1
+            )
+        
         self.neural_classifier.fit(X_scaled, y_encoded)
         
-        self.log(f"Trained acoustic model on {len(X)} samples with {len(self.trained_groups)} groups")
+        self.log(f"Trained neural signal classifier on {len(X)} samples with {len(self.trained_groups)} classes")
         
     def _build_initial_probs(self, group_labels, words=None):
         """
@@ -328,18 +394,7 @@ class MarkovPhonemeModel(DebugMixin):
             return None, None
     
         # Process features
-        flattened_features = []
-        for feat in features:
-            if isinstance(feat, np.ndarray):
-                if feat.ndim > 1:
-                    pooled = np.mean(feat, axis=0)
-                else:
-                    pooled = feat
-            else:
-                pooled = np.array(feat)
-            flattened_features.append(pooled)
-        
-        X = np.array(flattened_features)
+        X = self._flatten_features(features)
         X_scaled = self.feature_scaler.transform(X)
         
         # Get predictions from classifier
@@ -619,3 +674,173 @@ class MarkovPhonemeModel(DebugMixin):
         self.log(f"Transition matrix visualization saved to {save_path}")
         
         return trans_matrix
+        
+    def _flatten_features(self, features):
+        """
+        Convert variable-dimension feature arrays to 1D vectors for classification.
+        
+        For 2D features (frames, channels), applies statistical pooling by
+        concatenating mean and standard deviation across the time axis.
+        This preserves more temporal information than simple averaging.
+        
+        Args:
+            features: List of feature arrays. Can be 1D (n_channels,) or 
+                     2D (n_frames, n_channels).
+        
+        Returns:
+            numpy.ndarray: 2D array of shape (n_samples, n_features) where
+                          n_features is n_channels for 1D input or 
+                          2 * n_channels for 2D input.
+        """
+        flattened_features = []
+        for feat in features:
+            if feat.ndim > 1:
+                pooled = np.concatenate([
+                    np.mean(feat, axis=0),
+                    np.std(feat, axis=0)
+                ])
+            else:
+                # 1D: pad with zeros to match 2D output (mean + std)
+                pooled = np.concatenate([feat, np.zeros_like(feat)])
+            flattened_features.append(pooled)
+        
+        return np.array(flattened_features)
+        
+        
+    def _build_corpus_transition_model(self, smoothing_alpha=None):
+        """Builds transition and initial probabilities from the phonetic dictionary corpus.
+
+        Iterates over single-word entries in the phonetic dictionary,
+        extracts their phoneme sequences, and counts transitions using a
+        sliding window of size ``self.order``. Sentence-level entries
+        (keys containing spaces) are skipped to avoid counting cross-word
+        transitions that would not occur within the word-level decoding
+        context of this pipeline.
+
+        When ``self.use_groups`` is True, phonemes are mapped to their
+        articulatory groups before counting. Phonemes that do not map to
+        any group are skipped rather than counted as 'unknown', since
+        unknown mappings in the corpus indicate a gap in the group
+        definitions rather than genuine signal.
+
+        Also populates ``self.initial_probs`` from the first phoneme (or
+        group) of each word, replacing the need for a separate call to
+        ``_build_initial_probs``.
+
+        Args:
+            smoothing_alpha: Laplace smoothing constant for probability
+                estimation. If None, falls back to
+                ``self.config.laplace_smoothing_alpha`` when a config
+                object is available, otherwise defaults to 0.1.
+
+        Raises:
+            ValueError: If no valid phoneme sequences are found in the
+                corpus, which would indicate a broken phonetic dictionary.
+        """
+        from collections import defaultdict, Counter
+
+        self.log("Building transition model from phonetic dictionary corpus...")
+
+        # Resolve smoothing alpha from config or fallback
+        if smoothing_alpha is None:
+            if hasattr(self, 'config') and hasattr(self.config, 'laplace_smoothing_alpha'):
+                smoothing_alpha = self.config.laplace_smoothing_alpha
+            else:
+                smoothing_alpha = 0.1
+
+        transition_counts = defaultdict(lambda: defaultdict(int))
+        initial_counts = Counter()
+        total_words = 0
+        total_sequences_skipped = 0
+
+        for word, transcription in self.phonetic_dict.dictionary.items():
+            # Skip sentence-level entries to keep transitions within-word only
+            if ' ' in word:
+                continue
+
+            phonemes = self.phonetic_dict.extract_phonemes(word)
+
+            if not phonemes:
+                total_sequences_skipped += 1
+                continue
+
+            # Map to groups if configured
+            if self.use_groups:
+                mapped = []
+                for phoneme in phonemes:
+                    if phoneme in self.phoneme_to_group:
+                        mapped.append(self.phoneme_to_group[phoneme])
+                    # Skip phonemes without a group mapping entirely;
+                    # they represent gaps in group definitions, not real unknowns
+                sequence = mapped
+            else:
+                sequence = phonemes
+
+            if len(sequence) < 1:
+                total_sequences_skipped += 1
+                continue
+
+            total_words += 1
+
+            # Count initial state
+            initial_counts[sequence[0]] += 1
+
+            # Count transitions with sliding window of self.order
+            for i in range(len(sequence) - self.order):
+                context = tuple(sequence[i:i + self.order])
+                next_state = sequence[i + self.order]
+                transition_counts[context][next_state] += 1
+
+        if total_words == 0:
+            raise ValueError(
+                "No valid phoneme sequences found in corpus. "
+                "Check that phonetic_dict.dictionary contains single-word entries "
+                "with valid transcriptions."
+            )
+
+        self.log(f"  Corpus words processed: {total_words}")
+        self.log(f"  Sequences skipped (empty after mapping): {total_sequences_skipped}")
+        self.log(f"  Unique transition contexts: {len(transition_counts)}")
+
+        # Determine state space for normalization
+        if self.use_groups:
+            all_states = list(self.group_encoder.classes_)
+        else:
+            # Collect all phonemes that appeared in any sequence
+            corpus_phonemes = set()
+            for word, transcription in self.phonetic_dict.dictionary.items():
+                if ' ' in word:
+                    continue
+                corpus_phonemes.update(self.phonetic_dict.extract_phonemes(word))
+            all_states = sorted(corpus_phonemes)
+
+        num_states = len(all_states)
+
+        # Normalize transition counts to probabilities with Laplace smoothing
+        self.transition_probs = {}
+        for context, next_state_counts in transition_counts.items():
+            total = sum(next_state_counts.values())
+            self.transition_probs[context] = {}
+            for state in all_states:
+                count = next_state_counts.get(state, 0)
+                self.transition_probs[context][state] = (
+                    (count + smoothing_alpha) / (total + smoothing_alpha * num_states)
+                )
+
+        # Default uniform transitions for contexts not seen in corpus
+        self.default_transition = {
+            state: 1.0 / num_states for state in all_states
+        }
+
+        # Normalize initial counts to probabilities with Laplace smoothing
+        total_initial = sum(initial_counts.values())
+        self.initial_probs = {}
+        for state in all_states:
+            count = initial_counts.get(state, 0)
+            self.initial_probs[state] = (
+                (count + smoothing_alpha) / (total_initial + smoothing_alpha * num_states)
+            )
+
+        self.log(f"  Transition contexts: {len(self.transition_probs)}")
+        self.log(f"  Initial prob states: {len(self.initial_probs)}")
+        self.log(f"  Smoothing alpha: {smoothing_alpha}")

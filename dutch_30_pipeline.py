@@ -29,7 +29,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
     
     def __init__(self, dutch30_extractor, config: Dutch30Config = None,
                         decoder=None, feature_extraction_method='high_gamma',
-                        pca_components=100, use_phoneme_groups=False, 
+                        use_phoneme_groups=False, 
                         debug_mode=False, use_rms_boundaries=True, use_multifeature=False,
                         use_wav2vec=False, subtract_baseline=True, 
                         **kwargs):
@@ -39,7 +39,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             path_output=dutch30_extractor.results_dir,
             path_results=dutch30_extractor.results_dir,
             feature_extraction_method=feature_extraction_method,
-            pca_components=pca_components,
             use_phoneme_groups=use_phoneme_groups,
             debug_mode=debug_mode,
             **kwargs
@@ -56,7 +55,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         # Log config if in debug mode
         self.debug(str(self.config))
-        self.log(f"Pipeline initialized: {feature_extraction_method}, PCA={pca_components}, groups={use_phoneme_groups}")
+        self.log(f"Pipeline initialized: {feature_extraction_method}, groups={use_phoneme_groups}")
         self.log(f"Baseline subtraction: {subtract_baseline}")
         self.log(f"Boundary detection: RMS={use_rms_boundaries}, MultiFeature={use_multifeature}")
         
@@ -166,25 +165,76 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             self.split_result['train'][pid] = {}
             self.split_result['test'][pid] = {}
             
-            for word, word_data in word_segments['words'].items():
-                num_instances = len(word_data['instances'])
-                if num_instances == 0:
-                    continue
-                
-                indices = np.arange(num_instances)
-                np.random.shuffle(indices)
-                
-                # CHANGE THIS PART:
-                if num_instances == 1:
-                    # Randomly assign to train or test
-                    if np.random.random() < train_fraction:
-                        self.split_result['train'][pid][word] = [0]
+            patient_num = int(pid[1:])
+            is_sentence_patient = patient_num > 20
+
+            if is_sentence_patient:
+                # Split by sentence presentation, not by word instance.
+                # Group word instances by which sentence presentation they came from.
+                sentence_to_word_instances = defaultdict(list)
+                for word, word_data in word_segments['words'].items():
+                    for inst_idx, instance in enumerate(word_data['instances']):
+                        sent_key = (instance['sentence_text'], instance['sentence_idx'])
+                        sentence_to_word_instances[sent_key].append((word, inst_idx))
+
+                # Group sentence presentations by sentence text to find repetitions.
+                text_to_presentations = defaultdict(list)
+                for sent_key in sentence_to_word_instances:
+                    sent_text, sent_idx = sent_key
+                    text_to_presentations[sent_text].append(sent_key)
+
+                # Split presentations of each sentence into train/test.
+                train_presentations = set()
+                test_presentations = set()
+                for sent_text, presentations in text_to_presentations.items():
+                    n_pres = len(presentations)
+                    pres_indices = np.arange(n_pres)
+                    np.random.shuffle(pres_indices)
+
+                    if n_pres == 1:
+                        if np.random.random() < train_fraction:
+                            train_presentations.add(presentations[pres_indices[0]])
+                        else:
+                            test_presentations.add(presentations[pres_indices[0]])
                     else:
-                        self.split_result['test'][pid][word] = [0]
-                else:
-                    n_train = max(1, int(num_instances * train_fraction))
-                    self.split_result['train'][pid][word] = indices[:n_train].tolist()
-                    self.split_result['test'][pid][word] = indices[n_train:].tolist()
+                        n_train = max(1, int(n_pres * train_fraction))
+                        for idx in pres_indices[:n_train]:
+                            train_presentations.add(presentations[idx])
+                        for idx in pres_indices[n_train:]:
+                            test_presentations.add(presentations[idx])
+
+                # Map back to word instances.
+                for sent_key in train_presentations:
+                    for word, inst_idx in sentence_to_word_instances[sent_key]:
+                        if word not in self.split_result['train'][pid]:
+                            self.split_result['train'][pid][word] = []
+                        self.split_result['train'][pid][word].append(inst_idx)
+
+                for sent_key in test_presentations:
+                    for word, inst_idx in sentence_to_word_instances[sent_key]:
+                        if word not in self.split_result['test'][pid]:
+                            self.split_result['test'][pid][word] = []
+                        self.split_result['test'][pid][word].append(inst_idx)
+
+            else:
+                # Word/mixed patients: split by word instance (existing logic).
+                for word, word_data in word_segments['words'].items():
+                    num_instances = len(word_data['instances'])
+                    if num_instances == 0:
+                        continue
+
+                    indices = np.arange(num_instances)
+                    np.random.shuffle(indices)
+
+                    if num_instances == 1:
+                        if np.random.random() < train_fraction:
+                            self.split_result['train'][pid][word] = [0]
+                        else:
+                            self.split_result['test'][pid][word] = [0]
+                    else:
+                        n_train = max(1, int(num_instances * train_fraction))
+                        self.split_result['train'][pid][word] = indices[:n_train].tolist()
+                        self.split_result['test'][pid][word] = indices[n_train:].tolist()
             
             train_total = sum(len(v) for v in self.split_result['train'][pid].values())
             test_total = sum(len(v) for v in self.split_result['test'][pid].values())
@@ -285,6 +335,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         all_word_eeg_segments = []
         all_word_spec_segments = []
         all_word_audio_segments = []
+        all_word_sentence_indices = []    
+        all_word_sentence_texts = []     
         
         for sent_idx, sent_info in enumerate(sentence_list):
             sentence_text = sent_info['text']
@@ -440,6 +492,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 all_word_eeg_segments.append(word_eeg)
                 all_word_spec_segments.append(word_spec)
                 all_word_audio_segments.append(word_audio)
+                all_word_sentence_indices.append(sent_idx)      
+                all_word_sentence_texts.append(sentence_text)    
         
         # ===================================================================
         # STEP 3: ORGANIZE WORDS INTO DICTIONARY
@@ -453,7 +507,9 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             words_dict[word_text]['instances'].append({
                 'eeg_segment': all_word_eeg_segments[i],
                 'spectrogram_segment': all_word_spec_segments[i],
-                'audio_segment': all_word_audio_segments[i]
+                'audio_segment': all_word_audio_segments[i],
+                'sentence_idx': all_word_sentence_indices[i],      
+                'sentence_text': all_word_sentence_texts[i],        
             })
         
         self.debug(f"Successfully extracted {len(all_word_texts)} word segments from {len(sentence_list)} sentences")
@@ -468,7 +524,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             'eeg_segments': all_word_eeg_segments,
             'spectrogram_segments': all_word_spec_segments,
             'audio_segments': all_word_audio_segments,
-            'participant_id': participant_id
+            'participant_id': participant_id,
+            'sentence_list': sentence_list,                       
+            'word_sentence_indices': all_word_sentence_indices,     
+            'word_sentence_texts': all_word_sentence_texts,         
         }
     
     def _create_segments_from_features(self, features, words):
@@ -736,12 +795,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         else:
             self.log(f"Skipping trimming for '{self.feature_extraction_method}'")
             
-            
-        if self.pca_components is not None and self.pca_components > 0:
-            self.train, self.test = self._apply_pca_per_patient(
-                self.train, self.test, self.pca_components
-            )
-            
         # Subtract baselines (already extracted in step 2)
         if self.subtract_baseline_flag and hasattr(self, 'patient_baselines'):             
             
@@ -792,58 +845,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             if (np.std(durations)/np.mean(durations)) > self.config.max_phoneme_duration:
                 self.log(f"HIGH LENGTH VARIATION!")
 
-    def step5b_normalize_lengths(self, target_frames=None, use_augmentation=True, 
-                             balance_classes=True, n_chunks=5, random_state=42):
-        """
-        Normalize feature lengths with optional balanced augmentation.
-        
-        Args:
-            target_frames: Target number of frames (default from config)
-            use_augmentation: Whether to apply stretch augmentation
-            balance_classes: Whether to balance phoneme classes
-            n_chunks: Number of chunks for balancing
-            random_state: For reproducibility
-        """
-        if target_frames is None:
-            target_frames = self.config.target_frames
-        
-        stretch_factors = self.config.augment_stretch_factors if use_augmentation else (1.0,)
-        
-        self.log(f"Normalizing features: target_frames={target_frames}, augment={use_augmentation}, balance={balance_classes}")
-        
-        if balance_classes and use_augmentation:
-            # Balanced augmentation (recommended for training)
-            self.train = self._normalize_with_balanced_augmentation(
-                self.train, 
-                target_frames, 
-                stretch_factors,
-                n_chunks=n_chunks,
-                random_state=random_state
-            )
-        elif use_augmentation:
-            # Regular augmentation (all samples)
-            self.train = self._normalize_with_augmentation(
-                self.train, 
-                target_frames, 
-                stretch_factors
-            )
-        else:
-            # No augmentation, just normalize lengths
-            self.train = self._normalize_with_augmentation(
-                self.train, 
-                target_frames, 
-                (1.0,)  # Only factor 1.0 = no stretch
-            )
-        
-        # Test data: normalize only, no augmentation, no balancing
-        self.test = self._normalize_with_augmentation(
-            self.test, 
-            target_frames, 
-            (1.0,)
-        )
-        
-        return self
-    
     def _normalize_segments(self, data, target_frames):
         """
         Resample all segments to target_frames using scipy.signal.resample.
@@ -871,243 +872,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         data['features'] = normalized_features
         return data
-    
-    def _normalize_with_augmentation(self, data, target_frames, stretch_factors):
-        """
-        Resample segments with augmentation: create multiple versions
-        at different effective durations.
-        
-        For each sample, creates len(stretch_factors) versions by first
-        resampling to target_frames * stretch_factor, then to target_frames.
-        This simulates the phoneme being spoken faster or slower.
-        
-        Args:
-            data: Dictionary with 'features' list and metadata lists.
-            target_frames: Base target number of frames.
-            stretch_factors: Tuple of factors (e.g., (0.8, 1.0, 1.2)).
-            
-        Returns:
-            Modified data dictionary with augmented samples.
-        """
-        from scipy.signal import resample
-        
-        augmented_features = []
-        augmented_labels = []
-        augmented_words = []
-        augmented_positions = []
-        augmented_pids = []
-        
-        # Handle optional keys
-        has_specs = 'spectrograms' in data and len(data.get('spectrograms', [])) > 0
-        augmented_specs = [] if has_specs else None
-        
-        for i, feat in enumerate(data['features']):
-            n_frames, n_channels = feat.shape
-            
-            for factor in stretch_factors:
-                # Stretch factor < 1 means fewer frames (faster speech)
-                # Stretch factor > 1 means more frames (slower speech)
-                intermediate_frames = int(target_frames * factor)
-                intermediate_frames = max(2, intermediate_frames)  # Minimum 2 frames
-                
-                # First resample to intermediate length
-                if n_frames != intermediate_frames:
-                    intermediate = resample(feat, intermediate_frames, axis=0)
-                else:
-                    intermediate = feat
-                
-                # Then resample to final target (only if different)
-                if intermediate_frames != target_frames:
-                    final = resample(intermediate, target_frames, axis=0)
-                else:
-                    final = intermediate
-                
-                augmented_features.append(final)
-                augmented_labels.append(data['phoneme_labels'][i])
-                augmented_words.append(data['phoneme_words'][i])
-                augmented_positions.append(data['phoneme_positions'][i])
-                augmented_pids.append(data['phoneme_participant_ids'][i])
-                
-                if has_specs:
-                    augmented_specs.append(data['spectrograms'][i])
-        
-        # Build output dictionary
-        result = {
-            'features': augmented_features,
-            'phoneme_labels': augmented_labels,
-            'phoneme_words': augmented_words,
-            'phoneme_positions': augmented_positions,
-            'phoneme_participant_ids': augmented_pids,
-        }
-        
-        if has_specs:
-            result['spectrograms'] = augmented_specs
-        
-        # Copy any other keys that exist
-        for key in data:
-            if key not in result:
-                result[key] = data[key]
-        
-        return result
-        
-    def _normalize_with_balanced_augmentation(self, data, target_frames, stretch_factors, 
-                                           n_chunks=5, random_state=42):
-        """
-        Normalize all samples and augment ONLY underrepresented phonemes per patient.
-        
-        Strategy:
-        1. Normalize ALL samples to target_frames
-        2. Per patient: find max phoneme count
-        3. For phonemes below max, add augmented samples to reach max
-        4. Result: original data + augmented samples for rare phonemes
-        """
-        from scipy.signal import resample
-        from collections import Counter, defaultdict
-        
-        rng = np.random.default_rng(random_state)
-        
-        labels = data['phoneme_labels']
-        pids = data['phoneme_participant_ids']
-        
-        self.log(f"Original total samples: {len(labels)}")
-        self.log(f"Original distribution: {dict(Counter(labels))}")
-        
-        # First: normalize ALL original samples (no augmentation yet)
-        normalized_features = []
-        for feat in data['features']:
-            if feat.ndim == 1:
-                feat = feat.reshape(-1, 1)
-            n_frames = feat.shape[0]
-            if n_frames != target_frames:
-                normalized_features.append(resample(feat, target_frames, axis=0))
-            else:
-                normalized_features.append(feat.copy())
-        
-        # Start with ALL original data
-        result_features = list(normalized_features)
-        result_labels = list(data['phoneme_labels'])
-        result_words = list(data['phoneme_words'])
-        result_positions = list(data['phoneme_positions'])
-        result_pids = list(data['phoneme_participant_ids'])
-        
-        has_specs = 'spectrograms' in data and len(data.get('spectrograms', [])) > 0
-        result_specs = list(data['spectrograms']) if has_specs else None
-        
-        # Group indices by patient
-        patient_indices = defaultdict(list)
-        for i, pid in enumerate(pids):
-            patient_indices[pid].append(i)
-        
-        # Augment underrepresented phonemes per patient
-        total_augmented = 0
-        
-        for pid, indices in patient_indices.items():
-            # Get phoneme counts for this patient
-            patient_labels = [labels[i] for i in indices]
-            counts = Counter(patient_labels)
-            
-            if len(counts) == 0:
-                continue
-            
-            max_count = max(counts.values())
-            
-            # Build index lists per phoneme for this patient
-            phoneme_indices = defaultdict(list)
-            for i in indices:
-                phoneme_indices[labels[i]].append(i)
-            
-            patient_augmented = 0
-            
-            # Augment phonemes that are below max_count
-            for label, ph_indices in phoneme_indices.items():
-                current_count = len(ph_indices)
-                n_needed = max_count - current_count
-                
-                if n_needed <= 0:
-                    continue  # This phoneme already at max, skip
-                
-                # Shuffle indices for variety
-                ph_indices_shuffled = ph_indices.copy()
-                rng.shuffle(ph_indices_shuffled)
-                
-                # Generate augmented samples
-                augmented_count = 0
-                sample_idx = 0
-                
-                while augmented_count < n_needed:
-                    # Cycle through available samples
-                    i = ph_indices_shuffled[sample_idx % len(ph_indices_shuffled)]
-                    sample_idx += 1
-                    
-                    # Pick a random stretch factor (excluding 1.0 to avoid duplicates)
-                    aug_factors = [f for f in stretch_factors if f != 1.0]
-                    if not aug_factors:
-                        aug_factors = stretch_factors
-                    factor = rng.choice(aug_factors)
-                    
-                    feat = normalized_features[i]
-                    n_frames = feat.shape[0]
-                    
-                    # Apply stretch augmentation
-                    intermediate_frames = max(2, int(target_frames * factor))
-                    
-                    if n_frames != intermediate_frames:
-                        intermediate = resample(feat, intermediate_frames, axis=0)
-                    else:
-                        intermediate = feat.copy()
-                    
-                    if intermediate_frames != target_frames:
-                        final = resample(intermediate, target_frames, axis=0)
-                    else:
-                        final = intermediate
-                    
-                    # Add augmented sample
-                    result_features.append(final)
-                    result_labels.append(data['phoneme_labels'][i])
-                    result_words.append(data['phoneme_words'][i])
-                    result_positions.append(data['phoneme_positions'][i])
-                    result_pids.append(data['phoneme_participant_ids'][i])
-                    
-                    if has_specs:
-                        result_specs.append(data['spectrograms'][i])
-                    
-                    augmented_count += 1
-                    patient_augmented += 1
-            
-            if patient_augmented > 0:
-                self.log(f"  {pid}: added {patient_augmented} augmented samples (max_count={max_count})")
-            
-            total_augmented += patient_augmented
-        
-        self.log(f"Total augmented samples added: {total_augmented}")
-        
-        # Shuffle final result
-        n_samples = len(result_labels)
-        shuffle_idx = rng.permutation(n_samples)
-        
-        result = {
-            'features': [result_features[i] for i in shuffle_idx],
-            'phoneme_labels': [result_labels[i] for i in shuffle_idx],
-            'phoneme_words': [result_words[i] for i in shuffle_idx],
-            'phoneme_positions': [result_positions[i] for i in shuffle_idx],
-            'phoneme_participant_ids': [result_pids[i] for i in shuffle_idx],
-        }
-        
-        if has_specs:
-            result['spectrograms'] = [result_specs[i] for i in shuffle_idx]
-        
-        # Copy any other keys
-        for key in data:
-            if key not in result:
-                result[key] = data[key]
-        
-        # Log final distribution
-        final_counts = Counter(result['phoneme_labels'])
-        self.log(f"Final distribution: {dict(final_counts)}")
-        self.log(f"Total samples: {len(labels)} -> {len(result['phoneme_labels'])} (+{total_augmented} augmented)")
-        
-        return result
-    
     
     def dutch30_step6_resolve_unknowns(self):
         """Step 6: Initialize validator to resolve unknown phonemes (Dutch30-specific)"""
@@ -1227,6 +991,472 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         self.log("Step 8 complete: Phonemes grouped")
         
+    def step9_train_and_evaluate(self, model_factory, model_params=None,
+                             use_viterbi=True, min_train=10, min_test=5):
+        """Train a per-patient model and evaluate on test set.
+
+        Model-agnostic: accepts any callable that returns a model with
+        train(features, phoneme_labels) and predict(features) methods.
+
+        Args:
+            model_factory: callable that accepts **model_params and returns
+                a model instance. Must support train() and predict().
+            model_params: dict of keyword arguments passed to model_factory.
+                Defaults to empty dict.
+            use_viterbi: bool, passed to model.predict() if supported.
+            min_train: int, skip patients with fewer training samples.
+            min_test: int, skip patients with fewer test samples.
+
+        Returns:
+            dict mapping patient_id to result dict with keys: model,
+            accuracy, train_size, test_size, n_classes, predictions,
+            true_labels.
+        """
+        from collections import Counter
+
+        if model_params is None:
+            model_params = {}
+
+        self.patient_results = {}
+        self.model_factory = model_factory
+        self.model_params = model_params
+
+        patient_ids = sorted(set(self.train["phoneme_participant_ids"]))
+
+        self.log(f"Step 9: Training {model_factory.__name__} "
+                 f"on {len(patient_ids)} patients")
+        self.log(f"  Params: {model_params}")
+
+        for pid in patient_ids:
+            train_mask = [
+                p == pid for p in self.train["phoneme_participant_ids"]
+            ]
+            test_mask = [
+                p == pid for p in self.test["phoneme_participant_ids"]
+            ]
+
+            train_feat = [
+                self.train["features"][i]
+                for i, m in enumerate(train_mask) if m
+            ]
+            train_labels = [
+                self.train["phoneme_labels"][i]
+                for i, m in enumerate(train_mask) if m
+            ]
+            test_feat = [
+                self.test["features"][i]
+                for i, m in enumerate(test_mask) if m
+            ]
+            test_labels = [
+                self.test["phoneme_labels"][i]
+                for i, m in enumerate(test_mask) if m
+            ]
+
+            if len(train_feat) < min_train or len(test_feat) < min_test:
+                self.log(f"  {pid}: skipped (train={len(train_feat)}, "
+                         f"test={len(test_feat)})")
+                continue
+
+            # Create and train model
+            model = model_factory(**model_params)
+            model.train(features=train_feat, phoneme_labels=train_labels)
+
+            # Predict
+            try:
+                preds, probs = model.predict(
+                    test_feat, use_viterbi=use_viterbi
+                )
+            except TypeError:
+                # Model.predict() may not accept use_viterbi
+                preds, probs = model.predict(test_feat)
+
+            # Flatten nested predictions if needed
+            if preds and isinstance(preds[0], list):
+                preds = [
+                    p[0] if len(p) > 0 else "?" for p in preds
+                ]
+            preds = [
+                str(p) if not isinstance(p, str) else p for p in preds
+            ]
+
+            # Calculate accuracy
+            correct = sum(
+                1 for p, t in zip(preds, test_labels) if p == t
+            )
+            accuracy = correct / len(test_labels)
+
+            # Chance level for this patient
+            label_counts = Counter(test_labels)
+            chance = max(label_counts.values()) / len(test_labels)
+            lift = accuracy / chance if chance > 0 else 0
+
+            self.patient_results[pid] = {
+                "model": model,
+                "accuracy": accuracy,
+                "chance": chance,
+                "lift": lift,
+                "train_size": len(train_feat),
+                "test_size": len(test_feat),
+                "n_classes": len(set(train_labels)),
+                "predictions": preds,
+                "true_labels": test_labels,
+            }
+
+            self.log(f"  {pid}: acc={accuracy:.3f} "
+                     f"chance={chance:.3f} lift={lift:.2f}x "
+                     f"({len(set(train_labels))} classes)")
+
+        # Summary
+        accs = [r["accuracy"] for r in self.patient_results.values()]
+        lifts = [r["lift"] for r in self.patient_results.values()]
+
+        # Group means
+        groups = {"P01-P10": [], "P11-P20": [], "P21-P30": []}
+        for pid, r in self.patient_results.items():
+            num = int(pid[1:])
+            if num <= 10:
+                groups["P01-P10"].append(r["accuracy"])
+            elif num <= 20:
+                groups["P11-P20"].append(r["accuracy"])
+            else:
+                groups["P21-P30"].append(r["accuracy"])
+
+        self.log(f"\n  Overall: {np.mean(accs):.4f} +/- {np.std(accs):.4f}")
+        self.log(f"  Mean lift: {np.mean(lifts):.2f}x")
+        for group, group_accs in groups.items():
+            if group_accs:
+                self.log(f"  {group}: {np.mean(group_accs):.4f}")
+
+        self.log("Step 9 complete")
+
+        return self.patient_results
+
+    def step10_visualize_patient(self, pid, show_table=True, show_predictions = False):
+        """Visualize per-patient classification results.
+
+        Produces a 2x2 figure with train/test distribution,
+        per-phoneme precision/recall/F1, and confusion matrices
+        (recall-normalized and precision-normalized).
+
+        Args:
+            pid: str, patient ID to visualize.
+            show_table: bool, print per-phoneme metrics table.
+
+        Requires step 9 to have been run first.
+        """
+        from sklearn.metrics import confusion_matrix
+        from matplotlib.patches import Rectangle
+        from collections import Counter
+        import matplotlib.pyplot as plt
+
+        if not hasattr(self, "patient_results") or pid not in self.patient_results:
+            self.log(f"{pid}: no results found. Run step 9 first.")
+            return
+
+        # Filter data for this patient
+        train_mask = [
+            p == pid for p in self.train["phoneme_participant_ids"]
+        ]
+        test_mask = [
+            p == pid for p in self.test["phoneme_participant_ids"]
+        ]
+        train_labels = [
+            self.train["phoneme_labels"][i]
+            for i, m in enumerate(train_mask) if m
+        ]
+
+        preds = self.patient_results[pid]["predictions"]
+        test_labels = self.patient_results[pid]["true_labels"]
+
+        # Build confusion data
+        confusion_data = {}
+        for true_label, pred_label in zip(test_labels, preds):
+            if true_label not in confusion_data:
+                confusion_data[true_label] = Counter()
+            confusion_data[true_label][pred_label] += 1
+
+        # Counts
+        train_counts = Counter(train_labels)
+        test_counts = Counter(test_labels)
+        all_labels = sorted(
+            set(list(train_counts.keys()) + list(test_counts.keys()))
+        )
+        test_phonemes = sorted(test_counts.keys())
+        unique_labels = sorted(set(list(test_labels) + list(preds)))
+
+        # Per-phoneme metrics
+        phoneme_metrics = {}
+        for p in test_phonemes:
+            true_mask = [l == p for l in test_labels]
+            correct = sum(
+                1 for i, m in enumerate(true_mask) if m and preds[i] == p
+            )
+            total_true = sum(true_mask)
+            recall = correct / total_true if total_true > 0 else 0
+
+            pred_mask = [pr == p for pr in preds]
+            total_pred = sum(pred_mask)
+            precision = correct / total_pred if total_pred > 0 else 0
+
+            f1 = (2 * precision * recall / (precision + recall)
+                  if (precision + recall) > 0 else 0)
+
+            phoneme_metrics[p] = {
+                "recall": recall,
+                "precision": precision,
+                "f1": f1,
+                "support": total_true,
+            }
+
+        # Confusion matrices
+        cm = confusion_matrix(test_labels, preds, labels=unique_labels)
+        cm_recall = cm.astype("float") / (
+            cm.sum(axis=1, keepdims=True) + 1e-10
+        )
+        cm_precision = cm.astype("float") / (
+            cm.sum(axis=0, keepdims=True) + 1e-10
+        )
+
+        # Figure
+        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+        acc = self.patient_results[pid]["accuracy"]
+        lift = self.patient_results[pid]["lift"]
+        fig.suptitle(
+            f"{pid} - Accuracy: {acc:.3f}, Lift: {lift:.2f}x",
+            fontsize=14, fontweight="bold",
+        )
+
+        # 1. Train/test distribution
+        ax1 = axes[0, 0]
+        x = np.arange(len(all_labels))
+        width = 0.35
+        ax1.bar(
+            x - width / 2,
+            [train_counts.get(p, 0) for p in all_labels],
+            width, label="Train", color="cornflowerblue",
+        )
+        ax1.bar(
+            x + width / 2,
+            [test_counts.get(p, 0) for p in all_labels],
+            width, label="Test", color="coral",
+        )
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(all_labels, rotation=90, fontsize=8)
+        ax1.set_title(
+            f"Distribution (train={len(train_labels)}, "
+            f"test={len(test_labels)})"
+        )
+        ax1.set_ylabel("Count")
+        ax1.legend()
+
+        # 2. Per-phoneme precision/recall/F1
+        ax2 = axes[0, 1]
+        x = np.arange(len(test_phonemes))
+        width = 0.25
+        recalls = [phoneme_metrics[p]["recall"] for p in test_phonemes]
+        precisions = [phoneme_metrics[p]["precision"] for p in test_phonemes]
+        f1s = [phoneme_metrics[p]["f1"] for p in test_phonemes]
+
+        ax2.bar(x - width, recalls, width, label="Recall", color="steelblue")
+        ax2.bar(x, precisions, width, label="Precision", color="darkorange")
+        ax2.bar(x + width, f1s, width, label="F1", color="green")
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(test_phonemes, rotation=90, fontsize=8)
+        ax2.set_title("Per-Class Metrics")
+        ax2.set_ylim([0, 1])
+        ax2.axhline(
+            acc, color="red", linestyle="--", alpha=0.5, label="Overall Acc"
+        )
+        ax2.legend(loc="upper right", fontsize=8)
+        ax2.set_ylabel("Score")
+
+        # 3. Confusion matrix (recall-normalized)
+        ax3 = axes[1, 0]
+        im3 = ax3.imshow(cm_recall, cmap="Blues", vmin=0, vmax=1)
+        n_labels = len(unique_labels)
+        fontsize = max(5, min(8, 100 // n_labels))
+        for i in range(n_labels):
+            for j in range(n_labels):
+                val = cm[i, j]
+                if val > 0:
+                    color = "white" if cm_recall[i, j] > 0.5 else "black"
+                    ax3.text(
+                        j, i, str(val), ha="center", va="center",
+                        color=color, fontsize=fontsize,
+                    )
+        for i in range(n_labels):
+            ax3.add_patch(
+                Rectangle(
+                    (i - 0.5, i - 0.5), 1, 1,
+                    fill=False, edgecolor="red", linewidth=1,
+                )
+            )
+        ax3.set_xticks(range(n_labels))
+        ax3.set_yticks(range(n_labels))
+        ax3.set_xticklabels(unique_labels, rotation=90, fontsize=fontsize)
+        ax3.set_yticklabels(unique_labels, fontsize=fontsize)
+        ax3.set_xlabel("Predicted")
+        ax3.set_ylabel("True")
+        ax3.set_title("Confusion Matrix (Recall normalized)")
+        plt.colorbar(im3, ax=ax3, label="Recall", fraction=0.046)
+
+        # 4. Confusion matrix (precision-normalized)
+        ax4 = axes[1, 1]
+        im4 = ax4.imshow(cm_precision, cmap="Greens", vmin=0, vmax=1)
+        for i in range(n_labels):
+            for j in range(n_labels):
+                val = cm[i, j]
+                if val > 0:
+                    color = "white" if cm_precision[i, j] > 0.5 else "black"
+                    ax4.text(
+                        j, i, str(val), ha="center", va="center",
+                        color=color, fontsize=fontsize,
+                    )
+        for i in range(n_labels):
+            ax4.add_patch(
+                Rectangle(
+                    (i - 0.5, i - 0.5), 1, 1,
+                    fill=False, edgecolor="darkred", linewidth=1,
+                )
+            )
+        ax4.set_xticks(range(n_labels))
+        ax4.set_yticks(range(n_labels))
+        ax4.set_xticklabels(unique_labels, rotation=90, fontsize=fontsize)
+        ax4.set_yticklabels(unique_labels, fontsize=fontsize)
+        ax4.set_xlabel("Predicted")
+        ax4.set_ylabel("True")
+        ax4.set_title("Confusion Matrix (Precision normalized)")
+        plt.colorbar(im4, ax=ax4, label="Precision", fraction=0.046)
+
+        plt.tight_layout()
+        plt.show()
+
+        # Print table
+        if show_table:
+            self.log(f"{pid} - PER-CLASS METRICS")
+            self.log(
+                f"{'Label':<12} {'Recall':<8} {'Prec':<8} "
+                f"{'F1':<8} {'Count':<8} {'Top 3 Confusions'}"
+            )
+
+            for p in test_phonemes:
+                m = phoneme_metrics[p]
+                if p in confusion_data:
+                    confusions = confusion_data[p].copy()
+                    confusions.pop(p, None)
+                    top = confusions.most_common(3)
+                    conf_str = ", ".join(
+                        [f"{pred}({cnt})" for pred, cnt in top]
+                    ) if top else "-"
+                else:
+                    conf_str = "-"
+
+                self.log(
+                    f"{p:<12} {m['recall']:>6.2f}  {m['precision']:>6.2f}  "
+                    f"{m['f1']:>6.2f}  {m['support']:>6}  {conf_str}"
+                )
+
+            mean_recall = np.mean(
+                [m["recall"] for m in phoneme_metrics.values()]
+            )
+            mean_precision = np.mean(
+                [m["precision"] for m in phoneme_metrics.values()]
+            )
+            mean_f1 = np.mean(
+                [m["f1"] for m in phoneme_metrics.values()]
+            )
+            self.log(
+                f"{'MACRO':<12} {mean_recall:>6.2f}  "
+                f"{mean_precision:>6.2f}  {mean_f1:>6.2f}"
+            )
+
+            
+        if show_predictions:
+            self.log(f"{pid} - PREDICTIONS vs TRUE LABELS")
+            
+            # Group by word/sentence
+            words = [
+                self.test["phoneme_words"][i]
+                for i, m in enumerate(test_mask) if m
+            ]
+            
+            current_word = None
+            word_trues = []
+            word_preds = []
+            
+            self.log(f"{'Word/Sentence':<40} {'True':<15} {'Pred':<15} {'Match'}")
+            
+            for i, (w, t, p) in enumerate(zip(words, test_labels, preds)):
+                if w != current_word:
+                    # Print previous word's predictions
+                    if current_word is not None:
+                        display = current_word[:38]
+                        for j, (tr, pr) in enumerate(zip(word_trues, word_preds)):
+                            match = "ok" if tr == pr else ""
+                            if j == 0:
+                                print(f"{display:<40} {tr:<15} {pr:<15} {match}")
+                            else:
+                                print(f"{'':<40} {tr:<15} {pr:<15} {match}")
+                    
+                    current_word = w
+                    word_trues = []
+                    word_preds = []
+                
+                word_trues.append(t)
+                word_preds.append(p)
+            
+            # Print last word
+            if current_word is not None:
+                display = current_word[:38]
+                for j, (tr, pr) in enumerate(zip(word_trues, word_preds)):
+                    match = "ok" if tr == pr else ""
+                    if j == 0:
+                        print(f"{display:<40} {tr:<15} {pr:<15} {match}")
+                    else:
+                        print(f"{'':<40} {tr:<15} {pr:<15} {match}")
+            
+            # Summary
+            correct = sum(1 for t, p in zip(test_labels, preds) if t == p)
+            self.log(f"\n{correct}/{len(test_labels)} correct "
+                  f"({correct/len(test_labels)*100:.1f}%)")
+        
+    def step10_visualize_group(self, patient_ids=None, show_table=False):
+        """Visualize results for a group of patients.
+
+        Args:
+            patient_ids: list of str, patient IDs to visualize.
+                Defaults to all patients in patient_results.
+                Can also pass a group name: 'mixed', 'word', 'sentence'.
+            show_table: bool, print per-class metrics table for each.
+        """
+        if not hasattr(self, "patient_results"):
+            self.log("No results found. Run step 9 first.")
+            return
+
+        # Handle group shortcuts
+        if isinstance(patient_ids, str):
+            if patient_ids == "mixed":
+                patient_ids = [f"P{i:02d}" for i in range(1, 11) if i != 5]
+            elif patient_ids == "word":
+                patient_ids = [f"P{i:02d}" for i in range(11, 21) if i not in (18, 19)]
+            elif patient_ids == "sentence":
+                patient_ids = [f"P{i:02d}" for i in range(21, 31)]
+            else:
+                patient_ids = [patient_ids]
+
+        if patient_ids is None:
+            patient_ids = sorted(self.patient_results.keys())
+
+        # Filter to patients that have results
+        valid = [p for p in patient_ids if p in self.patient_results]
+        skipped = [p for p in patient_ids if p not in self.patient_results]
+
+        if skipped:
+            self.log(f"Skipped (no results): {skipped}")
+
+        for pid in valid:
+            self.step10_visualize_patient(pid, show_table=show_table)
+        
     def revert_to_raw_phonemes(self):
         """
         Revert grouped labels back to raw phoneme labels.
@@ -1336,7 +1566,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         # Include sample fraction in filename
         fraction_str = f"_sample{int(sample_fraction*100)}" if sample_fraction else ""
-        filename = f"pipeline_{self.feature_extraction_method}_pca{self.pca_components}{fraction_str}_after_step6_{timestamp}.pkl"
+        filename = f"pipeline_{self.feature_extraction_method}_{fraction_str}_after_step6_{timestamp}.pkl"
         filepath = os.path.join(self.path_results, filename)
         
         self.log(f"Saving checkpoint: {filename}")
@@ -1344,7 +1574,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         try:
             metadata = {
                 'method': self.feature_extraction_method,
-                'pca_components': self.pca_components,
                 'sample_fraction': sample_fraction,
                 'timestamp': timestamp,
                 'stage': 'after_step6',
@@ -1379,11 +1608,11 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         # Include sample fraction in pattern if specified
         fraction_str = f"_sample{int(sample_fraction*100)}" if sample_fraction else ""
-        pattern = f"pipeline_{self.feature_extraction_method}_pca{self.pca_components}{fraction_str}_after_step6_*.pkl"
+        pattern = f"pipeline_{self.feature_extraction_method}_{fraction_str}_after_step6_*.pkl"
         matching_files = glob.glob(os.path.join(self.path_results, pattern))
         
         if not matching_files:
-            self.log(f"No checkpoint found for {self.feature_extraction_method}, PCA={self.pca_components}, sample={sample_fraction}")
+            self.log(f"No checkpoint found for {self.feature_extraction_method},sample={sample_fraction}")
             return False
         
         matching_files.sort(key=lambda f: os.path.getmtime(f), reverse=True)
@@ -1973,50 +2202,5 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             baseline = np.zeros(n_features)
             self.debug(f"Warning: No usable silence blocks, using zero baseline shape {baseline.shape}")
         
-        return baseline
-
-    def _apply_pca_per_patient(self, train_data, test_data, pca_components):
-        """Fit PCA on train, transform both train and test."""
-        from sklearn.decomposition import PCA
-        
-        # Group by patient
-        train_by_patient = {}
-        for i, pid in enumerate(train_data['phoneme_participant_ids']):
-            if pid not in train_by_patient:
-                train_by_patient[pid] = []
-            train_by_patient[pid].append(i)
-        
-        test_by_patient = {}
-        for i, pid in enumerate(test_data['phoneme_participant_ids']):
-            if pid not in test_by_patient:
-                test_by_patient[pid] = []
-            test_by_patient[pid].append(i)
-        
-        # Fit and transform per patient
-        for pid in train_by_patient:
-            train_indices = train_by_patient[pid]
-            train_features = [train_data['features'][i] for i in train_indices]
-            
-            # Stack all frames for this patient's train data
-            all_train = np.vstack(train_features)
-            
-            # Fit PCA on TRAIN only
-            n_comp = min(pca_components, all_train.shape[1])
-            pca = PCA(n_components=n_comp)
-            pca.fit(all_train)
-            
-            self.log(f"PCA for {pid}: fit on {all_train.shape}, explained var={pca.explained_variance_ratio_.sum():.3f}")
-            
-            # Transform train
-            for i in train_indices:
-                train_data['features'][i] = pca.transform(train_data['features'][i])
-            
-            # Transform test using SAME PCA
-            if pid in test_by_patient:
-                for i in test_by_patient[pid]:
-                    test_data['features'][i] = pca.transform(test_data['features'][i])
-        
-        return train_data, test_data
-        
-
+        return baseline    
     

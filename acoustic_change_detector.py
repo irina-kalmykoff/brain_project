@@ -104,53 +104,6 @@ class AcousticChangeDetector(DebugMixin):
         
         return np.array(band_features).reshape(1, -1)
         
-    def _extract_hjorth_features(self, eeg_segment: np.ndarray) -> np.ndarray:
-        """
-        Extract Hjorth parameters (Activity, Mobility, Complexity) for each channel.
-        
-        Hjorth parameters are time-domain features that capture:
-            - Activity: Signal power (variance)
-            - Mobility: Mean frequency (std of first derivative / std of signal)
-            - Complexity: Frequency spread (mobility of first derivative / mobility of signal)
-        
-        Args:
-            eeg_segment: EEG data array of shape (n_samples, n_channels)
-        
-        Returns:
-            Fixed-length feature vector of shape (1, n_channels * 3)
-        """
-        n_channels = eeg_segment.shape[1]
-        hjorth_features = []
-        
-        for ch in range(n_channels):
-            signal = eeg_segment[:, ch]
-            
-            # First derivative
-            first_deriv = np.diff(signal)
-            
-            # Second derivative
-            second_deriv = np.diff(first_deriv)
-            
-            # Activity: variance of the signal
-            activity = np.var(signal)
-            
-            # Mobility: std(first_derivative) / std(signal)
-            if activity > 0:
-                mobility = np.sqrt(np.var(first_deriv) / activity)
-            else:
-                mobility = 0.0
-            
-            # Complexity: mobility(first_derivative) / mobility(signal)
-            if np.var(first_deriv) > 0 and mobility > 0:
-                mobility_deriv = np.sqrt(np.var(second_deriv) / np.var(first_deriv))
-                complexity = mobility_deriv / mobility
-            else:
-                complexity = 0.0
-            
-            hjorth_features.extend([activity, mobility, complexity])
-        
-        return np.array(hjorth_features).reshape(1, -1)
-
     def _extract_temporal_stats_features(self, eeg_segment: np.ndarray) -> np.ndarray:
         """
         Extract mean, std, max, min for each channel.
@@ -950,6 +903,7 @@ class AcousticChangeDetector(DebugMixin):
                 extended_segments = None
                 if eeg_segment is not None and result.get('boundary_samples') is not None:
                     min_samples = self.config.min_eeg_samples_for_features
+                    
                     extended_segments = self._extend_short_segments(
                         result['boundary_samples'],
                         eeg_segment.shape[0],
@@ -986,11 +940,11 @@ class AcousticChangeDetector(DebugMixin):
                                         raw_segment = eeg_segment[start:end]
                                         phoneme_durations_samples.append(end - start)
                                         # Normalize to fixed window size
-                                        fixed_segment = self._extract_fixed_window(
-                                            raw_segment, 
-                                            self.config.fixed_feature_samples
-                                        )
-                                        phoneme_eeg_segments.append(fixed_segment)
+                                        #fixed_segment = self._extract_fixed_window(
+                                        #    raw_segment, 
+                                        #    self.config.fixed_feature_samples
+                                        #)
+                                        phoneme_eeg_segments.append(raw_segment)
                                     else:
                                         phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
                                         phoneme_durations_samples.append(0)
@@ -1033,11 +987,11 @@ class AcousticChangeDetector(DebugMixin):
                                     if start < end:
                                         raw_segment = eeg_segment[start:end]
                                         phoneme_durations_samples.append(end - start)
-                                        fixed_segment = self._extract_fixed_window(
-                                            raw_segment, 
-                                            self.config.fixed_feature_samples
-                                        )
-                                        phoneme_eeg_segments.append(fixed_segment)
+                                        #fixed_segment = self._extract_fixed_window(
+                                        #    raw_segment, 
+                                        #    self.config.fixed_feature_samples
+                                        #)
+                                        phoneme_eeg_segments.append(raw_segment)
                                     else:
                                         phoneme_eeg_segments.append(np.array([]))
                                         phoneme_durations_samples.append(0)
@@ -1068,11 +1022,11 @@ class AcousticChangeDetector(DebugMixin):
                                     raw_segment = eeg_segment[start:end]
                                     phoneme_durations_samples.append(end - start)
                                     # Normalize to fixed window size
-                                    fixed_segment = self._extract_fixed_window(
-                                        raw_segment, 
-                                        self.config.fixed_feature_samples
-                                    )
-                                    phoneme_eeg_segments.append(fixed_segment)
+                                    #fixed_segment = self._extract_fixed_window(
+                                    #    raw_segment, 
+                                    #    self.config.fixed_feature_samples
+                                    #)
+                                    phoneme_eeg_segments.append(raw_segment)
                                 else:
                                     phoneme_eeg_segments.append(np.array([]).reshape(0, eeg_segment.shape[1]))
                                     phoneme_durations_samples.append(0)
@@ -1313,16 +1267,40 @@ class AcousticChangeDetector(DebugMixin):
             eeg = enhanced_batch['phoneme_eeg_segments'][idx]
             pid = enhanced_batch['phoneme_participant_ids'][idx]
             
-            min_samples = int(self.config.min_phoneme_duration * self.config.eeg_sr)  # Minimum to get at least 1 frame from extractHG
-            if eeg.size == 0 or eeg.shape[0] < min_samples:
-                self.debug(f"Skipping segment {idx}: too short ({eeg.shape[0]} samples)")
+            # Minimum samples needed for extractHG to produce at least 1 frame
+            min_samples_for_extractHG = int(self.config.window_length * self.config.eeg_sr) + 1
+
+            min_samples = max(
+                int(self.config.min_phoneme_duration * self.config.eeg_sr),
+                min_samples_for_extractHG
+            )
+
+            # Check for invalid segments
+            if eeg is None:
+                self.debug(f"Skipping segment {idx}: None")
                 continue
+
+            if eeg.ndim != 2:
+                self.debug(f"Skipping segment {idx}: wrong dimensions ({eeg.ndim}D, expected 2D)")
+                continue
+
+            if eeg.shape[0] <= 0 or eeg.shape[1] <= 0:
+                self.debug(f"Skipping segment {idx}: invalid shape {eeg.shape}")
+                continue
+
+            if eeg.shape[0] < min_samples:
+                self.debug(f"Skipping segment {idx}: too short ({eeg.shape[0]} samples, need {min_samples})")
+                continue
+            
         
             try:
+                
                 # Extract features
                 if self.decoder is not None:
                     if feature_extraction_method == 'high_gamma':
-                        feat = extractHG(eeg, self.config.eeg_sr)
+                        feat = extractHG(eeg, self.config.eeg_sr,
+                                         windowLength=self.config.window_length,
+                                         frameshift=self.config.frameshift)
                     elif feature_extraction_method == 'multi_band':
                         feat = self.decoder.custom_feature_extraction(eeg, self.config.eeg_sr, method='multi_band')
                     
@@ -1401,6 +1379,12 @@ class AcousticChangeDetector(DebugMixin):
             
             for data in patient_data:
                 features.append(data['feat'])
+                #aligned_feat = data['feat'][:5, :] if data['feat'].shape[0] >= 5 else np.pad(
+                #    data['feat'], 
+                #    ((0, 5 - data['feat'].shape[0]), (0, 0)), 
+                #    mode='edge'
+                #)
+                #features.append(aligned_feat)
                 spectrograms.append(data['spectrogram'])
                 phoneme_labels.append(data['label'])
                 phoneme_words.append(data['word'])

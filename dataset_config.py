@@ -75,10 +75,6 @@ class Dutch30Config:
     min_silence_duration: float = 0.20   # 200ms for baseline
     
     # Length normalization for neural features
-    target_frames: int = 10           # Target frames after resampling
-    augment_stretch_factors: tuple =  (0.8, 1.0, 1.2)  #(0.7, 0.85, 1.0, 1.15, 1.3) # Time-stretch factors for augmentation (0.8, 1.0, 1.2) 
-    use_augmentation: bool = False    # Whether to create augmented copies
-    
     boundary_detection_method = 'wav2vec'  # Options: 'rms', 'wav2vec'
     min_eeg_samples_for_features: int = 40  # Minimum EEG samples for extractHG
     
@@ -99,7 +95,6 @@ class Dutch30Config:
     
     silence_threshold_factor: float = 0.45
     # threshold = (max_energy + min_energy) * 0.45
-    # Line ~93, add:
     electrode_exclusion_file: str = "electrode_exclusions.json"
     
     # ============================================================
@@ -155,14 +150,9 @@ class Dutch30Config:
             'mel_num_filters': self.mel_num_filters,
             'model_order': self.model_order,
             'step_size': self.step_size,
-           # 'min_channels': self.min_channels,
-           # 'target_channels': self.target_channels,
             'min_phoneme_duration': self.min_phoneme_duration,
             'max_phoneme_duration': self.max_phoneme_duration,
             'min_silence_duration': self.min_silence_duration,
-            'target_frames': self.target_frames,
-            'augment_stretch_factors': self.augment_stretch_factors,
-            'use_augmentation': self.use_augmentation,
             'silence_threshold_factor': self.silence_threshold_factor,
             'int16_max': self.int16_max,
         }

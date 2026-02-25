@@ -188,224 +188,120 @@ class MarkovPhonemeModel(DebugMixin):
             'group_distribution': dict(label_counter)
         }
 
-    '''
-    def _build_transition_model(self, group_labels, words=None):
-        """
-        Build transition probability matrix from training sequences.
-        """
-        self.log("Building transition model...")
-        
-        # Count transitions
-        transition_counts = defaultdict(lambda: defaultdict(int))
-        
-        if words is not None:
-            # Group by words to get proper sequences
-            word_sequences = defaultdict(list)
-            for label, word in zip(group_labels, words):
-                word_sequences[word].append(label)
-            
-            # Count transitions within each word
-            for word, sequence in word_sequences.items():
-                for i in range(len(sequence) - self.order):
-                    # Create context (previous states)
-                    context = tuple(sequence[i:i+self.order])
-                    next_state = sequence[i+self.order]
-                    transition_counts[context][next_state] += 1
-        else:
-            # Treat entire sequence as continuous
-            for i in range(len(group_labels) - self.order):
-                context = tuple(group_labels[i:i+self.order])
-                next_state = group_labels[i+self.order]
-                transition_counts[context][next_state] += 1
-        
-        # Convert counts to probabilities with smoothing
-        self.transition_probs = {}
-        alpha = 0.1  # Smoothing parameter
-        
-        # Get all possible states (including 'unknown')
-        all_states = list(self.group_encoder.classes_)
-        num_states = len(all_states)
-        
-        for context, next_states in transition_counts.items():
-            total = sum(next_states.values())
-            
-            # Apply Laplace smoothing
-            self.transition_probs[context] = {}
-            for state in all_states:
-                count = next_states.get(state, 0)
-                self.transition_probs[context][state] = (count + alpha) / (total + alpha * num_states)
-        
-        # Add default transitions for unseen contexts
-        self.default_transition = {state: 1.0 / len(self.trained_classes) 
-                                  for state in self.trained_classes}
-                                  
-        self.log(f"Built transition model with {len(self.transition_probs)} contexts")
-    '''
     
-    def _build_neural_model(self, features, group_labels):
-        """
-         Trains the neural signal classifier on EEG features.
+    def _build_neural_classifier(self, features, group_labels):
+        """Trains the neural signal classifier on EEG features.
 
-       Fits a RandomForest classifier on pooled EEG feature vectors
-       to produce per-phoneme (or per-group) emission probabilities.
-       Features are flattened by averaging across the temporal axis,
-       then scaled before training.
-
-       Args:
-           features: List of EEG feature arrays, one per phoneme
-               segment. Each array has shape (n_frames, n_channels)
-               or (n_channels,) if already pooled.
-           group_labels: List of target labels corresponding to each
-               feature array. These are either raw phoneme strings or
-               group names depending on self.use_groups.
+        Args:
+            features: List of EEG feature arrays, one per phoneme segment.
+                Each array has shape (n_frames, n_channels).
+            group_labels: List of target labels corresponding to each
+                feature array.
         """
-        from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier
+        from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
         from sklearn.linear_model import LogisticRegression
-        from sklearn.neighbors import KNeighborsClassifier
-        from sklearn.naive_bayes import GaussianNB
         from sklearn.preprocessing import StandardScaler
         
-        self.log(f"Building neural model with classifier: {self.classifier_type}")
-
-        # Flatten features
-        X = self._flatten_features(features)
+        self.log(f"Building neural classifier: {self.classifier_type}")
         
-        # Filter out invalid samples
-        valid_indices = []
-        for i, x in enumerate(X):
-            if not np.any(np.isnan(x)) and not np.any(np.isinf(x)):
-                valid_indices.append(i)
-        
-        X = X[valid_indices]
-        y = [group_labels[i] for i in valid_indices]
-        
-        # Track which groups we're training on
-        self.trained_groups = sorted(list(set(y)))
+        # Track which classes we're training on
+        self.trained_groups = sorted(list(set(group_labels)))
         self.log(f"Training on groups: {self.trained_groups}")
         
         # Create mapping from group names to indices
         self.group_to_classifier_idx = {group: i for i, group in enumerate(self.trained_classes)}
-        y_encoded = np.array([self.group_to_classifier_idx[label] for label in y])
+        y = np.array([self.group_to_classifier_idx[label] for label in group_labels])
         
-        # Scale features
-        self.feature_scaler = StandardScaler()
-        X_scaled = self.feature_scaler.fit_transform(X)
-        
-        # Add small noise for regularization
-        rng = np.random.default_rng(42)
-        X_scaled += rng.normal(0, 0.01, X_scaled.shape)
-        
-        # Select classifier based on type
-        if self.classifier_type == 'extra_trees':
-            self.neural_classifier = ExtraTreesClassifier(
-                n_estimators=200,
-                max_depth=20,
-                min_samples_leaf=2,
-                class_weight=self.class_weight,
-                random_state=42,
-                n_jobs=-1
-            )
-        elif self.classifier_type == 'gradient_boosting':
-            # Note: GradientBoosting doesn't support class_weight directly
-            self.neural_classifier = GradientBoostingClassifier(
-                n_estimators=100,
-                max_depth=5,
-                learning_rate=0.1,
-                random_state=42
-            )
-        elif self.classifier_type == 'logistic_regression':
-            self.neural_classifier = LogisticRegression(
-                max_iter=1000,
-                class_weight=self.class_weight,
-                random_state=42,
-                n_jobs=-1
-            )
-        elif self.classifier_type == 'knn':
-            # Note: KNN doesn't support class_weight
-            self.neural_classifier = KNeighborsClassifier(
-                n_neighbors=30,
-                n_jobs=-1
-            )
-        elif self.classifier_type == 'gaussian_nb':
-            # Note: GaussianNB doesn't support class_weight
-            self.neural_classifier = GaussianNB()
-        else:  # Default: random_forest
-            self.neural_classifier = RandomForestClassifier(
-                n_estimators=200,
-                max_depth=20,
-                min_samples_leaf=2,
-                class_weight=self.class_weight,
-                random_state=42,
-                n_jobs=-1
-            )
-        
-        self.neural_classifier.fit(X_scaled, y_encoded)
-        
-        self.log(f"Trained neural signal classifier on {len(X)} samples with {len(self.trained_groups)} classes")
-        
-    def _build_initial_probs(self, group_labels, words=None):
-        """
-        Build initial state probabilities.
-        """
-        self.log("Building initial state probabilities")
-        
-        if words is not None:
-            # Count first phoneme of each word
-            word_first_phonemes = {}
-            for label, word in zip(group_labels, words):
-                if word not in word_first_phonemes:
-                    word_first_phonemes[word] = label
+        if self.classifier_type == 'dtw_knn':
+            # DTW classifier works directly on variable-length sequences
+            # Filter invalid samples first
+            valid_features = []
+            valid_labels = []
             
-            # Count occurrences
-            first_phoneme_counts = Counter(word_first_phonemes.values())
+            for i, feat in enumerate(features):
+                if feat.ndim == 1:
+                    feat = feat.reshape(-1, 1)
+                if not np.any(np.isnan(feat)) and not np.any(np.isinf(feat)):
+                    valid_features.append(feat)
+                    valid_labels.append(y[i])
+            
+            self.neural_classifier = DTWKNNClassifier(k=5)
+            self.neural_classifier.fit(valid_features, valid_labels)
+            self.feature_scaler = None  # Not needed for DTW
+            self._use_dtw = True
+            
+            self.log(f"Trained DTW-KNN classifier on {len(valid_features)} samples")
+            
         else:
-            # Use overall distribution
-            first_phoneme_counts = Counter(group_labels)
+            # Pool features to fixed size for sklearn classifiers
+            X = self._pool_features(features)
+            
+            # Filter invalid samples
+            valid_mask = ~(np.isnan(X).any(axis=1) | np.isinf(X).any(axis=1))
+            X = X[valid_mask]
+            y = y[valid_mask]
+            
+            # Scale features
+            self.feature_scaler = StandardScaler()
+            X_scaled = self.feature_scaler.fit_transform(X)
+            
+            # Select classifier
+            if self.classifier_type == 'logistic_regression':
+                self.neural_classifier = LogisticRegression(
+                    max_iter=1000,
+                    class_weight=self.class_weight,
+                    random_state=42,
+                    n_jobs=-1
+                )
+            elif self.classifier_type == 'extra_trees':
+                self.neural_classifier = ExtraTreesClassifier(
+                    n_estimators=500,
+                    max_depth=None,
+                    min_samples_leaf=1,
+                    class_weight=self.class_weight,
+                    random_state=42,
+                    n_jobs=-1
+                )
+            else:  # random_forest
+                self.neural_classifier = RandomForestClassifier(
+                    n_estimators=200,
+                    max_depth=20,
+                    min_samples_leaf=2,
+                    class_weight=self.class_weight,
+                    random_state=42,
+                    n_jobs=-1
+                )
+            
+            self.neural_classifier.fit(X_scaled, y)
+            self._use_dtw = False
+            
+            self.log(f"Trained {self.classifier_type} on {len(X)} samples, {X.shape[1]} features")
         
-        # Convert to probabilities
-        total = sum(first_phoneme_counts.values())
-        alpha = 0.1  # Smoothing
-        
-        self.initial_probs = {}
-        for state in self.trained_classes:
-            count = first_phoneme_counts.get(state, 0)
-            self.initial_probs[state] = (count + alpha) / (total + alpha * len(self.trained_classes))
-        
-        self.log(f"Built initial probabilities for {len(self.initial_probs)} states")
-    
     def predict(self, features, use_viterbi=True):
-        """
-        Predict phoneme groups for a sequence of features.
+        """Predict phoneme groups for a sequence of features.
         
-        Parameters:
-        -----------
-        features : list or numpy.ndarray
-            Feature arrays to predict
-        use_viterbi : bool
-            Whether to use Viterbi decoding for sequence prediction
+        Args:
+            features: List of feature arrays to predict.
+            use_viterbi: Whether to use Viterbi decoding for sequence prediction.
             
         Returns:
-        --------
-        tuple
-            (predicted_groups, probabilities)
+            Tuple of (predicted_labels, probabilities).
         """
         if self.neural_classifier is None:
             self.log("Error: Model must be trained before prediction")
             return None, None
-    
-        # Process features
-        X = self._flatten_features(features)
-        X_scaled = self.feature_scaler.transform(X)
         
-        # Get predictions from classifier
-        classifier_probs = self.neural_classifier.predict_proba(X_scaled)
-        classifier_preds = self.neural_classifier.predict(X_scaled)
-        
-        # Debug first prediction
-        if len(classifier_preds) > 0:
-            self.debug(f"First classifier prediction: {classifier_preds[0]}")
-            if hasattr(self, 'classifier_group_mapping'):
-                self.debug(f"Mapped to: {self.classifier_group_mapping.get(classifier_preds[0], 'UNMAPPED')}")
+        if getattr(self, '_use_dtw', False):
+            # DTW classifier handles variable-length directly
+            classifier_preds = self.neural_classifier.predict(features)
+            classifier_probs = self.neural_classifier.predict_proba(features)
+        else:
+            # Pool features for sklearn classifiers
+            X = self._pool_features(features)
+            X_scaled = self.feature_scaler.transform(X)
+            
+            classifier_probs = self.neural_classifier.predict_proba(X_scaled)
+            classifier_preds = self.neural_classifier.predict(X_scaled)
         
         # Map to group names
         predicted_labels = []
@@ -414,9 +310,9 @@ class MarkovPhonemeModel(DebugMixin):
                 predicted_labels.append(self.index_to_class[pred_idx])
             else:
                 self.log(f"Warning: Prediction index {pred_idx} not in mapping!")
-                predicted_groups.append('unknown')
+                predicted_labels.append('unknown')
         
-        # For compatibility, also return probabilities (simplified)
+        # Build probabilities matrix for Viterbi
         n_all_groups = len(self.group_encoder.classes_)
         probabilities = np.zeros((len(predicted_labels), n_all_groups))
         
@@ -430,7 +326,7 @@ class MarkovPhonemeModel(DebugMixin):
         
         # Apply Viterbi smoothing if requested
         if use_viterbi and len(features) > 1:
-            predicted_groups = self._apply_viterbi_smoothing(predicted_labels, probabilities)
+            predicted_labels = self._apply_viterbi_smoothing(predicted_labels, probabilities)
         
         return predicted_labels, probabilities 
     
@@ -599,6 +495,7 @@ class MarkovPhonemeModel(DebugMixin):
             'n_total': len(true_converted)
         }
     
+    '''
     def save_model(self, path=None):
         """Save the model to disk."""
         if path is None:
@@ -634,78 +531,39 @@ class MarkovPhonemeModel(DebugMixin):
         self.order = model_data['order']
         
         self.log(f"Model loaded from {path}")
-    
-    def visualize_transitions(self, save_path=None):
-        """
-        Visualize the transition probability matrix.
-        """
-        if save_path is None:
-            save_path = os.path.join(self.output_dir, 'transition_matrix.png')
-        
-        # Create a simplified transition matrix for visualization
-        # Use the same state list as the encoder
-        states = list(self.group_encoder.classes_)
-        n_states = len(states)
-        
-        # First-order transitions only for visualization
-        trans_matrix = np.zeros((n_states, n_states))
-        
-        for i, from_state in enumerate(states):
-            for j, to_state in enumerate(states):
-                context = (from_state,)
-                if context in self.transition_probs:
-                    trans_matrix[i, j] = self.transition_probs[context].get(to_state, 0)
-        
-        # Plot
-        plt.figure(figsize=(10, 8))
-        plt.imshow(trans_matrix, cmap='Blues', aspect='auto')
-        plt.colorbar(label='Transition Probability')
-        
-        plt.xticks(range(n_states), states, rotation=45)
-        plt.yticks(range(n_states), states)
-        plt.xlabel('To State')
-        plt.ylabel('From State')
-        plt.title('Phoneme Group Transition Probabilities')
-        
-        plt.tight_layout()
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        self.log(f"Transition matrix visualization saved to {save_path}")
-        
-        return trans_matrix
-        
-    def _flatten_features(self, features):
-        """
-        Convert variable-dimension feature arrays to 1D vectors for classification.
-        
-        For 2D features (frames, channels), applies statistical pooling by
-        concatenating mean and standard deviation across the time axis.
-        This preserves more temporal information than simple averaging.
+    '''
+       
+    def _pool_features(self, features, method='auto'):
+        """Convert features to fixed-size vector.
         
         Args:
-            features: List of feature arrays. Can be 1D (n_channels,) or 
-                     2D (n_frames, n_channels).
-        
+            features: List of arrays with shape (n_frames_i, n_channels).
+            method: 'flatten', 'pool', or 'auto' (detect based on length consistency)
+            
         Returns:
-            numpy.ndarray: 2D array of shape (n_samples, n_features) where
-                          n_features is n_channels for 1D input or 
-                          2 * n_channels for 2D input.
+            2D numpy array of shape (n_samples, n_features).
         """
-        flattened_features = []
+        # Determine method
+        if method == 'auto':
+            lengths = [feat.shape[0] for feat in features]
+            method = 'flatten' if len(set(lengths)) == 1 else 'pool'
+        
+        pooled = []
+        
         for feat in features:
-            if feat.ndim > 1:
-                pooled = np.concatenate([
-                    np.mean(feat, axis=0),
-                    np.std(feat, axis=0)
-                ])
+            if feat.ndim == 1:
+                feat = feat.reshape(-1, 1)
+            
+            if method == 'flatten':
+                pooled.append(feat.flatten())
             else:
-                # 1D: pad with zeros to match 2D output (mean + std)
-                pooled = np.concatenate([feat, np.zeros_like(feat)])
-            flattened_features.append(pooled)
+                mean = feat.mean(axis=0)
+                std = feat.std(axis=0)
+                min_val = feat.min(axis=0)
+                max_val = feat.max(axis=0)
+                pooled.append(np.concatenate([mean, std, min_val, max_val]))
         
-        return np.array(flattened_features)
-        
+        return np.array(pooled) 
         
     def _build_corpus_transition_model(self, smoothing_alpha=None):
         """Builds transition and initial probabilities from the phonetic dictionary corpus.
@@ -798,9 +656,9 @@ class MarkovPhonemeModel(DebugMixin):
                 "with valid transcriptions."
             )
 
-        self.log(f"  Corpus words processed: {total_words}")
-        self.log(f"  Sequences skipped (empty after mapping): {total_sequences_skipped}")
-        self.log(f"  Unique transition contexts: {len(transition_counts)}")
+       # self.log(f"  Corpus words processed: {total_words}")
+       # self.log(f"  Sequences skipped (empty after mapping): {total_sequences_skipped}")
+       # self.log(f"  Unique transition contexts: {len(transition_counts)}")
 
         # Determine state space for normalization
         if self.use_groups:
@@ -841,6 +699,130 @@ class MarkovPhonemeModel(DebugMixin):
                 (count + smoothing_alpha) / (total_initial + smoothing_alpha * num_states)
             )
 
-        self.log(f"  Transition contexts: {len(self.transition_probs)}")
-        self.log(f"  Initial prob states: {len(self.initial_probs)}")
-        self.log(f"  Smoothing alpha: {smoothing_alpha}")
+        #self.log(f"  Transition contexts: {len(self.transition_probs)}")
+        #self.log(f"  Initial prob states: {len(self.initial_probs)}")
+        #self.log(f"  Smoothing alpha: {smoothing_alpha}")
+        
+        
+        
+class DTWKNNClassifier:
+    """K-Nearest Neighbors classifier using Dynamic Time Warping distance.
+    
+    Handles variable-length sequences without resampling or padding.
+    """
+    
+    def __init__(self, k=5, n_jobs=-1):
+        """Initialize DTW-KNN classifier.
+        
+        Args:
+            k: Number of nearest neighbors for voting.
+            n_jobs: Parallel jobs for distance computation. -1 uses all cores.
+        """
+        self.k = k
+        self.n_jobs = n_jobs
+        self.train_features = None
+        self.train_labels = None
+        self.classes_ = None
+    
+    def fit(self, features, labels):
+        """Store training data.
+        
+        Args:
+            features: List of arrays with shape (n_frames_i, n_channels).
+            labels: Array of integer labels.
+        """
+        self.train_features = features
+        self.train_labels = np.array(labels)
+        self.classes_ = np.unique(labels)
+        return self
+    
+    def _dtw_distance(self, a, b):
+        """Compute DTW distance between two feature sequences.
+        
+        Args:
+            a: Array of shape (n_frames_a, n_channels).
+            b: Array of shape (n_frames_b, n_channels).
+            
+        Returns:
+            Scalar DTW distance.
+        """
+        n, m = len(a), len(b)
+        
+        # Cost matrix
+        dtw_matrix = np.full((n + 1, m + 1), np.inf)
+        dtw_matrix[0, 0] = 0
+        
+        for i in range(1, n + 1):
+            for j in range(1, m + 1):
+                cost = np.linalg.norm(a[i-1] - b[j-1])
+                dtw_matrix[i, j] = cost + min(
+                    dtw_matrix[i-1, j],
+                    dtw_matrix[i, j-1],
+                    dtw_matrix[i-1, j-1]
+                )
+        
+        return dtw_matrix[n, m]
+    
+    def predict(self, features):
+        """Predict labels using DTW distance and KNN voting.
+        
+        Args:
+            features: List of arrays with shape (n_frames_i, n_channels).
+            
+        Returns:
+            Array of predicted integer labels.
+        """
+        predictions = []
+        
+        for test_feat in features:
+            distances = []
+            
+            for train_feat in self.train_features:
+                dist = self._dtw_distance(test_feat, train_feat)
+                distances.append(dist)
+            
+            distances = np.array(distances)
+            nearest_idx = np.argsort(distances)[:self.k]
+            nearest_labels = self.train_labels[nearest_idx]
+            
+            # Majority vote
+            counts = np.bincount(nearest_labels, minlength=len(self.classes_))
+            predictions.append(np.argmax(counts))
+        
+        return np.array(predictions)
+    
+    def predict_proba(self, features):
+        """Predict class probabilities based on neighbor distances.
+        
+        Args:
+            features: List of arrays with shape (n_frames_i, n_channels).
+            
+        Returns:
+            Array of shape (n_samples, n_classes) with probabilities.
+        """
+        probas = []
+        
+        for test_feat in features:
+            distances = []
+            
+            for train_feat in self.train_features:
+                dist = self._dtw_distance(test_feat, train_feat)
+                distances.append(dist)
+            
+            distances = np.array(distances)
+            nearest_idx = np.argsort(distances)[:self.k]
+            nearest_labels = self.train_labels[nearest_idx]
+            nearest_dists = distances[nearest_idx]
+            
+            # Convert distances to weights (inverse distance)
+            weights = 1.0 / (nearest_dists + 1e-10)
+            weights = weights / weights.sum()
+            
+            # Weighted vote
+            proba = np.zeros(len(self.classes_))
+            for label, weight in zip(nearest_labels, weights):
+                proba[label] += weight
+            
+            probas.append(proba)
+        
+        return np.array(probas)

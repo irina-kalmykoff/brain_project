@@ -58,6 +58,10 @@ class AcousticChangeDetector(DebugMixin):
         self.eeg_sr = config.eeg_sr
         self.window_length = config.window_length
         
+        # Store fitted preprocessors to avoid data leakage (fit on train, transform test)
+        self._phoneme_scaler = None
+        self._phoneme_pca_models = {}  # Per-patient PCA models
+
         self.use_wav2vec = use_wav2vec
         if self.use_wav2vec:            
             self.wav2vec_processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
@@ -1173,6 +1177,7 @@ class AcousticChangeDetector(DebugMixin):
             # Prepare features for model training
             phoneme_data = self.prepare_phoneme_training_data(
                 phoneme_batch,
+                batch_type=batch_type,
                 feature_extraction_method=feature_extraction_method,
                 standardize_channels=self.config.standardize_channels,
                 standardize_values=self.config.standardize_values
@@ -1231,23 +1236,26 @@ class AcousticChangeDetector(DebugMixin):
 
         return accumulated_data
     
-    def prepare_phoneme_training_data(self, enhanced_batch, **kwargs):
+    def prepare_phoneme_training_data(self, enhanced_batch, batch_type='train', **kwargs):
         """
         Prepare phoneme-level data for model training.
-            
+
         Parameters:
         -----------
         enhanced_batch : dict
                 Output from process_batch function
+        batch_type : str
+                'train' or 'test'. When 'train', fits preprocessors and stores them.
+                When 'test', uses stored preprocessors (no re-fitting).
         feature_extraction_method : str
                 Method to use for feature extraction ('high_gamma', 'multi_band', etc.)
         standardize channels: bool
                 Whether to zero pad to a certain number of channels
         standardize values: bool
-                Whether to standardize the lengths of the signal        
+                Whether to standardize the lengths of the signal
         pca_components : int or None
                 Number of PCA components to use. If None, don't use PCA.
-                
+
         Returns: Dictionary containing processed data ready for phoneme-based model training
         """
         # Use decoder's config as base, override with kwargs
@@ -1408,19 +1416,23 @@ class AcousticChangeDetector(DebugMixin):
 
             features = standardized_features
         
-        # Standardize features if requested
-        
+        # Standardize features if requested (fit on train only to prevent data leakage)
         if standardize_values and features:
-            scaler = StandardScaler()
-            self.debug(f"Standardizing feature values (mean=0, std=1)")
-            
-            for i in range(len(features)):
-                # Standardize each feature set independently
-                features[i] = scaler.fit_transform(features[i])
+            if batch_type == 'train':
+                all_frames = np.vstack(features)
+                self._phoneme_scaler = StandardScaler()
+                self._phoneme_scaler.fit(all_frames)
+                self.debug(f"Fitted StandardScaler on {all_frames.shape[0]} training frames")
 
-        # Apply PCA per patient if requested
+            if self._phoneme_scaler is not None:
+                for i in range(len(features)):
+                    features[i] = self._phoneme_scaler.transform(features[i])
+            else:
+                self.log("WARNING: No fitted scaler available for test data, skipping standardization")
+
+        # Apply PCA per patient if requested (fit on train only to prevent data leakage)
         if pca_components is not None and pca_components > 0 and features:
-            
+
             # Group features by patient
             patient_features = {}
             for i, feat in enumerate(features):
@@ -1428,32 +1440,41 @@ class AcousticChangeDetector(DebugMixin):
                 if pid not in patient_features:
                     patient_features[pid] = []
                 patient_features[pid].append((i, feat))  # Store index and feature
-            
-            # Fit and transform PCA per patient
+
             transformed_features = [None] * len(features)
-            
+
             for pid, pid_data in patient_features.items():
                 indices = [idx for idx, _ in pid_data]
                 pid_features = [feat for _, feat in pid_data]
-                
-                # Fit PCA on THIS patient only
-                pca = PCA(n_components=min(pca_components, min(f.shape[1] for f in pid_features)))
-                
+
                 try:
-                    all_pid_features = np.vstack(pid_features)
-                    pca.fit(all_pid_features)
-                    
-                    # Transform this patient's features
-                    for local_idx, global_idx in enumerate(indices):
-                        transformed_features[global_idx] = pca.transform(pid_features[local_idx])
-                    
-                    self.debug(f"Applied per-patient PCA for {pid}")
+                    if batch_type == 'train':
+                        # Fit PCA on this patient's TRAINING data only, then store
+                        all_pid_features = np.vstack(pid_features)
+                        n_components = min(pca_components, all_pid_features.shape[0], all_pid_features.shape[1])
+                        pca = PCA(n_components=n_components)
+                        pca.fit(all_pid_features)
+                        self._phoneme_pca_models[pid] = pca
+                        self.debug(f"Fitted per-patient PCA for {pid} ({n_components} components)")
+
+                    if pid in self._phoneme_pca_models:
+                        pca = self._phoneme_pca_models[pid]
+                        for local_idx, global_idx in enumerate(indices):
+                            if pid_features[local_idx].shape[1] == pca.n_features_in_:
+                                transformed_features[global_idx] = pca.transform(pid_features[local_idx])
+                            else:
+                                self.log(f"WARNING: Feature dim mismatch for {pid}, keeping original")
+                                transformed_features[global_idx] = pid_features[local_idx]
+                    else:
+                        self.log(f"WARNING: No fitted PCA for patient {pid}, keeping original features")
+                        for local_idx, global_idx in enumerate(indices):
+                            transformed_features[global_idx] = pid_features[local_idx]
+
                 except ValueError as e:
                     self.log(f"Error during PCA for {pid}: {e}")
-                    # Keep original features
                     for local_idx, global_idx in enumerate(indices):
                         transformed_features[global_idx] = pid_features[local_idx]
-            
+
             features = transformed_features
             
         # Create result dictionary

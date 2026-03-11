@@ -70,6 +70,10 @@ class CustomBrainAudioDecoder(BrainAudioDecoder, DebugMixin):
         
         # Store PCA models to reuse for test data
         self.pca_models = {}
+
+        # Store fitted preprocessors to avoid data leakage (fit on train, transform test)
+        self._word_scaler = None
+        self._word_pca = None
     
     def custom_feature_extraction(self, eeg, eeg_sr, method='high_gamma'):
         """
@@ -1477,31 +1481,44 @@ class CustomBrainAudioDecoder(BrainAudioDecoder, DebugMixin):
             }
         }
         
-        # Standardize features if requested
+        # Determine if this is a train or test batch
+        batch_type = batch['metadata'].get('batch_type', 'train')
+
+        # Standardize features if requested (fit on train only to prevent data leakage)
         if standardize:
-            scaler = StandardScaler()
-            
-            # Standardize each feature set separately
-            for i in range(len(all_features)):
-                data['features'][i] = scaler.fit_transform(all_features[i])
-        
-        # Apply PCA if requested
+            if batch_type == 'train':
+                # Fit scaler on all training frames, then transform each segment
+                all_frames = np.vstack(data['features'])
+                self._word_scaler = StandardScaler()
+                self._word_scaler.fit(all_frames)
+                self.debug(f"Fitted StandardScaler on {all_frames.shape[0]} training frames")
+
+            if self._word_scaler is not None:
+                for i in range(len(data['features'])):
+                    data['features'][i] = self._word_scaler.transform(data['features'][i])
+            else:
+                self.log("WARNING: No fitted scaler available for test data, skipping standardization")
+
+        # Apply PCA if requested (fit on train only to prevent data leakage)
         if pca_components is not None and pca_components > 0:
-            pca = PCA(n_components=pca_components)
-            
-            # Apply PCA to each feature set separately
-            for i in range(len(data['features'])):
-                # Ensure we have enough samples for PCA
-                if data['features'][i].shape[0] > pca_components and data['features'][i].shape[1] > pca_components:
-                    data['features'][i] = pca.fit_transform(data['features'][i])
-                else:
-                    # Skip PCA for this segment
-                    data['metadata']['pca_skipped_segments'] = data['metadata'].get('pca_skipped_segments', 0) + 1
-        
-            if standardize:
-                # Use a unique key based on the feature extraction method
+            if batch_type == 'train':
+                all_frames = np.vstack(data['features'])
+                n_components = min(pca_components, all_frames.shape[0], all_frames.shape[1])
+                self._word_pca = PCA(n_components=n_components)
+                self._word_pca.fit(all_frames)
+                self.debug(f"Fitted PCA ({n_components} components) on {all_frames.shape[0]} training frames")
+
                 key = f"{feature_extraction_method}_word"
-                self.pca_models[key] = pca  # Store the PCA model
+                self.pca_models[key] = self._word_pca
+
+            if self._word_pca is not None:
+                for i in range(len(data['features'])):
+                    if data['features'][i].shape[1] == self._word_pca.n_features_in_:
+                        data['features'][i] = self._word_pca.transform(data['features'][i])
+                    else:
+                        data['metadata']['pca_skipped_segments'] = data['metadata'].get('pca_skipped_segments', 0) + 1
+            else:
+                self.log("WARNING: No fitted PCA available for test data, skipping PCA")
             
         return data
         

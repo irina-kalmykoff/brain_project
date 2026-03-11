@@ -128,9 +128,13 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         return self
     
-    def step2_split_by_instances(self, train_fraction=0.7, random_seed=42):
+    def step2_split_by_instances(self, train_fraction=None, random_seed=None):
         """Split each patient's word instances into train/test."""
-        
+        if train_fraction is None:
+            train_fraction = self.config.default_train_fraction
+        if random_seed is None:
+            random_seed = self.config.default_random_seed
+
         np.random.seed(random_seed)
         
         self.split_result = {'train': {}, 'test': {}, 'word_segments_dict': {}}

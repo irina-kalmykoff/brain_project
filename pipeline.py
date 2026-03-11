@@ -1458,7 +1458,7 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
                         if timestamp != 'unknown':
                             try:
                                 timestamp = datetime.fromisoformat(timestamp).strftime('%Y-%m-%d %H:%M')
-                            except:
+                            except (ValueError, TypeError):
                                 pass
                     else:
                         # Old format
@@ -1517,7 +1517,7 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
                         # For now, just use newest as fallback
                         best_file = f
                         break
-                except:
+                except (OSError, pickle.UnpicklingError, EOFError):
                     continue
             
             if best_file:
@@ -1880,7 +1880,7 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
                             try:
                                 import json
                                 metadata[key] = json.loads(value)
-                            except:
+                            except (json.JSONDecodeError, ValueError):
                                 metadata[key] = value
                         else:
                             metadata[key] = value

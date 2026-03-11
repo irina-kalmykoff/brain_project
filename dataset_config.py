@@ -5,8 +5,8 @@ Centralized configuration for different datasets.
 Each config class contains all dataset-specific parameters with documentation.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Any
+from dataclasses import dataclass, field
+from typing import Dict, Any, Tuple
 import json
 
 @dataclass
@@ -46,8 +46,65 @@ class Dutch30Config:
     # Fixed window for feature extraction (normalizes segment lengths)
     fixed_feature_window_ms = 100  # 100ms window
     fixed_feature_samples = 102    # At 1024 Hz: 102 samples
-    
-    
+
+    # Default parameters for extract_features.py standalone usage
+    default_model_order: int = 4   # Temporal context windows (standalone)
+    default_step_size: int = 5     # Skip frames (standalone)
+
+    # ============================================================
+    # FREQUENCY BANDS
+    # Used by acoustic change detectors and custom_decoder
+    # ============================================================
+
+    frequency_bands: Dict[str, Tuple[int, int]] = field(default_factory=lambda: {
+        'delta': (1, 4),
+        'theta': (4, 8),
+        'alpha': (8, 13),
+        'beta': (13, 30),
+        'low_gamma': (30, 70),
+        'high_gamma': (70, 170),
+    })
+
+    # High gamma filter boundaries (Hz) for extract_features bandpass
+    high_gamma_low: float = 70.0
+    high_gamma_high: float = 170.0
+    notch_50hz_band: Tuple[float, float] = (98.0, 102.0)   # 1st harmonic of 50Hz mains
+    notch_150hz_band: Tuple[float, float] = (148.0, 152.0)  # 3rd harmonic
+
+    # ============================================================
+    # ACOUSTIC CHANGE DETECTION
+    # ============================================================
+
+    smoothing_window: int = 3              # Gaussian filter sigma for distance smoothing
+    peak_threshold: float = 0.75           # Peak detection threshold
+    spectral_k_factor: float = 1.5         # threshold = median + k * MAD (spectral boundaries)
+    rms_k_factor: float = 1.2              # k factor for RMS-based boundaries
+    sentence_k_factor: float = 1.0         # k factor for sentence segmentation
+    onset_threshold_fraction: float = 0.15  # Fraction of max RMS change for onset detection
+    peak_prominence: float = 0.05          # Minimum prominence for peak detection
+    threshold_reduction_factor: float = 0.7 # Factor to reduce threshold when too few boundaries found
+    welch_nperseg: int = 256               # Window size for Welch PSD estimation
+
+    # RMS boundary detection
+    rms_hop_ms: float = 5.0               # 5ms hop length for RMS computation
+    rms_frame_ms: float = 20.0            # 20ms frame length for RMS computation
+    rms_smoothing_sigma: float = 2.0      # Gaussian smoothing for RMS
+    rms_change_smoothing_sigma: float = 1.5  # Gaussian smoothing for RMS change
+
+    # ============================================================
+    # WAV2VEC PARAMETERS
+    # ============================================================
+
+    wav2vec_fps: int = 50                  # Wav2vec output frame rate
+    wav2vec_decimate_factor: int = 3       # Downsample factor for wav2vec input (48kHz -> 16kHz)
+
+    # ============================================================
+    # TRAIN/TEST SPLIT DEFAULTS
+    # ============================================================
+
+    default_train_fraction: float = 0.7
+    default_random_seed: int = 42
+
     # ============================================================
     # TEMPORAL CONTEXT
     # From predecessors' analysis
@@ -155,6 +212,15 @@ class Dutch30Config:
             'min_silence_duration': self.min_silence_duration,
             'silence_threshold_factor': self.silence_threshold_factor,
             'int16_max': self.int16_max,
+            'frequency_bands': self.frequency_bands,
+            'high_gamma_low': self.high_gamma_low,
+            'high_gamma_high': self.high_gamma_high,
+            'spectral_k_factor': self.spectral_k_factor,
+            'rms_k_factor': self.rms_k_factor,
+            'peak_prominence': self.peak_prominence,
+            'wav2vec_fps': self.wav2vec_fps,
+            'default_train_fraction': self.default_train_fraction,
+            'default_random_seed': self.default_random_seed,
         }
     
     def save(self, filepath: str):

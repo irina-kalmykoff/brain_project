@@ -73,26 +73,16 @@ class AcousticChangeDetector(DebugMixin):
         Returns fixed-length feature vector (1, channels×6).
         """        
         
-        bands = {
-            'delta': (1, 4),
-            'theta': (4, 8),
-            'alpha': (8, 13),
-            'beta': (13, 30),
-            'low_gamma': (30, 70),
-            'high_gamma': (70, 170)
-            #'high_gamma_1': (70, 100),
-            #'high_gamma_2': (100, 130),
-            #'high_gamma_3': (130, 170)
-        }
-        
+        bands = self.config.frequency_bands
+
         n_channels = eeg_segment.shape[1]
         band_features = []
-        
+
         for ch in range(n_channels):
             freqs, psd = welch(
-                eeg_segment[:, ch], 
-                fs=self.config.eeg_sr, 
-                nperseg=min(256, eeg_segment.shape[0])
+                eeg_segment[:, ch],
+                fs=self.config.eeg_sr,
+                nperseg=min(self.config.welch_nperseg, eeg_segment.shape[0])
             )
             
             for band_name, (low, high) in bands.items():
@@ -175,10 +165,21 @@ class AcousticChangeDetector(DebugMixin):
         else:
             raise ValueError(f"Unsupported distance metric: {self.distance_metric}")
         
-        # Calculate frame-to-frame distances
-        for i in range(num_frames - 1):
-            distances[i] = distance_func(spectrogram[i], spectrogram[i+1])
-        
+        # Vectorized frame-to-frame distance computation
+        if self.distance_metric == 'cosine':
+            norms = np.linalg.norm(spectrogram, axis=1, keepdims=True)
+            norms = np.clip(norms, 1e-10, None)
+            normalized = spectrogram / norms
+            distances = 1.0 - np.sum(normalized[:-1] * normalized[1:], axis=1)
+        elif self.distance_metric == 'euclidean':
+            distances = np.sqrt(np.sum((spectrogram[1:] - spectrogram[:-1])**2, axis=1))
+        elif self.distance_metric == 'kl_divergence':
+            epsilon = 1e-10
+            s = np.clip(spectrogram, epsilon, None)
+            row_sums = s.sum(axis=1, keepdims=True)
+            s = s / row_sums
+            distances = np.sum(s[:-1] * np.log(s[:-1] / s[1:]), axis=1)
+
         return distances
     
     def compute_spectral_flux(self, spectrogram):
@@ -195,15 +196,10 @@ class AcousticChangeDetector(DebugMixin):
         flux : ndarray
             Spectral flux between consecutive frames
         """
-        # Initialize flux array
-        num_frames = spectrogram.shape[0]
-        flux = np.zeros(num_frames - 1)
-        
-        # Calculate spectral flux (sum of positive differences)
-        for i in range(num_frames - 1):
-            diff = spectrogram[i+1] - spectrogram[i]
-            flux[i] = np.sum(np.maximum(0, diff))  # Half-wave rectification
-        
+        # Vectorized spectral flux (sum of positive differences)
+        diff = spectrogram[1:] - spectrogram[:-1]
+        flux = np.sum(np.maximum(0, diff), axis=1)
+
         return flux
     
     def compute_energy_contour(self, spectrogram):
@@ -314,21 +310,21 @@ class AcousticChangeDetector(DebugMixin):
         mad = np.median(np.abs(enhanced_distances - median_val))  # Median Absolute Deviation
         
         # Adaptive threshold: median + k * MAD
-        k = 1.5  # 2 - strict, 1.5 detects subtler transisions
+        k = self.config.spectral_k_factor
         height = median_val + k * mad
-        
+
         # Ensure minimum threshold
         min_height = 0.1 * np.max(enhanced_distances)
         height = max(height, min_height)
-    
+
         self.debug(f"  Peak detection threshold: {height:.4f} (median: {median_val:.4f}, MAD: {mad:.4f})")
-        
+
         # Find all peaks above threshold
         peaks, properties = find_peaks(
-            enhanced_distances, 
-            height=height, 
+            enhanced_distances,
+            height=height,
             distance=min_dist_frames,
-            prominence=0.05 # previously 0.1, cahnged to detect smaller peaks 
+            prominence=self.config.peak_prominence
         )
         
         self.debug(f"  Found {len(peaks)} candidate peaks")
@@ -365,7 +361,7 @@ class AcousticChangeDetector(DebugMixin):
                         enhanced_distances,
                         height=height,
                         distance=min_dist_frames,
-                        prominence=0.05  # Lower prominence requirement
+                        prominence=self.config.peak_prominence
                     )
                     
                     self.debug(f"    Found {len(peaks)} peaks")
@@ -1496,8 +1492,8 @@ class AcousticChangeDetector(DebugMixin):
         self.debug("Computing RMS-based boundaries...")
         
         # Compute RMS with fine temporal resolution
-        hop_length = int(0.005 * audio_sr)  # 5ms hop
-        frame_length = int(0.020 * audio_sr)  # 20ms frame
+        hop_length = int(self.config.rms_hop_ms / 1000.0 * audio_sr)
+        frame_length = int(self.config.rms_frame_ms / 1000.0 * audio_sr)
         
         # Manual RMS computation (replaces librosa.feature.rms)
         from numpy.lib.stride_tricks import sliding_window_view
@@ -1513,15 +1509,15 @@ class AcousticChangeDetector(DebugMixin):
             rms = np.array([np.sqrt(np.mean(audio_float ** 2))])
         
         # Smooth RMS
-        rms_smoothed = gaussian_filter1d(rms, sigma=2)
-        
+        rms_smoothed = gaussian_filter1d(rms, sigma=self.config.rms_smoothing_sigma)
+
         # Compute RMS change
         rms_change = np.abs(np.gradient(rms_smoothed))
-        rms_change_smoothed = gaussian_filter1d(rms_change, sigma=1.5)
-        
+        rms_change_smoothed = gaussian_filter1d(rms_change, sigma=self.config.rms_change_smoothing_sigma)
+
         # STEP 1: Detect speech onset (first significant peak)
         max_rms_change = np.max(rms_change_smoothed)
-        onset_threshold = max_rms_change * 0.15  # 15% for onset
+        onset_threshold = max_rms_change * self.config.onset_threshold_fraction
         
         # Find first point above onset threshold
         onset_candidates = np.where(rms_change_smoothed > onset_threshold)[0]
@@ -1538,7 +1534,7 @@ class AcousticChangeDetector(DebugMixin):
         median_val = np.median(rms_change_smoothed)
         mad = np.median(np.abs(rms_change_smoothed - median_val))
         
-        k = 1.2  # Sensitivity
+        k = self.config.rms_k_factor
         threshold = median_val + k * mad
         
         # Minimum distance between boundaries
@@ -1585,7 +1581,7 @@ class AcousticChangeDetector(DebugMixin):
                 self.debug(f"  Only found {len(peaks)} peaks, need {n_boundaries_needed}")
                 
                 for attempt in range(3):
-                    threshold *= 0.7
+                    threshold *= self.config.threshold_reduction_factor
                     self.debug(f"    Attempt {attempt+1}: lowering threshold to {threshold:.4f}")
                     
                     peaks_relative, properties = find_peaks(
@@ -1663,23 +1659,23 @@ class AcousticChangeDetector(DebugMixin):
         self.debug(f"  Expected: {total_phonemes} total phonemes across {len(words)} words")
         
         # Compute RMS change for entire sentence
-        hop_length = int(0.005 * audio_sr)  # 5ms
-        frame_length = int(0.020 * audio_sr)  # 20ms
-        
+        hop_length = int(self.config.rms_hop_ms / 1000.0 * audio_sr)
+        frame_length = int(self.config.rms_frame_ms / 1000.0 * audio_sr)
+
         rms = librosa.feature.rms(
             y=audio_sentence,
             frame_length=frame_length,
             hop_length=hop_length
         )[0]
-        
+
         from scipy.ndimage import gaussian_filter1d
-        rms_smoothed = gaussian_filter1d(rms, sigma=2)
+        rms_smoothed = gaussian_filter1d(rms, sigma=self.config.rms_smoothing_sigma)
         rms_change = np.abs(np.gradient(rms_smoothed))
-        rms_change_smoothed = gaussian_filter1d(rms_change, sigma=1.5)
-        
+        rms_change_smoothed = gaussian_filter1d(rms_change, sigma=self.config.rms_change_smoothing_sigma)
+
         # Find speech onset and offset
         max_rms_change = np.max(rms_change_smoothed)
-        onset_threshold = max_rms_change * 0.15
+        onset_threshold = max_rms_change * self.config.onset_threshold_fraction
         above_onset = np.where(rms_change_smoothed > onset_threshold)[0]
         
         if len(above_onset) > 0:
@@ -1695,7 +1691,7 @@ class AcousticChangeDetector(DebugMixin):
         # Find ALL internal boundaries
         median_val = np.median(rms_change_speech)
         mad = np.median(np.abs(rms_change_speech - median_val))
-        threshold = median_val + 1.0 * mad  # Start with k=1.0
+        threshold = median_val + self.config.sentence_k_factor * mad
         
         min_phoneme_duration_sec = self.config.min_phoneme_duration
         min_distance_frames = int(min_phoneme_duration_sec / (hop_length / audio_sr))

@@ -96,7 +96,7 @@ class BrainAudioDecoderViz(DebugMixin):
                     delimiter='\t'
                 )
                 channel_names = channels['name'].values
-            except:
+            except (FileNotFoundError, KeyError, pd.errors.ParserError):
                 channel_names = None
         else:
             channel_names = None
@@ -485,7 +485,7 @@ class BrainAudioDecoderViz(DebugMixin):
                 delimiter='\t'
             )
             channel_names = channels_df['name'].values
-        except:
+        except (FileNotFoundError, KeyError, pd.errors.ParserError):
             channel_names = None
             print("Could not load channel names, using indices instead.")
         

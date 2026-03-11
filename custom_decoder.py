@@ -103,14 +103,7 @@ class CustomBrainAudioDecoder(BrainAudioDecoder, DebugMixin):
             # Extract multiple frequency bands
             
             # Define frequency bands
-            bands = {
-                'delta': (1, 4),
-                'theta': (4, 8),
-                'alpha': (8, 13),
-                'beta': (13, 30),
-                'gamma': (30, 70),
-                'high_gamma': (70, 170)
-            }
+            bands = self.config.frequency_bands
             
             # Initialize features
             num_windows = int(np.floor((eeg.shape[0] - self.win_length * eeg_sr) / (self.frameshift * eeg_sr)))
@@ -131,15 +124,17 @@ class CustomBrainAudioDecoder(BrainAudioDecoder, DebugMixin):
                 # If high gamma, attenuate line noise
                 if band_name == 'high_gamma':
                     # Attenuate first harmonic of line noise
+                    notch_low, notch_high = self.config.notch_50hz_band
                     sos = scipy.signal.iirfilter(
-                        4, [98 / (eeg_sr / 2), 102 / (eeg_sr / 2)],
+                        4, [notch_low / (eeg_sr / 2), notch_high / (eeg_sr / 2)],
                         btype='bandstop', output='sos'
                     )
                     data = scipy.signal.sosfiltfilt(sos, data, axis=0)
-                    
+
                     # Attenuate second harmonic of line noise
+                    notch_low, notch_high = self.config.notch_150hz_band
                     sos = scipy.signal.iirfilter(
-                        4, [148 / (eeg_sr / 2), 152 / (eeg_sr / 2)],
+                        4, [notch_low / (eeg_sr / 2), notch_high / (eeg_sr / 2)],
                         btype='bandstop', output='sos'
                     )
                     data = scipy.signal.sosfiltfilt(sos, data, axis=0)

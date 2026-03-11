@@ -85,7 +85,7 @@ class AcousticChangeDetector(DebugMixin):
         
         # Downsample if needed
         if audio_sr == self.config.eeg_sr:
-            audio_waveform = decimate(audio_waveform, 3)
+            audio_waveform = decimate(audio_waveform, self.config.wav2vec_decimate_factor)
             audio_sr = self.config.audio_target_sr
         elif audio_sr != self.config.audio_target_sr:
             raise ValueError(f"Audio sampling rate must be {self.config.audio_target_sr} or {self.config.eeg_sr}, got {audio_sr}")
@@ -112,14 +112,17 @@ class AcousticChangeDetector(DebugMixin):
         distances : Distance between consecutive frames
         """        
         
-        distances = np.zeros(len(features) - 1)
-        
-        for i in range(len(features) - 1):
-            if self.distance_metric == 'cosine':
-                distances[i] = cosine(features[i], features[i + 1])
-            elif self.distance_metric == 'euclidean':
-                distances[i] = euclidean(features[i], features[i + 1])
-        
+        # Vectorized frame-to-frame distance computation
+        if self.distance_metric == 'cosine':
+            norms = np.linalg.norm(features, axis=1, keepdims=True)
+            norms = np.clip(norms, 1e-10, None)
+            normalized = features / norms
+            distances = 1.0 - np.sum(normalized[:-1] * normalized[1:], axis=1)
+        elif self.distance_metric == 'euclidean':
+            distances = np.sqrt(np.sum((features[1:] - features[:-1])**2, axis=1))
+        else:
+            distances = np.zeros(len(features) - 1)
+
         return distances
     
     def _extract_band_power_features(self, eeg_segment: np.ndarray) -> np.ndarray:
@@ -129,23 +132,16 @@ class AcousticChangeDetector(DebugMixin):
         """
         from scipy.signal import welch
         
-        bands = {
-            'delta': (1, 4),
-            'theta': (4, 8),
-            'alpha': (8, 13),
-            'beta': (13, 30),
-            'low_gamma': (30, 70),
-            'high_gamma': (70, 170)
-        }
-        
+        bands = self.config.frequency_bands
+
         n_channels = eeg_segment.shape[1]
         band_features = []
-        
+
         for ch in range(n_channels):
             freqs, psd = welch(
-                eeg_segment[:, ch], 
-                fs=self.config.eeg_sr, 
-                nperseg=min(256, eeg_segment.shape[0])
+                eeg_segment[:, ch],
+                fs=self.config.eeg_sr,
+                nperseg=min(self.config.welch_nperseg, eeg_segment.shape[0])
             )
             
             for band_name, (low, high) in bands.items():

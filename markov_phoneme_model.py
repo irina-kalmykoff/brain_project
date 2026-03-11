@@ -25,7 +25,7 @@ class MarkovPhonemeModel(DebugMixin):
     """
     
     def __init__(self, phonetic_dict=None, order=2, output_dir='./models/markov_phoneme', 
-             debug_mode=False, use_groups=False, class_weight='balanced', classifier_type='random_forest'):
+             debug_mode=False, use_groups=False, class_weight='balanced', classifier_type='random_forest', scaler_type='standard',  random_state=37):
         """
         Initialize the Markov chain phoneme model.
         
@@ -63,6 +63,8 @@ class MarkovPhonemeModel(DebugMixin):
         self.use_groups = use_groups
         self.class_weight = class_weight
         self.classifier_type = classifier_type
+        self.random_state = random_state
+        self.scaler_type = scaler_type
         
         # Set up phonetic dictionary
         if phonetic_dict is None:
@@ -204,6 +206,10 @@ class MarkovPhonemeModel(DebugMixin):
         
         self.log(f"Building neural classifier: {self.classifier_type}")
         
+        lengths = [feat.shape[0] for feat in features]
+        print(f"feature lengths unique values: {set(lengths)}")
+        print(f"feature shape example: {features[0].shape}")
+        
         # Track which classes we're training on
         self.trained_groups = sorted(list(set(group_labels)))
         self.log(f"Training on groups: {self.trained_groups}")
@@ -234,7 +240,7 @@ class MarkovPhonemeModel(DebugMixin):
             
         else:
             # Pool features to fixed size for sklearn classifiers
-            X = self._pool_features(features)
+            X = self._pool_features(features, method='flatten')
             
             # Filter invalid samples
             valid_mask = ~(np.isnan(X).any(axis=1) | np.isinf(X).any(axis=1))
@@ -242,33 +248,50 @@ class MarkovPhonemeModel(DebugMixin):
             y = y[valid_mask]
             
             # Scale features
-            self.feature_scaler = StandardScaler()
-            X_scaled = self.feature_scaler.fit_transform(X)
+            if self.scaler_type == 'robust':
+                from sklearn.preprocessing import RobustScaler
+                self.feature_scaler = RobustScaler()
+            elif self.scaler_type == 'minmax':
+                from sklearn.preprocessing import MinMaxScaler
+                self.feature_scaler = MinMaxScaler()
+            elif self.scaler_type == 'none':
+                self.feature_scaler = None
+            else:
+                self.feature_scaler = StandardScaler()
+
+            if self.feature_scaler is not None:
+                X_scaled = self.feature_scaler.fit_transform(X)
+            else:
+                X_scaled = X
             
             # Select classifier
             if self.classifier_type == 'logistic_regression':
                 self.neural_classifier = LogisticRegression(
+                    C=0.1,
+                    solver='lbfgs',
+                    penalty='l2',
                     max_iter=1000,
+                    tol=1e-3,
                     class_weight=self.class_weight,
-                    random_state=42,
+                    random_state=37,
                     n_jobs=-1
                 )
             elif self.classifier_type == 'extra_trees':
                 self.neural_classifier = ExtraTreesClassifier(
-                    n_estimators=500,
+                    n_estimators=1000,
                     max_depth=None,
                     min_samples_leaf=1,
                     class_weight=self.class_weight,
-                    random_state=42,
+                    random_state=37,
                     n_jobs=-1
                 )
             else:  # random_forest
                 self.neural_classifier = RandomForestClassifier(
-                    n_estimators=200,
-                    max_depth=20,
-                    min_samples_leaf=2,
+                    n_estimators=500,
+                    max_depth=None,
+                    min_samples_leaf=1,
                     class_weight=self.class_weight,
-                    random_state=42,
+                    random_state=37,
                     n_jobs=-1
                 )
             
@@ -301,7 +324,12 @@ class MarkovPhonemeModel(DebugMixin):
             X_scaled = self.feature_scaler.transform(X)
             
             classifier_probs = self.neural_classifier.predict_proba(X_scaled)
-            classifier_preds = self.neural_classifier.predict(X_scaled)
+            classifier_preds = self.neural_classifier.predict(X_scaled)            
+            
+        if self.feature_scaler is not None:
+            X_scaled = self.feature_scaler.transform(X)
+        else:
+            X_scaled = X
         
         # Map to group names
         predicted_labels = []
@@ -495,44 +523,6 @@ class MarkovPhonemeModel(DebugMixin):
             'n_total': len(true_converted)
         }
     
-    '''
-    def save_model(self, path=None):
-        """Save the model to disk."""
-        if path is None:
-            path = os.path.join(self.output_dir, 'markov_model.pkl')
-        
-        model_data = {
-            'transition_probs': self.transition_probs,
-            'initial_probs': self.initial_probs,
-            'neural_classifier': self.neural_classifier,
-            'feature_scaler': self.feature_scaler,
-            'group_encoder': self.group_encoder,
-            'order': self.order
-        }
-        
-        with open(path, 'wb') as f:
-            pickle.dump(model_data, f)
-        
-        self.log(f"Model saved to {path}")
-    
-    def load_model(self, path=None):
-        """Load a saved model."""
-        if path is None:
-            path = os.path.join(self.output_dir, 'markov_model.pkl')
-        
-        with open(path, 'rb') as f:
-            model_data = pickle.load(f)
-        
-        self.transition_probs = model_data['transition_probs']
-        self.initial_probs = model_data['initial_probs']
-        self.neural_classifier = model_data['neural_classifier']
-        self.feature_scaler = model_data['feature_scaler']
-        self.group_encoder = model_data['group_encoder']
-        self.order = model_data['order']
-        
-        self.log(f"Model loaded from {path}")
-    '''
-       
     def _pool_features(self, features, method='auto'):
         """Convert features to fixed-size vector.
         

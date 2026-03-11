@@ -873,6 +873,331 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         data['features'] = normalized_features
         return data
     
+    def step5a_filter_by_frame_count(self, min_frames=2, max_frames=25):
+        """Filter phonemes by HG frame count.
+
+        Removes phonemes with too few or too many frames before
+        stacking or resampling. Call after step5, before step5b.
+
+        Args:
+            min_frames: int, minimum HG frames to keep.
+            max_frames: int, maximum HG frames to keep.
+        """
+        self.log(f"\nStep 5a: Filter by frame count "
+                 f"(keep {min_frames}-{max_frames} frames)")
+
+        for dataset_name, data in [('train', self.train), ('test', self.test)]:
+            if data is None:
+                continue
+
+            n_before = len(data['features'])
+            keep = []
+
+            for i, feat in enumerate(data['features']):
+                if hasattr(feat, 'ndim') and feat.ndim == 2:
+                    n_frames = feat.shape[0]
+                    if min_frames <= n_frames <= max_frames:
+                        keep.append(i)
+                else:
+                    keep.append(i)
+
+            for key in data:
+                if isinstance(data[key], list) and len(data[key]) == n_before:
+                    data[key] = [data[key][i] for i in keep]
+
+            n_removed = n_before - len(keep)
+            self.log(f"  {dataset_name}: {n_before} -> {len(keep)} "
+                     f"(removed {n_removed})")
+                     
+    def step5b_normalize_feature_lengths(self, target_frames=10):
+        """Resample all features to fixed frame count, then flatten.
+
+        Alternative A for fixed-length features. Resamples each
+        phoneme's HG array to target_frames, then flattens.
+        One sample per phoneme.
+
+        Call after step5_accumulate_data_dutch30.
+        Mutually exclusive with step5b_stack_features.
+
+        Args:
+            target_frames: int, target number of frames.
+        """
+        from scipy.signal import resample
+
+        self.log(f"\nStep 5b: Normalize feature lengths "
+                 f"(target={target_frames} frames)")
+
+        for dataset_name, data in [('train', self.train), ('test', self.test)]:
+            if data is None:
+                continue
+
+            n_before = len(data['features'])
+            normalized = []
+            for feat in data['features']:
+                if feat.ndim == 1:
+                    normalized.append(feat)
+                    continue
+                if feat.shape[0] == target_frames:
+                    normalized.append(feat.flatten())
+                else:
+                    resampled = resample(feat, target_frames, axis=0)
+                    normalized.append(resampled.flatten())
+
+            data['features'] = normalized
+
+            n_channels = (normalized[0].shape[0] // target_frames
+                          if normalized else 0)
+            self.log(f"  {dataset_name}: {n_before} samples, "
+                     f"feature dim = {target_frames} x {n_channels} "
+                     f"= {target_frames * n_channels}")
+
+    def step5b_stack_features(self, model_order=4, step_size=5):
+        """Apply temporal context stacking per word instance.
+
+        Alternative B for fixed-length features. Reconstructs the
+        continuous HG stream per word instance, applies stackFeatures,
+        then assigns each stacked frame its phoneme label. Produces
+        multiple training samples per phoneme.
+
+        Call after step5_accumulate_data_dutch30.
+        Mutually exclusive with step5b_normalize_feature_lengths.
+
+        Args:
+            model_order: int, temporal context steps before and after.
+                With step_size=5 and frameshift=0.01, model_order=4
+                gives +/- 200ms context (9 frames stacked).
+            step_size: int, frame skip between context steps.
+        """
+        from extract_features import stackFeatures
+
+        n_context = 2 * model_order + 1
+        margin = model_order * step_size
+
+        self.log(f"\nStep 5b: Stack features "
+                 f"(order={model_order}, step={step_size}, "
+                 f"context={n_context} frames, "
+                 f"+/- {margin * self.config.frameshift * 1000:.0f}ms)")
+
+        for dataset_name, data in [('train', self.train), ('test', self.test)]:
+            if data is None:
+                continue
+
+            features = data['features']
+            labels = data['phoneme_labels']
+            words = data['phoneme_words']
+            positions = data['phoneme_positions']
+            pids = data['phoneme_participant_ids']
+            has_durations = ('phoneme_durations_samples' in data
+                            and data['phoneme_durations_samples'])
+
+            n_input = len(features)
+            if n_input == 0:
+                continue
+
+            # Check features are 2D (not already flattened)
+            if features[0].ndim == 1:
+                self.log(f"  {dataset_name}: features already flattened, "
+                         f"cannot stack. Run before normalize.")
+                continue
+
+            n_channels = features[0].shape[1]
+
+            # Detect word instance boundaries
+            instance_groups = []
+            current_start = 0
+            for i in range(1, n_input):
+                is_boundary = (
+                    positions[i] == 0
+                    or words[i] != words[i - 1]
+                    or pids[i] != pids[i - 1]
+                )
+                if is_boundary:
+                    instance_groups.append((current_start, i))
+                    current_start = i
+            instance_groups.append((current_start, n_input))
+
+            new_features = []
+            new_labels = []
+            new_words = []
+            new_positions = []
+            new_pids = []
+            new_durations = []
+            n_skipped_short = 0
+            n_skipped_unknown = 0
+
+            for start, end in instance_groups:
+                # Collect phoneme segments for this instance
+                instance_feats = []
+                instance_labels = []
+                offset = 0
+                skip_instance = False
+
+                for i in range(start, end):
+                    feat = features[i]
+                    if feat.ndim != 2:
+                        skip_instance = True
+                        break
+                    n_frames = feat.shape[0]
+                    instance_feats.append(feat)
+                    instance_labels.append(
+                        (labels[i], offset, offset + n_frames, i)
+                    )
+                    offset += n_frames
+
+                if skip_instance or not instance_feats:
+                    continue
+
+                # Concatenate into continuous stream
+                continuous = np.concatenate(instance_feats, axis=0)
+                total_frames = continuous.shape[0]
+                min_frames = 2 * margin + 1
+
+                if total_frames < min_frames:
+                    # Pad edges to allow stacking
+                    pad_needed = min_frames - total_frames
+                    pad_before = pad_needed // 2
+                    pad_after = pad_needed - pad_before
+                    continuous = np.pad(
+                        continuous,
+                        ((pad_before, pad_after), (0, 0)),
+                        mode='edge',
+                    )
+                    # Adjust label offsets
+                    instance_labels = [
+                        (lbl, s + pad_before, e + pad_before, orig_i)
+                        for lbl, s, e, orig_i in instance_labels
+                    ]
+                    adjusted_margin = margin
+                else:
+                    pad_before = 0
+                    adjusted_margin = margin
+
+                stacked = stackFeatures(
+                    continuous,
+                    modelOrder=model_order,
+                    stepSize=step_size,
+                )
+
+                if stacked.shape[0] == 0:
+                    n_skipped_short += 1
+                    continue
+
+                # Map each stacked frame to its phoneme label
+                stacked_offset = adjusted_margin
+                for frame_idx in range(stacked.shape[0]):
+                    original_pos = stacked_offset + frame_idx
+                    assigned = False
+                    for lbl, seg_start, seg_end, orig_i in instance_labels:
+                        if seg_start <= original_pos < seg_end:
+                            if lbl == '?':
+                                n_skipped_unknown += 1
+                                assigned = True
+                                break
+                            new_features.append(stacked[frame_idx])
+                            new_labels.append(lbl)
+                            new_words.append(words[orig_i])
+                            new_positions.append(positions[orig_i])
+                            new_pids.append(pids[orig_i])
+                            if has_durations:
+                                new_durations.append(
+                                    data['phoneme_durations_samples'][orig_i]
+                                    if orig_i < len(data['phoneme_durations_samples'])
+                                    else 0
+                                )
+                            assigned = True
+                            break
+                    if not assigned:
+                        # Frame falls outside any phoneme (edge artifact)
+                        pass
+
+            expected_dim = n_channels * n_context
+            multiplier = (len(new_features) / n_input
+                          if n_input > 0 else 0)
+
+            self.log(f"  {dataset_name}: {n_input} phonemes -> "
+                     f"{len(new_features)} stacked frames "
+                     f"({multiplier:.1f}x)")
+            self.log(f"    Feature dim: {n_channels} ch x "
+                     f"{n_context} context = {expected_dim}")
+            self.log(f"    Instances: {len(instance_groups)}, "
+                     f"skipped short: {n_skipped_short}, "
+                     f"skipped unknown: {n_skipped_unknown}")
+
+            data['features'] = new_features
+            data['phoneme_labels'] = new_labels
+            data['phoneme_words'] = new_words
+            data['phoneme_positions'] = new_positions
+            data['phoneme_participant_ids'] = new_pids
+            if has_durations:
+                data['phoneme_durations_samples'] = new_durations
+    
+    def checkpoint_after_step5(self, sample_fraction=None):
+        """Save checkpoint after step 5 (before stacking/resampling).
+
+        Features are still 2D (n_frames, n_channels) arrays,
+        allowing experimentation with different step 5b options.
+
+        Args:
+            sample_fraction: float or None, for filename.
+
+        Returns:
+            str or None, filepath if saved.
+        """
+        if not hasattr(self, 'train') or self.train is None:
+            self.log("WARNING: No training data to checkpoint")
+            return None
+
+        if 'features' not in self.train or not self.train['features']:
+            self.log("WARNING: Training data is empty")
+            return None
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        fraction_str = f"_sample{int(sample_fraction*100)}" if sample_fraction else ""
+        filename = (f"pipeline_{self.feature_extraction_method}"
+                    f"{fraction_str}_after_step5_{timestamp}.pkl")
+        filepath = os.path.join(self.path_results, filename)
+
+        self.log(f"Saving step5 checkpoint: {filename}")
+
+        try:
+            # Check if features are still 2D
+            first_feat = self.train['features'][0]
+            feat_info = (f"{first_feat.shape}" if hasattr(first_feat, 'shape')
+                         else "unknown")
+
+            metadata = {
+                'method': self.feature_extraction_method,
+                'sample_fraction': sample_fraction,
+                'timestamp': timestamp,
+                'stage': 'after_step5',
+                'feature_shape': feat_info,
+                'train_samples': len(self.train['features']),
+                'test_samples': (len(self.test['features'])
+                                 if self.test else 0),
+                'split_result': (self.split_result
+                                 if hasattr(self, 'split_result') else None),
+            }
+
+            train_file = filepath.replace('.pkl', '_train.h5')
+            self._save_data_to_h5(self.train, train_file)
+            metadata['train_file'] = os.path.basename(train_file)
+
+            if self.test:
+                test_file = filepath.replace('.pkl', '_test.h5')
+                self._save_data_to_h5(self.test, test_file)
+                metadata['test_file'] = os.path.basename(test_file)
+
+            with open(filepath, 'wb') as f:
+                pickle.dump({'metadata': metadata}, f)
+
+            self.log(f"Step5 checkpoint saved: {filename}")
+            self.log(f"  Feature shape: {feat_info} (2D = ready for stacking/resampling)")
+            return filepath
+
+        except Exception as e:
+            self.log(f"Error saving checkpoint: {e}")
+            return None
+            
     def dutch30_step6_resolve_unknowns(self):
         """Step 6: Initialize validator to resolve unknown phonemes (Dutch30-specific)"""
         
@@ -1566,7 +1891,22 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         # Include sample fraction in filename
         fraction_str = f"_sample{int(sample_fraction*100)}" if sample_fraction else ""
-        filename = f"pipeline_{self.feature_extraction_method}_{fraction_str}_after_step6_{timestamp}.pkl"
+        # Detect which step5b was used
+        first_feat = self.train['features'][0]
+        if hasattr(first_feat, 'ndim') and first_feat.ndim == 2:
+            step5b_str = "_raw"
+        elif hasattr(first_feat, 'shape'):
+            dim = first_feat.shape[0]
+            # Guess from dimension
+            step5b_str = f"_dim{dim}"
+        else:
+            dim = len(first_feat)
+            step5b_str = f"_dim{dim}"
+
+        filename = (f"pipeline_{self.feature_extraction_method}"
+                    f"{fraction_str}{step5b_str}"
+                    f"_after_step6_{timestamp}.pkl")
+                    
         filepath = os.path.join(self.path_results, filename)
         
         self.log(f"Saving checkpoint: {filename}")
@@ -1575,6 +1915,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             metadata = {
                 'method': self.feature_extraction_method,
                 'sample_fraction': sample_fraction,
+                'step5b_info': step5b_str,
                 'timestamp': timestamp,
                 'stage': 'after_step6',
                 'train_samples': len(self.train['features']),
@@ -1603,50 +1944,89 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             self.log(f"Error saving checkpoint: {e}")
             return None
 
-    def try_load_checkpoint(self, sample_fraction=None):
-        """Load checkpoint matching current configuration and sample fraction"""
-        
-        # Include sample fraction in pattern if specified
-        fraction_str = f"_sample{int(sample_fraction*100)}" if sample_fraction else ""
-        pattern = f"pipeline_{self.feature_extraction_method}_{fraction_str}_after_step6_*.pkl"
-        matching_files = glob.glob(os.path.join(self.path_results, pattern))
-        
-        if not matching_files:
-            self.log(f"No checkpoint found for {self.feature_extraction_method},sample={sample_fraction}")
-            return False
-        
-        matching_files.sort(key=lambda f: os.path.getmtime(f), reverse=True)
-        newest_checkpoint = matching_files[0]
-        
-        try:
-            self.log(f"Loading checkpoint: {os.path.basename(newest_checkpoint)}")
-            
-            with open(newest_checkpoint, 'rb') as f:
-                data = pickle.load(f)
-            
-            metadata = data.get('metadata', {})
-            self.split_result = metadata.get('split_result', None)
-            
-            # Load data from h5 files
-            if 'train_file' in metadata:
-                train_file = os.path.join(self.path_results, metadata['train_file'])
-                self.train = self._load_data_from_h5(train_file)
-            
-            if 'test_file' in metadata:
-                test_file = os.path.join(self.path_results, metadata['test_file'])
-                self.test = self._load_data_from_h5(test_file)
-            
-            # Load val if exists
-            val_file = newest_checkpoint.replace('.pkl', '_val.h5')
-            if os.path.exists(val_file):
-                self.val = self._load_data_from_h5(val_file)
-            
-            self.log(f"Checkpoint loaded: train={len(self.train['features'])}, test={len(self.test['features'])} samples")
-            return True
-            
-        except Exception as e:
-            self.log(f"Error loading checkpoint: {e}")
-            return False
+    def try_load_checkpoint(self, sample_fraction=None, stage=None):
+        """Load checkpoint matching current configuration.
+
+        Args:
+            sample_fraction: float or None, filter by sample fraction.
+            stage: str or None, 'after_step5' or 'after_step6'.
+                If None, tries step6 first, then step5.
+
+        Returns:
+            bool, True if loaded.
+        """
+        fraction_str = (f"_sample{int(sample_fraction*100)}"
+                        if sample_fraction else "")
+
+        if stage is not None:
+            stages = [stage]
+        else:
+            stages = ['after_step6', 'after_step5']
+
+        for try_stage in stages:
+            pattern = (f"pipeline_{self.feature_extraction_method}"
+                       f"{fraction_str}*_{try_stage}_*.pkl")
+            matching_files = glob.glob(
+                os.path.join(self.path_results, pattern)
+            )
+
+            if not matching_files:
+                continue
+
+            matching_files.sort(
+                key=lambda f: os.path.getmtime(f), reverse=True
+            )
+            newest_checkpoint = matching_files[0]
+
+            try:
+                self.log(f"Loading checkpoint: "
+                         f"{os.path.basename(newest_checkpoint)}")
+
+                with open(newest_checkpoint, 'rb') as f:
+                    data = pickle.load(f)
+
+                metadata = data.get('metadata', {})
+                self.split_result = metadata.get('split_result', None)
+
+                if 'train_file' in metadata:
+                    train_file = os.path.join(
+                        self.path_results, metadata['train_file']
+                    )
+                    self.train = self._load_data_from_h5(train_file)
+
+                if 'test_file' in metadata:
+                    test_file = os.path.join(
+                        self.path_results, metadata['test_file']
+                    )
+                    self.test = self._load_data_from_h5(test_file)
+
+                val_file = newest_checkpoint.replace('.pkl', '_val.h5')
+                if os.path.exists(val_file):
+                    self.val = self._load_data_from_h5(val_file)
+
+                loaded_stage = metadata.get('stage', 'unknown')
+                step5b_info = metadata.get('step5b_info', '')
+                feat_shape = metadata.get('feature_shape', '')
+
+                self.log(f"Checkpoint loaded:")
+                self.log(f"  Stage: {loaded_stage}")
+                self.log(f"  Train: {len(self.train['features'])} samples")
+                self.log(f"  Test: {len(self.test['features'])} samples")
+                if step5b_info:
+                    self.log(f"  Step5b: {step5b_info}")
+                if feat_shape:
+                    self.log(f"  Feature shape: {feat_shape}")
+
+                return True
+
+            except Exception as e:
+                self.log(f"Error loading checkpoint: {e}")
+                return False
+
+        self.log(f"No checkpoint found for "
+                 f"{self.feature_extraction_method}, "
+                 f"sample={sample_fraction}, stage={stage}")
+        return False
 
     def run_step1_to_step6(self, sample_fraction=0.0001, force_reprocess=False):
         """Run Dutch30-specific steps 1-6"""

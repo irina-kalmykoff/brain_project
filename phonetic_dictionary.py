@@ -1154,28 +1154,42 @@ class PhoneticDictionary(DebugMixin):
          #   '~e': ['ɛi', 'ɛ'],
          #  '~a': ['œy', 'a', 'ɑ'],      
          # Vowels - short names
-            'i-type': ['i', 'iː', 'ɪ', 'y', 'yː', 'ʏ'],     # high front
-            'u-type': ['u', 'uː'],                           # high back
-            'e-type': ['e', 'eː', 'ɛ', 'ɛː', 'øː'],         # mid front
-            'o-type': ['o', 'oː', 'ɔ', 'ɔː'],               # mid back
-            'a-type': ['a', 'aː', 'ɑ', 'ɑː'],               # low
-            'schwa': ['ə'],                                  # reduced
-            'diph': ['ɛi', 'ɑu', 'œy'],                     # diphthongs
+           # 'i-type': ['i', 'iː', 'ɪ', 'y', 'yː', 'ʏ'],     # high front
+           # 'u-type': ['u', 'uː'],                           # high back
+           # 'e-type': ['e', 'eː', 'ɛ', 'ɛː', 'øː'],         # mid front
+           # 'o-type': ['o', 'oː', 'ɔ', 'ɔː'],               # mid back
+           # 'a-type': ['a', 'aː', 'ɑ', 'ɑː'],               # low
+           # 'schwa': ['ə'],                                  # reduced
+           # 'diph': ['ɛi', 'ɑu', 'œy'],                     # diphthongs
             
-            'l/n': ['l', 'n'],
-            'k/g': ['k', 'g'],
-            'p/b': ['p', 'b'],
-            'sh/zh': ['ʃ', 'ʒ'], 
-            '~x': ['x', 'h', 'ɦ', 'sx', 'ɣ', 'χ'],
-            'm/n': ['m'],
-            'f/v/w': ['f', 'v', 'w', 'ʋ'],
-            'r': ['r'],
-            't/d': ['t', 'd'],
-            's/z': ['s', 'z'],
-            'affricates': ['tʃ', 'dʒ', 'tɕ', 'dʑ', 'ts'],
-            'palatal': ['j', 'ŋ', 'ŋk'],
-            'ʋ': ['ʋ'],   # labiodental approximant - should be in 'f/v/w' or its own group
-            'ʔ': ['ʔ'],   # glottal stop - mentioned in comments but not in active groups
+           # 'l/n': ['l', 'n'],
+           # 'k/g': ['k', 'g'],
+           # 'p/b': ['p', 'b'],
+           # 'sh/zh': ['ʃ', 'ʒ'], 
+           # '~x': ['x', 'h', 'ɦ', 'sx', 'ɣ', 'χ'],
+           # 'm/n': ['m'],
+           # 'f/v/w': ['f', 'v', 'w', 'ʋ'],
+           # 'r': ['r'],
+           # 't/d': ['t', 'd'],
+           # 's/z': ['s', 'z'],
+           # 'affricates': ['tʃ', 'dʒ', 'tɕ', 'dʑ', 'ts'],
+           # 'palatal': ['j', 'ŋ', 'ŋk'],
+           # 'ʋ': ['ʋ'],   # labiodental approximant - should be in 'f/v/w' or its own group
+           # 'ʔ': ['ʔ'],   # glottal stop - mentioned in comments but not in active groups
+            
+            'stops':       ['p', 'b', 'd', 't', 'k', 'g'],
+            'fricatives':  ['f', 'v', 'ʋ', 's', 'z', 'x', 'ɣ', 'χ', 'h', 'ɦ', 'sx', 'ʃ', 'ʒ'],
+            'nasals':      ['m', 'n', 'ŋ', 'ŋk'],
+            'liquids':     ['l', 'r'],
+            'i-type':     ['i', 'iː', 'ɪ', 'y', 'yː', 'ʏ'],
+                'u-type':     ['u', 'uː'],
+                'e-type':     ['e', 'eː', 'ɛ', 'ɛː', 'øː', 'ø'],
+                'o-type':     ['o', 'oː', 'ɔ', 'ɔː'],
+                'a-type':     ['a', 'aː', 'ɑ', 'ɑː'],
+                'schwa':      ['ə'],
+                'diph':       ['ɛi', 'ɑu', 'œy'],
+            'glides':      ['j', 'w'],
+            'other':       ['ʔ', 'tʃ', 'dʒ', 'tɕ', 'dʑ', 'ts'],
 
         }
         

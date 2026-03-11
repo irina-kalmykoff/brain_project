@@ -552,6 +552,7 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
     def step7_filter_unknowns(self, unknown_keep_ratio=None):
         """Step 7: Filter unknown phonemes from training data"""        
 
+        
         if unknown_keep_ratio is None:
             unknown_keep_ratio = self.unknown_keep_ratio
         
@@ -565,6 +566,8 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
         filtered_words = []
         filtered_participants = []
         
+        
+        np.random.seed(37)
         for i, label in enumerate(self.train['phoneme_labels']):
             # Keep all known phonemes, subsample unknowns
             if label != '?' or np.random.random() < unknown_keep_ratio:
@@ -1789,6 +1792,14 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
             if 'phoneme_participant_ids' in data_dict:
                 ids_str = '|'.join(data_dict['phoneme_participant_ids'])
                 f.attrs['phoneme_participant_ids'] = ids_str
+                
+            if 'phoneme_positions' in data_dict and data_dict['phoneme_positions']:
+                positions_str = '|'.join(str(p) for p in data_dict['phoneme_positions'])
+                f.attrs['phoneme_positions'] = positions_str
+
+            if 'phoneme_durations_samples' in data_dict and data_dict['phoneme_durations_samples']:
+                durations_str = '|'.join(str(d) for d in data_dict['phoneme_durations_samples'])
+                f.attrs['phoneme_durations_samples'] = durations_str
             
             # Save metadata
             if 'metadata' in data_dict:
@@ -1848,6 +1859,14 @@ class UnifiedPhonemePipeline(CustomBrainAudioDecoder, DebugMixin):
                 if 'phoneme_participant_ids' in f.attrs:
                     ids_str = f.attrs['phoneme_participant_ids']
                     data_dict['phoneme_participant_ids'] = ids_str.split('|')
+                    
+                if 'phoneme_positions' in f.attrs:
+                    pos_str = f.attrs['phoneme_positions']
+                    data_dict['phoneme_positions'] = [int(p) for p in pos_str.split('|')]
+
+                if 'phoneme_durations_samples' in f.attrs:
+                    dur_str = f.attrs['phoneme_durations_samples']
+                    data_dict['phoneme_durations_samples'] = [int(d) for d in dur_str.split('|')]
                 
                 # Load metadata
                 if 'metadata' in f:

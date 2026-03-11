@@ -6,6 +6,7 @@ from scipy.signal import find_peaks, savgol_filter, decimate
 import torch
 from transformers import Wav2Vec2Model, Wav2Vec2Processor
 
+import gc
 import os
 import numpy as np
 from numpy import ndarray
@@ -1199,7 +1200,10 @@ class AcousticChangeDetector(DebugMixin):
                 accumulated_positions.extend(phoneme_data.get('phoneme_positions', 
                                     [0] * len(phoneme_data['phoneme_labels'])))
             self.log(f"Accumulated {len(accumulated_features)} phoneme segments so far")
-        
+
+            del batch, phoneme_batch, phoneme_data
+            gc.collect()
+
         # Create result dictionary
         accumulated_data = {
             'features': accumulated_features,

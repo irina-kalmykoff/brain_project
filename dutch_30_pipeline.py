@@ -8,6 +8,7 @@ import json
 import glob
 import string
 
+import gc
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
@@ -240,6 +241,9 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             test_total = sum(len(v) for v in self.split_result['test'][pid].values())
 
             self.log(f"{pid}: {train_total} train, {test_total} test, baseline: {baseline.shape}")
+
+            del raw_data, eeg, audio
+            gc.collect()
         
         print("\n=== step2_split_by_instances complete ===")
         return self.split_result

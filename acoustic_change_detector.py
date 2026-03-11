@@ -6,6 +6,7 @@ from scipy.signal import find_peaks, savgol_filter
 from numpy.lib.stride_tricks import sliding_window_view
 from sklearn.preprocessing import normalize
 from scipy.signal import welch
+import gc
 import os
 import numpy as np
 import torch
@@ -1187,7 +1188,9 @@ class AcousticChangeDetector(DebugMixin):
             if 'phoneme_durations_samples' in phoneme_data:
                 accumulated_durations_samples.extend(phoneme_data['phoneme_durations_samples'])
 
-        
+            del batch, phoneme_batch, phoneme_data
+            gc.collect()
+
         # Create result dictionary
         accumulated_data = {
             'features': accumulated_features,

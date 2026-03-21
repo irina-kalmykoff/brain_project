@@ -155,67 +155,9 @@ high_gamma_pipeline.step4_custom_detector()
 high_gamma_pipeline.step5_accumulate_data_dutch30();
 # hjorth_pipeline.step5_accumulate_data_dutch30();
 
-# Check train data
-if hasattr(high_gamma_pipeline, 'train') and high_gamma_pipeline.train is not None:
-    train_data = high_gamma_pipeline.train
-    
-    print(f"\nTrain samples: {len(train_data['features'])}")
-    print(f"Train labels: {len(train_data['phoneme_labels'])}")
-    
-    # Count per patient
-    participant_ids = train_data['phoneme_participant_ids']
-    unique_patients = sorted(set(participant_ids))
-    
-    print(f"\nUnique patients in train data: {len(unique_patients)}")
-    print(f"Patients: {unique_patients}")
-    
-    print("\nSamples per patient:")
-    for pid in unique_patients:
-        count = sum(1 for p in participant_ids if p == pid)
-        print(f"  {pid}: {count} samples")
-else:
-    print("No train data found!")
-
-# Check split_result
-
-if hasattr(high_gamma_pipeline, 'split_result') and high_gamma_pipeline.split_result is not None:
-    word_segments_dict = high_gamma_pipeline.split_result.get('word_segments_dict', {})
-    print(f"Patients in split_result: {list(word_segments_dict.keys())}")
-else:
-    print("No split_result found!")
-
 # band_powers_pipeline.dutch30_step6_resolve_unknowns();
 high_gamma_pipeline.dutch30_step6_resolve_unknowns();
 # hjorth_pipeline.dutch30_step6_resolve_unknowns();
-
-# Check train data
-if hasattr(high_gamma_pipeline, 'train') and high_gamma_pipeline.train is not None:
-    train_data = high_gamma_pipeline.train
-    
-    print(f"\nTrain samples: {len(train_data['features'])}")
-    print(f"Train labels: {len(train_data['phoneme_labels'])}")
-    
-    # Count per patient
-    participant_ids = train_data['phoneme_participant_ids']
-    unique_patients = sorted(set(participant_ids))
-    
-    print(f"\nUnique patients in train data: {len(unique_patients)}")
-    print(f"Patients: {unique_patients}")
-    
-    print("\nSamples per patient:")
-    for pid in unique_patients:
-        count = sum(1 for p in participant_ids if p == pid)
-        print(f"  {pid}: {count} samples")
-else:
-    print("No train data found!")
-
-# Check split_result
-
-if hasattr(high_gamma_pipeline, 'split_result') and high_gamma_pipeline.split_result is not None:
-    word_segments_dict = high_gamma_pipeline.split_result.get('word_segments_dict', {})
-    print(f"Patients in split_result: {list(word_segments_dict.keys())}")
-else:
-    print("No split_result found!")
 
 # band_powers_pipeline.checkpoint_after_step6()
 high_gamma_pipeline.checkpoint_after_step6()
@@ -243,8 +185,6 @@ def summarize_all_patients(pipeline, patient_ids, min_samples=5, save_path=None)
     Returns:
         dict: Summary results with rankings
     """
-    import numpy as np
-    import pandas as pd
     from collections import defaultdict
     from sklearn.model_selection import cross_val_score, StratifiedKFold
     from sklearn.ensemble import RandomForestClassifier

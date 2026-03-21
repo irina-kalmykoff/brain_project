@@ -1,0 +1,4802 @@
+[
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max80_min2",
+    "timestamp": "2026-03-21T17:31:16",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max120_min2",
+    "timestamp": "2026-03-21T17:31:22",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max80_min4",
+    "timestamp": "2026-03-21T17:31:28",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max120_min4",
+    "timestamp": "2026-03-21T17:31:33",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max80_min2",
+    "timestamp": "2026-03-21T17:31:39",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max120_min2",
+    "timestamp": "2026-03-21T17:31:45",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max80_min4",
+    "timestamp": "2026-03-21T17:31:51",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max120_min4",
+    "timestamp": "2026-03-21T17:31:56",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max80_min2",
+    "timestamp": "2026-03-21T17:32:02",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max120_min2",
+    "timestamp": "2026-03-21T17:32:08",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max80_min4",
+    "timestamp": "2026-03-21T17:32:13",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max120_min4",
+    "timestamp": "2026-03-21T17:32:19",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max80_min2",
+    "timestamp": "2026-03-21T17:32:25",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max120_min2",
+    "timestamp": "2026-03-21T17:32:30",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max80_min4",
+    "timestamp": "2026-03-21T17:32:36",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max120_min4",
+    "timestamp": "2026-03-21T17:32:41",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max80_min2",
+    "timestamp": "2026-03-21T17:32:47",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max120_min2",
+    "timestamp": "2026-03-21T17:32:52",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max80_min4",
+    "timestamp": "2026-03-21T17:32:58",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max120_min4",
+    "timestamp": "2026-03-21T17:33:03",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max80_min2",
+    "timestamp": "2026-03-21T17:33:09",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max120_min2",
+    "timestamp": "2026-03-21T17:33:14",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max80_min4",
+    "timestamp": "2026-03-21T17:33:20",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max120_min4",
+    "timestamp": "2026-03-21T17:33:25",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max80_min2",
+    "timestamp": "2026-03-21T17:33:31",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max120_min2",
+    "timestamp": "2026-03-21T17:33:36",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max80_min4",
+    "timestamp": "2026-03-21T17:33:42",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max120_min4",
+    "timestamp": "2026-03-21T17:33:47",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max80_min2",
+    "timestamp": "2026-03-21T17:33:53",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max120_min2",
+    "timestamp": "2026-03-21T17:33:59",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max80_min4",
+    "timestamp": "2026-03-21T17:34:04",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max120_min4",
+    "timestamp": "2026-03-21T17:34:10",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0633,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.8651,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.094,
+        "best_adj_acc": 0.0815,
+        "best_pct_classes": 0.8667,
+        "best_train_size": 498,
+        "best_test_size": 117,
+        "worst": "P22",
+        "worst_acc": 0.0199,
+        "worst_adj_acc": 0.019,
+        "worst_pct_classes": 0.9545,
+        "worst_train_size": 872,
+        "worst_test_size": 201
+      }
+    },
+    "overall_acc": 0.0633,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.8651
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max80_min2",
+    "timestamp": "2026-03-21T18:18:27",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max120_min2",
+    "timestamp": "2026-03-21T18:18:33",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max80_min4",
+    "timestamp": "2026-03-21T18:18:39",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max120_min4",
+    "timestamp": "2026-03-21T18:18:45",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max80_min2",
+    "timestamp": "2026-03-21T18:18:50",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max120_min2",
+    "timestamp": "2026-03-21T18:18:56",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max80_min4",
+    "timestamp": "2026-03-21T18:19:02",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max120_min4",
+    "timestamp": "2026-03-21T18:19:07",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max80_min2",
+    "timestamp": "2026-03-21T18:19:13",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max120_min2",
+    "timestamp": "2026-03-21T18:19:19",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max80_min4",
+    "timestamp": "2026-03-21T18:19:24",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max120_min4",
+    "timestamp": "2026-03-21T18:19:30",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max80_min2",
+    "timestamp": "2026-03-21T18:19:35",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max120_min2",
+    "timestamp": "2026-03-21T18:19:41",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max80_min4",
+    "timestamp": "2026-03-21T18:19:46",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max120_min4",
+    "timestamp": "2026-03-21T18:19:52",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max80_min2",
+    "timestamp": "2026-03-21T18:19:57",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max120_min2",
+    "timestamp": "2026-03-21T18:20:03",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max80_min4",
+    "timestamp": "2026-03-21T18:20:09",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max120_min4",
+    "timestamp": "2026-03-21T18:20:14",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max80_min2",
+    "timestamp": "2026-03-21T18:20:20",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max120_min2",
+    "timestamp": "2026-03-21T18:20:25",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max80_min4",
+    "timestamp": "2026-03-21T18:20:31",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max120_min4",
+    "timestamp": "2026-03-21T18:20:36",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max80_min2",
+    "timestamp": "2026-03-21T18:20:41",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max120_min2",
+    "timestamp": "2026-03-21T18:20:47",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max80_min4",
+    "timestamp": "2026-03-21T18:20:52",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max120_min4",
+    "timestamp": "2026-03-21T18:20:58",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max80_min2",
+    "timestamp": "2026-03-21T18:21:03",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max120_min2",
+    "timestamp": "2026-03-21T18:21:09",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max80_min4",
+    "timestamp": "2026-03-21T18:21:15",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max120_min4",
+    "timestamp": "2026-03-21T18:21:20",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max80_min2",
+    "timestamp": "2026-03-21T18:25:22",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0611,
+        "mean_adj_acc": 0.0548,
+        "mean_pct_classes": 0.8917,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.1106,
+        "best_adj_acc": 0.1065,
+        "best_pct_classes": 0.963,
+        "best_train_size": 3940,
+        "best_test_size": 886,
+        "worst": "P22",
+        "worst_acc": 0.0474,
+        "worst_adj_acc": 0.0427,
+        "worst_pct_classes": 0.9,
+        "worst_train_size": 3532,
+        "worst_test_size": 1181
+      }
+    },
+    "overall_acc": 0.0611,
+    "overall_adj_acc": 0.0548,
+    "overall_pct_classes": 0.8917
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max120_min2",
+    "timestamp": "2026-03-21T18:25:39",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0611,
+        "mean_adj_acc": 0.0548,
+        "mean_pct_classes": 0.8917,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.1106,
+        "best_adj_acc": 0.1065,
+        "best_pct_classes": 0.963,
+        "best_train_size": 3940,
+        "best_test_size": 886,
+        "worst": "P22",
+        "worst_acc": 0.0474,
+        "worst_adj_acc": 0.0427,
+        "worst_pct_classes": 0.9,
+        "worst_train_size": 3532,
+        "worst_test_size": 1181
+      }
+    },
+    "overall_acc": 0.0611,
+    "overall_adj_acc": 0.0548,
+    "overall_pct_classes": 0.8917
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max80_min4",
+    "timestamp": "2026-03-21T18:25:55",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0616,
+        "mean_adj_acc": 0.0536,
+        "mean_pct_classes": 0.8746,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.1086,
+        "best_adj_acc": 0.0965,
+        "best_pct_classes": 0.8889,
+        "best_train_size": 3723,
+        "best_test_size": 838,
+        "worst": "P21",
+        "worst_acc": 0.0324,
+        "worst_adj_acc": 0.0313,
+        "worst_pct_classes": 0.9667,
+        "worst_train_size": 2396,
+        "worst_test_size": 1359
+      }
+    },
+    "overall_acc": 0.0616,
+    "overall_adj_acc": 0.0536,
+    "overall_pct_classes": 0.8746
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack5x1_max120_min4",
+    "timestamp": "2026-03-21T18:26:10",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 5,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0616,
+        "mean_adj_acc": 0.0536,
+        "mean_pct_classes": 0.8746,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.1086,
+        "best_adj_acc": 0.0965,
+        "best_pct_classes": 0.8889,
+        "best_train_size": 3723,
+        "best_test_size": 838,
+        "worst": "P21",
+        "worst_acc": 0.0324,
+        "worst_adj_acc": 0.0313,
+        "worst_pct_classes": 0.9667,
+        "worst_train_size": 2396,
+        "worst_test_size": 1359
+      }
+    },
+    "overall_acc": 0.0616,
+    "overall_adj_acc": 0.0536,
+    "overall_pct_classes": 0.8746
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max80_min2",
+    "timestamp": "2026-03-21T18:26:27",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0607,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.876,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.1019,
+        "best_adj_acc": 0.1019,
+        "best_pct_classes": 1.0,
+        "best_train_size": 3206,
+        "best_test_size": 726,
+        "worst": "P22",
+        "worst_acc": 0.0391,
+        "worst_adj_acc": 0.0313,
+        "worst_pct_classes": 0.8,
+        "worst_train_size": 2909,
+        "worst_test_size": 946
+      }
+    },
+    "overall_acc": 0.0607,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.876
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max120_min2",
+    "timestamp": "2026-03-21T18:26:43",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0607,
+        "mean_adj_acc": 0.0538,
+        "mean_pct_classes": 0.876,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.1019,
+        "best_adj_acc": 0.1019,
+        "best_pct_classes": 1.0,
+        "best_train_size": 3206,
+        "best_test_size": 726,
+        "worst": "P22",
+        "worst_acc": 0.0391,
+        "worst_adj_acc": 0.0313,
+        "worst_pct_classes": 0.8,
+        "worst_train_size": 2909,
+        "worst_test_size": 946
+      }
+    },
+    "overall_acc": 0.0607,
+    "overall_adj_acc": 0.0538,
+    "overall_pct_classes": 0.876
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max80_min4",
+    "timestamp": "2026-03-21T18:26:59",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.06,
+        "mean_adj_acc": 0.0516,
+        "mean_pct_classes": 0.8606,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.0952,
+        "best_adj_acc": 0.0876,
+        "best_pct_classes": 0.92,
+        "best_train_size": 3019,
+        "best_test_size": 683,
+        "worst": "P30",
+        "worst_acc": 0.038,
+        "worst_adj_acc": 0.0313,
+        "worst_pct_classes": 0.8235,
+        "worst_train_size": 3103,
+        "worst_test_size": 1184
+      }
+    },
+    "overall_acc": 0.06,
+    "overall_adj_acc": 0.0516,
+    "overall_pct_classes": 0.8606
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack7x1_max120_min4",
+    "timestamp": "2026-03-21T18:27:14",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 7,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.06,
+        "mean_adj_acc": 0.0516,
+        "mean_pct_classes": 0.8606,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.0952,
+        "best_adj_acc": 0.0876,
+        "best_pct_classes": 0.92,
+        "best_train_size": 3019,
+        "best_test_size": 683,
+        "worst": "P30",
+        "worst_acc": 0.038,
+        "worst_adj_acc": 0.0313,
+        "worst_pct_classes": 0.8235,
+        "worst_train_size": 3103,
+        "worst_test_size": 1184
+      }
+    },
+    "overall_acc": 0.06,
+    "overall_adj_acc": 0.0516,
+    "overall_pct_classes": 0.8606
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max80_min2",
+    "timestamp": "2026-03-21T18:27:30",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0568,
+        "mean_adj_acc": 0.0509,
+        "mean_pct_classes": 0.8859,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.0865,
+        "best_adj_acc": 0.083,
+        "best_pct_classes": 0.96,
+        "best_train_size": 2635,
+        "best_test_size": 613,
+        "worst": "P22",
+        "worst_acc": 0.0306,
+        "worst_adj_acc": 0.0225,
+        "worst_pct_classes": 0.7333,
+        "worst_train_size": 2406,
+        "worst_test_size": 751
+      }
+    },
+    "overall_acc": 0.0568,
+    "overall_adj_acc": 0.0509,
+    "overall_pct_classes": 0.8859
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max120_min2",
+    "timestamp": "2026-03-21T18:27:45",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0568,
+        "mean_adj_acc": 0.0509,
+        "mean_pct_classes": 0.8859,
+        "n_patients": 10,
+        "best": "P27",
+        "best_acc": 0.0865,
+        "best_adj_acc": 0.083,
+        "best_pct_classes": 0.96,
+        "best_train_size": 2635,
+        "best_test_size": 613,
+        "worst": "P22",
+        "worst_acc": 0.0306,
+        "worst_adj_acc": 0.0225,
+        "worst_pct_classes": 0.7333,
+        "worst_train_size": 2406,
+        "worst_test_size": 751
+      }
+    },
+    "overall_acc": 0.0568,
+    "overall_adj_acc": 0.0509,
+    "overall_pct_classes": 0.8859
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max80_min4",
+    "timestamp": "2026-03-21T18:27:59",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0622,
+        "mean_adj_acc": 0.0548,
+        "mean_pct_classes": 0.8831,
+        "n_patients": 10,
+        "best": "P26",
+        "best_acc": 0.0803,
+        "best_adj_acc": 0.0736,
+        "best_pct_classes": 0.9167,
+        "best_train_size": 2023,
+        "best_test_size": 498,
+        "worst": "P30",
+        "worst_acc": 0.0347,
+        "worst_adj_acc": 0.0314,
+        "worst_pct_classes": 0.9062,
+        "worst_train_size": 2517,
+        "worst_test_size": 980
+      }
+    },
+    "overall_acc": 0.0622,
+    "overall_adj_acc": 0.0548,
+    "overall_pct_classes": 0.8831
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x1_max120_min4",
+    "timestamp": "2026-03-21T18:28:13",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 1,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0622,
+        "mean_adj_acc": 0.0548,
+        "mean_pct_classes": 0.8831,
+        "n_patients": 10,
+        "best": "P26",
+        "best_acc": 0.0803,
+        "best_adj_acc": 0.0736,
+        "best_pct_classes": 0.9167,
+        "best_train_size": 2023,
+        "best_test_size": 498,
+        "worst": "P30",
+        "worst_acc": 0.0347,
+        "worst_adj_acc": 0.0314,
+        "worst_pct_classes": 0.9062,
+        "worst_train_size": 2517,
+        "worst_test_size": 980
+      }
+    },
+    "overall_acc": 0.0622,
+    "overall_adj_acc": 0.0548,
+    "overall_pct_classes": 0.8831
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max80_min2",
+    "timestamp": "2026-03-21T18:28:19",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0687,
+        "mean_adj_acc": 0.0594,
+        "mean_pct_classes": 0.8621,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.1111,
+        "best_adj_acc": 0.0988,
+        "best_pct_classes": 0.8889,
+        "best_train_size": 625,
+        "best_test_size": 153,
+        "worst": "P26",
+        "worst_acc": 0.0338,
+        "worst_adj_acc": 0.0261,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 976,
+        "worst_test_size": 237
+      }
+    },
+    "overall_acc": 0.0687,
+    "overall_adj_acc": 0.0594,
+    "overall_pct_classes": 0.8621
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max120_min2",
+    "timestamp": "2026-03-21T18:28:26",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0687,
+        "mean_adj_acc": 0.0594,
+        "mean_pct_classes": 0.8621,
+        "n_patients": 10,
+        "best": "P25",
+        "best_acc": 0.1111,
+        "best_adj_acc": 0.0988,
+        "best_pct_classes": 0.8889,
+        "best_train_size": 625,
+        "best_test_size": 153,
+        "worst": "P26",
+        "worst_acc": 0.0338,
+        "worst_adj_acc": 0.0261,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 976,
+        "worst_test_size": 237
+      }
+    },
+    "overall_acc": 0.0687,
+    "overall_adj_acc": 0.0594,
+    "overall_pct_classes": 0.8621
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max80_min4",
+    "timestamp": "2026-03-21T18:28:31",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 80,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_stack9x2_max120_min4",
+    "timestamp": "2026-03-21T18:28:37",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": 9,
+      "stacking_step_size": 2,
+      "max_frames": 120,
+      "target_frames": null,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0563,
+        "mean_adj_acc": 0.0466,
+        "mean_pct_classes": 0.8399,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.1042,
+        "best_adj_acc": 0.0738,
+        "best_pct_classes": 0.7083,
+        "best_train_size": 1236,
+        "best_test_size": 240,
+        "worst": "P26",
+        "worst_acc": 0.0279,
+        "worst_adj_acc": 0.0216,
+        "worst_pct_classes": 0.7727,
+        "worst_train_size": 870,
+        "worst_test_size": 215
+      }
+    },
+    "overall_acc": 0.0563,
+    "overall_adj_acc": 0.0466,
+    "overall_pct_classes": 0.8399
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max80_min2",
+    "timestamp": "2026-03-21T18:28:42",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0381,
+        "mean_adj_acc": 0.0377,
+        "mean_pct_classes": 0.9902,
+        "n_patients": 10,
+        "best": "P23",
+        "best_acc": 0.0548,
+        "best_adj_acc": 0.0548,
+        "best_pct_classes": 1.0,
+        "best_train_size": 2213,
+        "best_test_size": 803,
+        "worst": "P26",
+        "worst_acc": 0.0226,
+        "worst_adj_acc": 0.0226,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1184,
+        "worst_test_size": 443
+      }
+    },
+    "overall_acc": 0.0381,
+    "overall_adj_acc": 0.0377,
+    "overall_pct_classes": 0.9902
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max120_min2",
+    "timestamp": "2026-03-21T18:28:47",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0381,
+        "mean_adj_acc": 0.0377,
+        "mean_pct_classes": 0.9902,
+        "n_patients": 10,
+        "best": "P23",
+        "best_acc": 0.0548,
+        "best_adj_acc": 0.0548,
+        "best_pct_classes": 1.0,
+        "best_train_size": 2213,
+        "best_test_size": 803,
+        "worst": "P26",
+        "worst_acc": 0.0226,
+        "worst_adj_acc": 0.0226,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1184,
+        "worst_test_size": 443
+      }
+    },
+    "overall_acc": 0.0381,
+    "overall_adj_acc": 0.0377,
+    "overall_pct_classes": 0.9902
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max80_min4",
+    "timestamp": "2026-03-21T18:28:51",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0381,
+        "mean_adj_acc": 0.0377,
+        "mean_pct_classes": 0.9902,
+        "n_patients": 10,
+        "best": "P23",
+        "best_acc": 0.0548,
+        "best_adj_acc": 0.0548,
+        "best_pct_classes": 1.0,
+        "best_train_size": 2213,
+        "best_test_size": 803,
+        "worst": "P26",
+        "worst_acc": 0.0226,
+        "worst_adj_acc": 0.0226,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1184,
+        "worst_test_size": 443
+      }
+    },
+    "overall_acc": 0.0381,
+    "overall_adj_acc": 0.0377,
+    "overall_pct_classes": 0.9902
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp3_max120_min4",
+    "timestamp": "2026-03-21T18:28:56",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 3,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0381,
+        "mean_adj_acc": 0.0377,
+        "mean_pct_classes": 0.9902,
+        "n_patients": 10,
+        "best": "P23",
+        "best_acc": 0.0548,
+        "best_adj_acc": 0.0548,
+        "best_pct_classes": 1.0,
+        "best_train_size": 2213,
+        "best_test_size": 803,
+        "worst": "P26",
+        "worst_acc": 0.0226,
+        "worst_adj_acc": 0.0226,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1184,
+        "worst_test_size": 443
+      }
+    },
+    "overall_acc": 0.0381,
+    "overall_adj_acc": 0.0377,
+    "overall_pct_classes": 0.9902
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max80_min2",
+    "timestamp": "2026-03-21T18:29:02",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0408,
+        "mean_adj_acc": 0.0395,
+        "mean_pct_classes": 0.972,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.057,
+        "best_adj_acc": 0.0552,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P26",
+        "worst_acc": 0.0271,
+        "worst_adj_acc": 0.0271,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1184,
+        "worst_test_size": 443
+      }
+    },
+    "overall_acc": 0.0408,
+    "overall_adj_acc": 0.0395,
+    "overall_pct_classes": 0.972
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max120_min2",
+    "timestamp": "2026-03-21T18:29:08",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0408,
+        "mean_adj_acc": 0.0395,
+        "mean_pct_classes": 0.972,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.057,
+        "best_adj_acc": 0.0552,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P26",
+        "worst_acc": 0.0271,
+        "worst_adj_acc": 0.0271,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1184,
+        "worst_test_size": 443
+      }
+    },
+    "overall_acc": 0.0408,
+    "overall_adj_acc": 0.0395,
+    "overall_pct_classes": 0.972
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max80_min4",
+    "timestamp": "2026-03-21T18:29:14",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0408,
+        "mean_adj_acc": 0.0395,
+        "mean_pct_classes": 0.972,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.057,
+        "best_adj_acc": 0.0552,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P26",
+        "worst_acc": 0.0271,
+        "worst_adj_acc": 0.0271,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1184,
+        "worst_test_size": 443
+      }
+    },
+    "overall_acc": 0.0408,
+    "overall_adj_acc": 0.0395,
+    "overall_pct_classes": 0.972
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp5_max120_min4",
+    "timestamp": "2026-03-21T18:29:20",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 5,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0408,
+        "mean_adj_acc": 0.0395,
+        "mean_pct_classes": 0.972,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.057,
+        "best_adj_acc": 0.0552,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P26",
+        "worst_acc": 0.0271,
+        "worst_adj_acc": 0.0271,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1184,
+        "worst_test_size": 443
+      }
+    },
+    "overall_acc": 0.0408,
+    "overall_adj_acc": 0.0395,
+    "overall_pct_classes": 0.972
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max80_min2",
+    "timestamp": "2026-03-21T18:29:27",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0411,
+        "mean_adj_acc": 0.0395,
+        "mean_pct_classes": 0.9656,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.0598,
+        "best_adj_acc": 0.058,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P21",
+        "worst_acc": 0.0234,
+        "worst_adj_acc": 0.0234,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1013,
+        "worst_test_size": 598
+      }
+    },
+    "overall_acc": 0.0411,
+    "overall_adj_acc": 0.0395,
+    "overall_pct_classes": 0.9656
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max120_min2",
+    "timestamp": "2026-03-21T18:29:34",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0411,
+        "mean_adj_acc": 0.0395,
+        "mean_pct_classes": 0.9656,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.0598,
+        "best_adj_acc": 0.058,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P21",
+        "worst_acc": 0.0234,
+        "worst_adj_acc": 0.0234,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1013,
+        "worst_test_size": 598
+      }
+    },
+    "overall_acc": 0.0411,
+    "overall_adj_acc": 0.0395,
+    "overall_pct_classes": 0.9656
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max80_min4",
+    "timestamp": "2026-03-21T18:29:41",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0411,
+        "mean_adj_acc": 0.0395,
+        "mean_pct_classes": 0.9656,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.0598,
+        "best_adj_acc": 0.058,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P21",
+        "worst_acc": 0.0234,
+        "worst_adj_acc": 0.0234,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1013,
+        "worst_test_size": 598
+      }
+    },
+    "overall_acc": 0.0411,
+    "overall_adj_acc": 0.0395,
+    "overall_pct_classes": 0.9656
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp7_max120_min4",
+    "timestamp": "2026-03-21T18:29:48",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 7,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0411,
+        "mean_adj_acc": 0.0395,
+        "mean_pct_classes": 0.9656,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.0598,
+        "best_adj_acc": 0.058,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P21",
+        "worst_acc": 0.0234,
+        "worst_adj_acc": 0.0234,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1013,
+        "worst_test_size": 598
+      }
+    },
+    "overall_acc": 0.0411,
+    "overall_adj_acc": 0.0395,
+    "overall_pct_classes": 0.9656
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max80_min2",
+    "timestamp": "2026-03-21T18:29:58",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0402,
+        "mean_adj_acc": 0.0388,
+        "mean_pct_classes": 0.9688,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.0541,
+        "best_adj_acc": 0.0524,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P21",
+        "worst_acc": 0.0234,
+        "worst_adj_acc": 0.0234,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1013,
+        "worst_test_size": 598
+      }
+    },
+    "overall_acc": 0.0402,
+    "overall_adj_acc": 0.0388,
+    "overall_pct_classes": 0.9688
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max120_min2",
+    "timestamp": "2026-03-21T18:30:08",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0402,
+        "mean_adj_acc": 0.0388,
+        "mean_pct_classes": 0.9688,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.0541,
+        "best_adj_acc": 0.0524,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P21",
+        "worst_acc": 0.0234,
+        "worst_adj_acc": 0.0234,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1013,
+        "worst_test_size": 598
+      }
+    },
+    "overall_acc": 0.0402,
+    "overall_adj_acc": 0.0388,
+    "overall_pct_classes": 0.9688
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max80_min4",
+    "timestamp": "2026-03-21T18:30:17",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 80,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0402,
+        "mean_adj_acc": 0.0388,
+        "mean_pct_classes": 0.9688,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.0541,
+        "best_adj_acc": 0.0524,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P21",
+        "worst_acc": 0.0234,
+        "worst_adj_acc": 0.0234,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1013,
+        "worst_test_size": 598
+      }
+    },
+    "overall_acc": 0.0402,
+    "overall_adj_acc": 0.0388,
+    "overall_pct_classes": 0.9688
+  },
+  {
+    "name": "logistic_regression_o1_wbalanced_viterbi_resamp10_max120_min4",
+    "timestamp": "2026-03-21T18:30:27",
+    "params": {
+      "order": 1,
+      "class_weight": "balanced",
+      "use_groups": false,
+      "classifier_type": "logistic_regression",
+      "use_viterbi": true,
+      "stacking_order": null,
+      "stacking_step_size": null,
+      "max_frames": 120,
+      "target_frames": 10,
+      "random_state": 37,
+      "scaler_type": "standard",
+      "subtract_baseline": false,
+      "min_class_samples": 7,
+      "patient_range": [
+        21,
+        30
+      ],
+      "feature_extraction_method": "high_gamma",
+      "sample_fraction": 1
+    },
+    "group_summaries": {
+      "P01-P10": null,
+      "P11-P20": null,
+      "P21-P30": {
+        "mean_acc": 0.0402,
+        "mean_adj_acc": 0.0388,
+        "mean_pct_classes": 0.9688,
+        "n_patients": 10,
+        "best": "P24",
+        "best_acc": 0.0541,
+        "best_adj_acc": 0.0524,
+        "best_pct_classes": 0.9688,
+        "best_train_size": 1648,
+        "best_test_size": 351,
+        "worst": "P21",
+        "worst_acc": 0.0234,
+        "worst_adj_acc": 0.0234,
+        "worst_pct_classes": 1.0,
+        "worst_train_size": 1013,
+        "worst_test_size": 598
+      }
+    },
+    "overall_acc": 0.0402,
+    "overall_adj_acc": 0.0388,
+    "overall_pct_classes": 0.9688
+  }
+]

@@ -691,6 +691,53 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         for pid in sorted(counts.keys()):
             print(f"{pid:<10} {counts[pid]:<10}")
     
+
+
+    def save_checkpoint_after_step3(pipeline, filepath='checkpoint_after_step3.pkl'):
+        """Save pipeline state after steps 1-3 (load data, split, channel exclusions).
+        
+        This saves the heavy data that takes minutes to load from NWB files,
+        so you can skip steps 1-3 on subsequent runs.
+        """
+        state = {
+            'split_result': pipeline.split_result,
+            'patient_data': getattr(pipeline, 'patient_data', None),
+            'patient_baselines': getattr(pipeline, 'patient_baselines', None),
+            'channel_exclusions': getattr(pipeline, 'channel_exclusions', None),
+        }
+        with open(filepath, 'wb') as f:
+            pickle.dump(state, f)
+        size_mb = os.path.getsize(filepath) / (1024 * 1024)
+        print(f"Step 3 checkpoint saved: {filepath} ({size_mb:.1f} MB)")
+
+
+    def load_checkpoint_after_step3(pipeline, filepath='checkpoint_after_step3.pkl'):
+        """Load pipeline state from step 3 checkpoint.
+        
+        Returns True if loaded, False if file not found.
+        After loading, continue with step4_custom_detector().
+        """
+        if not os.path.exists(filepath):
+            print(f"No step 3 checkpoint found at {filepath}")
+            return False
+        
+        with open(filepath, 'rb') as f:
+            state = pickle.load(f)
+        
+        pipeline.split_result = state['split_result']
+        if state['patient_data'] is not None:
+            pipeline.patient_data = state['patient_data']
+        if state['patient_baselines'] is not None:
+            pipeline.patient_baselines = state['patient_baselines']
+        if state['channel_exclusions'] is not None:
+            pipeline.channel_exclusions = state['channel_exclusions']
+        
+        size_mb = os.path.getsize(filepath) / (1024 * 1024)
+        print(f"Step 3 checkpoint loaded: {filepath} ({size_mb:.1f} MB)")
+        return True
+
+
+
     def step4_custom_detector(self):
         """Initialize detector without BIDS decoder"""
         self.log("Step 4: Initializing detector...")
@@ -1256,64 +1303,72 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         return self.train, self.test
     
     def step8_group_phonemes(self):
-        """
-        Convert raw phoneme labels to phoneme groups.
-        
-        This step maps individual phonemes (e.g., 'p', 't', 'k') to 
-        articulatory groups (e.g., 'plosive').
-        
-        Must be called AFTER step 7 (resolve_unknowns).
-        Stores original labels in 'phoneme_labels_raw' before converting.
+        """Build the grouped-label columns alongside the raw labels.
+
+        After this step every dataset dict has three label keys:
+
+        - ``phoneme_labels_raw``   – always the original per-phoneme labels
+        - ``phoneme_labels_grouped`` – always the group-mapped labels
+        - ``phoneme_labels``       – alias pointing at whichever is active
+
+        The active view defaults to **grouped** for backward compatibility.
+        Call :meth:`use_phoneme_labels` / :meth:`use_group_labels` to switch
+        without re-running the step.
+
+        Safe to call more than once — raw labels are preserved on the first
+        call and never overwritten.
         """
         self.log("Step 8: Grouping phonemes.")
-        
+
         # Get phoneme-to-group mapping from phonetic dictionary
         if not hasattr(self.detector.phonetic_dict, 'phoneme_to_group'):
             self.detector.phonetic_dict.add_phoneme_groups()
-        
+
         phoneme_to_group = self.detector.phonetic_dict.phoneme_to_group
-        
-        # Process each dataset
+
         for dataset_name in ['train', 'test', 'val']:
             if not hasattr(self, dataset_name):
                 continue
-            
+
             data = getattr(self, dataset_name)
-            
+
             if 'phoneme_labels' not in data:
                 continue
-            
-            # Store original raw labels
-            data['phoneme_labels_raw'] = data['phoneme_labels'].copy()
-            
-            # Convert to groups
+
+            # Preserve the original raw labels exactly once.
+            if 'phoneme_labels_raw' not in data:
+                data['phoneme_labels_raw'] = data['phoneme_labels'].copy()
+
+            # Always build groups from the raw labels (never from a
+            # previous grouped version), so this is idempotent.
             grouped_labels = []
             unknown_count = 0
-            
-            for label in data['phoneme_labels']:
+
+            for label in data['phoneme_labels_raw']:
                 if label in phoneme_to_group:
                     grouped_labels.append(phoneme_to_group[label])
                 elif label in ('?', 'unknown', ''):
                     grouped_labels.append('unknown')
                     unknown_count += 1
                 else:
-                    # Phoneme not in mapping - mark as unknown
                     grouped_labels.append('unknown')
                     unknown_count += 1
-            
+
+            data['phoneme_labels_grouped'] = grouped_labels
+
+            # Default active view: grouped (backward compatible).
             data['phoneme_labels'] = grouped_labels
-            
+
             # Log statistics
             unique_raw = len(set(data['phoneme_labels_raw']))
             unique_grouped = len(set(grouped_labels))
             self.log(f"  {dataset_name}: {unique_raw} raw phonemes -> {unique_grouped} groups")
-            
+
             if unknown_count > 0:
                 self.log(f"    {unknown_count} samples mapped to 'unknown'")
-        
-        # Store flag indicating grouping was applied
+
         self.phonemes_grouped = True
-        
+
         # Log group distribution for train
         if hasattr(self, 'train') and 'phoneme_labels' in self.train:
             from collections import Counter
@@ -1321,8 +1376,33 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             self.log(f"  Train group distribution:")
             for group, count in sorted(group_counts.items(), key=lambda x: -x[1]):
                 self.log(f"    {group}: {count}")
-        
+
         self.log("Step 8 complete: Phonemes grouped")
+
+    def use_phoneme_labels(self):
+        """Switch ``phoneme_labels`` to the raw per-phoneme labels."""
+        for dataset_name in ['train', 'test', 'val']:
+            if not hasattr(self, dataset_name):
+                continue
+            data = getattr(self, dataset_name)
+            if 'phoneme_labels_raw' in data:
+                data['phoneme_labels'] = data['phoneme_labels_raw']
+        self.phonemes_grouped = False
+        self.log("Switched to raw phoneme labels")
+
+    def use_group_labels(self):
+        """Switch ``phoneme_labels`` to the grouped labels."""
+        for dataset_name in ['train', 'test', 'val']:
+            if not hasattr(self, dataset_name):
+                continue
+            data = getattr(self, dataset_name)
+            if 'phoneme_labels_grouped' in data:
+                data['phoneme_labels'] = data['phoneme_labels_grouped']
+            else:
+                self.log(f"  Warning: {dataset_name} has no grouped labels — run step8_group_phonemes() first")
+                return
+        self.phonemes_grouped = True
+        self.log("Switched to grouped phoneme labels")
         
     def step9_train_and_evaluate(self, model_factory, model_params=None,
                              use_viterbi=True, min_train=10, min_test=5):
@@ -1464,16 +1544,19 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
 
         return self.patient_results
 
-    def step10_visualize_patient(self, pid, show_table=True, show_predictions = False):
+    def step10_visualize_patient(self, pid, show_table=True, show_predictions=False, preds_no_viterbi=None, min_class_samples=5):
         """Visualize per-patient classification results.
 
-        Produces a 2x2 figure with train/test distribution,
-        per-phoneme precision/recall/F1, and confusion matrices
-        (recall-normalized and precision-normalized).
+        Produces a figure with train/test distribution, per-phoneme
+        precision/recall, and confusion matrices. When preds_no_viterbi
+        is provided, adds pre/post Viterbi comparison panels.
 
         Args:
             pid: str, patient ID to visualize.
             show_table: bool, print per-phoneme metrics table.
+            show_predictions: bool, print word-level prediction comparison.
+            preds_no_viterbi: list or None, predictions before Viterbi
+                decoding. When provided, shows pre/post comparison.
 
         Requires step 9 to have been run first.
         """
@@ -1486,13 +1569,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             self.log(f"{pid}: no results found. Run step 9 first.")
             return
 
-        # Filter data for this patient
-        train_mask = [
-            p == pid for p in self.train["phoneme_participant_ids"]
-        ]
-        test_mask = [
-            p == pid for p in self.test["phoneme_participant_ids"]
-        ]
+        train_mask = [p == pid for p in self.train["phoneme_participant_ids"]]
+        test_mask = [p == pid for p in self.test["phoneme_participant_ids"]]
         train_labels = [
             self.train["phoneme_labels"][i]
             for i, m in enumerate(train_mask) if m
@@ -1501,65 +1579,102 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         preds = self.patient_results[pid]["predictions"]
         test_labels = self.patient_results[pid]["true_labels"]
 
-        # Build confusion data
+        if preds_no_viterbi is None and "predictions_no_viterbi" in self.patient_results[pid]:
+            preds_no_viterbi = self.patient_results[pid]["predictions_no_viterbi"]
+
+        has_viterbi_comparison = preds_no_viterbi is not None
+
+        # build confusion data from post-viterbi predictions
         confusion_data = {}
         for true_label, pred_label in zip(test_labels, preds):
             if true_label not in confusion_data:
                 confusion_data[true_label] = Counter()
             confusion_data[true_label][pred_label] += 1
 
-        # Counts
         train_counts = Counter(train_labels)
         test_counts = Counter(test_labels)
-        all_labels = sorted(
-            set(list(train_counts.keys()) + list(test_counts.keys()))
-        )
+        all_labels = sorted(set(list(train_counts.keys()) + list(test_counts.keys())))
         test_phonemes = sorted(test_counts.keys())
         unique_labels = sorted(set(list(test_labels) + list(preds)))
 
-        # Per-phoneme metrics
-        phoneme_metrics = {}
-        for p in test_phonemes:
-            true_mask = [l == p for l in test_labels]
-            correct = sum(
-                1 for i, m in enumerate(true_mask) if m and preds[i] == p
+        def compute_metrics(predictions, phonemes, true_labels):
+            """Compute per-phoneme precision and recall.
+
+            Args:
+                predictions: list of predicted labels.
+                phonemes: list of phoneme labels to evaluate.
+                true_labels: list of true labels.
+
+            Returns:
+                dict mapping phoneme to dict with recall, precision, support.
+            """
+            metrics = {}
+            for p in phonemes:
+                true_mask = [l == p for l in true_labels]
+                correct = sum(
+                    1 for i, m in enumerate(true_mask) if m and predictions[i] == p
+                )
+                total_true = sum(true_mask)
+                recall = correct / total_true if total_true > 0 else 0
+
+                pred_mask = [pr == p for pr in predictions]
+                total_pred = sum(pred_mask)
+                precision = correct / total_pred if total_pred > 0 else 0
+
+                metrics[p] = {
+                    "recall": recall,
+                    "precision": precision,
+                    "support": total_true,
+                }
+            return metrics
+
+        phoneme_metrics_post = compute_metrics(preds, test_phonemes, test_labels)
+
+        if has_viterbi_comparison:
+            phoneme_metrics_pre = compute_metrics(
+                preds_no_viterbi, test_phonemes, test_labels
             )
-            total_true = sum(true_mask)
-            recall = correct / total_true if total_true > 0 else 0
 
-            pred_mask = [pr == p for pr in preds]
-            total_pred = sum(pred_mask)
-            precision = correct / total_pred if total_pred > 0 else 0
-
-            f1 = (2 * precision * recall / (precision + recall)
-                  if (precision + recall) > 0 else 0)
-
-            phoneme_metrics[p] = {
-                "recall": recall,
-                "precision": precision,
-                "f1": f1,
-                "support": total_true,
-            }
-
-        # Confusion matrices
+        # confusion matrices post-viterbi
         cm = confusion_matrix(test_labels, preds, labels=unique_labels)
-        cm_recall = cm.astype("float") / (
-            cm.sum(axis=1, keepdims=True) + 1e-10
-        )
-        cm_precision = cm.astype("float") / (
-            cm.sum(axis=0, keepdims=True) + 1e-10
-        )
+        cm_recall = cm.astype("float") / (cm.sum(axis=1, keepdims=True) + 1e-10)
+        cm_precision = cm.astype("float") / (cm.sum(axis=0, keepdims=True) + 1e-10)
 
-        # Figure
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+        # confusion matrix pre-viterbi
+        if has_viterbi_comparison:
+            unique_labels_pre = sorted(set(list(test_labels) + list(preds_no_viterbi)))
+            cm_pre = confusion_matrix(
+                test_labels, preds_no_viterbi, labels=unique_labels_pre
+            )
+            cm_pre_recall = cm_pre.astype("float") / (
+                cm_pre.sum(axis=1, keepdims=True) + 1e-10
+            )
+
+        # layout
+        n_cols = 3 if has_viterbi_comparison else 2
+        fig, axes = plt.subplots(2, n_cols, figsize=(8 * n_cols, 12))
+
         acc = self.patient_results[pid]["accuracy"]
         lift = self.patient_results[pid]["lift"]
-        fig.suptitle(
-            f"{pid} - Accuracy: {acc:.3f}, Lift: {lift:.2f}x",
-            fontsize=14, fontweight="bold",
-        )
 
-        # 1. Train/test distribution
+        if has_viterbi_comparison:
+            correct_pre = sum(1 for p, t in zip(preds_no_viterbi, test_labels) if p == t)
+            acc_pre = correct_pre / len(test_labels)
+            n_classes = len(set(test_labels))
+            chance = 1.0 / n_classes if n_classes > 0 else 0
+            lift_pre = acc_pre / chance if chance > 0 else 0
+            fig.suptitle(
+                f"{pid} - pre-Viterbi: Accuracy={acc_pre:.3f}, Lift={lift_pre:.2f}x"
+                f"   |   post-Viterbi: Accuracy={acc:.3f}, Lift={lift:.2f}x",
+                fontsize=13, fontweight="bold",
+            )
+        else:
+            fig.suptitle(
+                f"{pid} - Accuracy: {acc:.3f}, Lift: {lift:.2f}x",
+                fontsize=14, fontweight="bold",
+            )
+
+        # 1. train/test distribution
         ax1 = axes[0, 0]
         x = np.arange(len(all_labels))
         width = 0.35
@@ -1573,107 +1688,141 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             [test_counts.get(p, 0) for p in all_labels],
             width, label="Test", color="coral",
         )
+        ax1.axhline(
+            min_class_samples,
+            color="red", linestyle="--", linewidth=1.5,
+            label=f"min samples ({min_class_samples})"
+        )
         ax1.set_xticks(x)
         ax1.set_xticklabels(all_labels, rotation=90, fontsize=8)
         ax1.set_title(
-            f"Distribution (train={len(train_labels)}, "
-            f"test={len(test_labels)})"
+            f"Distribution (train={len(train_labels)}, test={len(test_labels)})"
         )
         ax1.set_ylabel("Count")
         ax1.legend()
 
-        # 2. Per-phoneme precision/recall/F1
-        ax2 = axes[0, 1]
-        x = np.arange(len(test_phonemes))
-        width = 0.25
-        recalls = [phoneme_metrics[p]["recall"] for p in test_phonemes]
-        precisions = [phoneme_metrics[p]["precision"] for p in test_phonemes]
-        f1s = [phoneme_metrics[p]["f1"] for p in test_phonemes]
+        def draw_metrics(ax, metrics, phonemes, overall_acc, title):
+            """Draw per-phoneme precision/recall bar chart.
 
-        ax2.bar(x - width, recalls, width, label="Recall", color="steelblue")
-        ax2.bar(x, precisions, width, label="Precision", color="darkorange")
-        ax2.bar(x + width, f1s, width, label="F1", color="green")
-        ax2.set_xticks(x)
-        ax2.set_xticklabels(test_phonemes, rotation=90, fontsize=8)
-        ax2.set_title("Per-Class Metrics")
-        ax2.set_ylim([0, 1])
-        ax2.axhline(
-            acc, color="red", linestyle="--", alpha=0.5, label="Overall Acc"
-        )
-        ax2.legend(loc="upper right", fontsize=8)
-        ax2.set_ylabel("Score")
+            Args:
+                ax: matplotlib axis to draw on.
+                metrics: dict of per-phoneme metrics.
+                phonemes: ordered list of phonemes to plot.
+                overall_acc: float, overall accuracy for reference line.
+                title: str, axis title.
+            """
+            x = np.arange(len(phonemes))
+            width = 0.35
+            recalls = [metrics[p]["recall"] for p in phonemes]
+            precisions = [metrics[p]["precision"] for p in phonemes]
+            ax.bar(x - width / 2, recalls, width, label="Recall", color="steelblue")
+            ax.bar(x + width / 2, precisions, width, label="Precision", color="darkorange")
+            ax.set_xticks(x)
+            ax.set_xticklabels(phonemes, rotation=90, fontsize=8)
+            ax.set_title(title)
+            ax.set_ylim([0, 1])
+            ax.axhline(
+                overall_acc, color="red", linestyle="--", alpha=0.5, label="Overall Acc"
+            )
+            ax.legend(loc="upper right", fontsize=8)
+            ax.set_ylabel("Score")
 
-        # 3. Confusion matrix (recall-normalized)
-        ax3 = axes[1, 0]
-        im3 = ax3.imshow(cm_recall, cmap="Blues", vmin=0, vmax=1)
-        n_labels = len(unique_labels)
-        fontsize = max(5, min(8, 100 // n_labels))
-        for i in range(n_labels):
-            for j in range(n_labels):
-                val = cm[i, j]
-                if val > 0:
-                    color = "white" if cm_recall[i, j] > 0.5 else "black"
-                    ax3.text(
-                        j, i, str(val), ha="center", va="center",
-                        color=color, fontsize=fontsize,
-                    )
-        for i in range(n_labels):
-            ax3.add_patch(
-                Rectangle(
+        # 2. per-class metrics
+        if has_viterbi_comparison:
+            draw_metrics(
+                axes[0, 1], phoneme_metrics_pre, test_phonemes, acc_pre,
+                "Per-Class Metrics (pre-Viterbi)"
+            )
+            draw_metrics(
+                axes[0, 2], phoneme_metrics_post, test_phonemes, acc,
+                "Per-Class Metrics (post-Viterbi)"
+            )
+        else:
+            draw_metrics(
+                axes[0, 1], phoneme_metrics_post, test_phonemes, acc,
+                "Per-Class Metrics"
+            )
+
+        def draw_confusion(ax, matrix, matrix_norm, labels, title, cmap, cbar_label):
+            """Draw a normalised confusion matrix.
+
+            Args:
+                ax: matplotlib axis to draw on.
+                matrix: raw count confusion matrix.
+                matrix_norm: normalised confusion matrix.
+                labels: list of label strings.
+                title: str, axis title.
+                cmap: str, matplotlib colormap name.
+                cbar_label: str, colorbar label.
+            """
+            im = ax.imshow(matrix_norm, cmap=cmap, vmin=0, vmax=1)
+            n = len(labels)
+            fs = max(5, min(8, 100 // n))
+            for i in range(n):
+                for j in range(n):
+                    val = matrix[i, j]
+                    if val > 0:
+                        color = "white" if matrix_norm[i, j] > 0.5 else "black"
+                        ax.text(
+                            j, i, str(val), ha="center", va="center",
+                            color=color, fontsize=fs,
+                        )
+            for i in range(n):
+                ax.add_patch(Rectangle(
                     (i - 0.5, i - 0.5), 1, 1,
                     fill=False, edgecolor="red", linewidth=1,
-                )
-            )
-        ax3.set_xticks(range(n_labels))
-        ax3.set_yticks(range(n_labels))
-        ax3.set_xticklabels(unique_labels, rotation=90, fontsize=fontsize)
-        ax3.set_yticklabels(unique_labels, fontsize=fontsize)
-        ax3.set_xlabel("Predicted")
-        ax3.set_ylabel("True")
-        ax3.set_title("Confusion Matrix (Recall normalized)")
-        plt.colorbar(im3, ax=ax3, label="Recall", fraction=0.046)
+                ))
+            ax.set_xticks(range(n))
+            ax.set_yticks(range(n))
+            ax.set_xticklabels(labels, rotation=90, fontsize=fs)
+            ax.set_yticklabels(labels, fontsize=fs)
+            ax.set_xlabel("Predicted")
+            ax.set_ylabel("True")
+            ax.set_title(title)
+            plt.colorbar(im, ax=ax, label=cbar_label, fraction=0.046)
 
-        # 4. Confusion matrix (precision-normalized)
-        ax4 = axes[1, 1]
-        im4 = ax4.imshow(cm_precision, cmap="Greens", vmin=0, vmax=1)
-        for i in range(n_labels):
-            for j in range(n_labels):
-                val = cm[i, j]
-                if val > 0:
-                    color = "white" if cm_precision[i, j] > 0.5 else "black"
-                    ax4.text(
-                        j, i, str(val), ha="center", va="center",
-                        color=color, fontsize=fontsize,
-                    )
-        for i in range(n_labels):
-            ax4.add_patch(
-                Rectangle(
-                    (i - 0.5, i - 0.5), 1, 1,
-                    fill=False, edgecolor="darkred", linewidth=1,
-                )
+        # 3. confusion matrix recall-normalised pre-viterbi
+        if has_viterbi_comparison:
+            draw_confusion(
+                axes[1, 0], cm_pre, cm_pre_recall, unique_labels_pre,
+                "Confusion Matrix - Recall normalised (pre-Viterbi)",
+                "Oranges", "Recall"
             )
-        ax4.set_xticks(range(n_labels))
-        ax4.set_yticks(range(n_labels))
-        ax4.set_xticklabels(unique_labels, rotation=90, fontsize=fontsize)
-        ax4.set_yticklabels(unique_labels, fontsize=fontsize)
-        ax4.set_xlabel("Predicted")
-        ax4.set_ylabel("True")
-        ax4.set_title("Confusion Matrix (Precision normalized)")
-        plt.colorbar(im4, ax=ax4, label="Precision", fraction=0.046)
+        else:
+            draw_confusion(
+                axes[1, 0], cm, cm_recall, unique_labels,
+                "Confusion Matrix - Recall normalised",
+                "Blues", "Recall"
+            )
+
+        # 4. confusion matrix recall-normalised post-viterbi
+        draw_confusion(
+            axes[1, 1], cm, cm_recall, unique_labels,
+            "Confusion Matrix - Recall normalised (post-Viterbi)"
+            if has_viterbi_comparison else "Confusion Matrix - Recall normalised",
+            "Blues", "Recall"
+        )
+
+        # 5. confusion matrix precision-normalised post-viterbi
+        draw_confusion(
+            axes[1, 2], cm, cm_precision, unique_labels,
+            "Confusion Matrix - Precision normalised (post-Viterbi)"
+            if has_viterbi_comparison else "Confusion Matrix - Precision normalised",
+            "Greens", "Precision"
+)
 
         plt.tight_layout()
         plt.show()
 
-        # Print table
+        # print table
         if show_table:
-            self.log(f"{pid} - PER-CLASS METRICS")
+            self.log(f"{pid} - per-class metrics (post-Viterbi)")
             self.log(
-                f"{'Label':<12} {'Recall':<8} {'Prec':<8} "
-                f"{'F1':<8} {'Count':<8} {'Top 3 Confusions'}"
+                f"{'label':<12} {'recall':<8} {'prec':<8} "
+                f"{'count':<8} {'top 3 confusions'}"
             )
-
             for p in test_phonemes:
-                m = phoneme_metrics[p]
+                m = phoneme_metrics_post[p]
                 if p in confusion_data:
                     confusions = confusion_data[p].copy()
                     confusions.pop(p, None)
@@ -1683,45 +1832,26 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                     ) if top else "-"
                 else:
                     conf_str = "-"
-
                 self.log(
                     f"{p:<12} {m['recall']:>6.2f}  {m['precision']:>6.2f}  "
-                    f"{m['f1']:>6.2f}  {m['support']:>6}  {conf_str}"
+                    f"{m['support']:>6}  {conf_str}"
                 )
+            mean_recall = np.mean([m["recall"] for m in phoneme_metrics_post.values()])
+            mean_precision = np.mean([m["precision"] for m in phoneme_metrics_post.values()])
+            self.log(f"{'macro':<12} {mean_recall:>6.2f}  {mean_precision:>6.2f}")
 
-            mean_recall = np.mean(
-                [m["recall"] for m in phoneme_metrics.values()]
-            )
-            mean_precision = np.mean(
-                [m["precision"] for m in phoneme_metrics.values()]
-            )
-            mean_f1 = np.mean(
-                [m["f1"] for m in phoneme_metrics.values()]
-            )
-            self.log(
-                f"{'MACRO':<12} {mean_recall:>6.2f}  "
-                f"{mean_precision:>6.2f}  {mean_f1:>6.2f}"
-            )
-
-            
         if show_predictions:
-            self.log(f"{pid} - PREDICTIONS vs TRUE LABELS")
-            
-            # Group by word/sentence
+            self.log(f"{pid} - predictions vs true labels")
             words = [
                 self.test["phoneme_words"][i]
                 for i, m in enumerate(test_mask) if m
             ]
-            
             current_word = None
             word_trues = []
             word_preds = []
-            
-            self.log(f"{'Word/Sentence':<40} {'True':<15} {'Pred':<15} {'Match'}")
-            
+            self.log(f"{'word/sentence':<40} {'true':<15} {'pred':<15} {'match'}")
             for i, (w, t, p) in enumerate(zip(words, test_labels, preds)):
                 if w != current_word:
-                    # Print previous word's predictions
                     if current_word is not None:
                         display = current_word[:38]
                         for j, (tr, pr) in enumerate(zip(word_trues, word_preds)):
@@ -1730,15 +1860,11 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                                 print(f"{display:<40} {tr:<15} {pr:<15} {match}")
                             else:
                                 print(f"{'':<40} {tr:<15} {pr:<15} {match}")
-                    
                     current_word = w
                     word_trues = []
                     word_preds = []
-                
                 word_trues.append(t)
                 word_preds.append(p)
-            
-            # Print last word
             if current_word is not None:
                 display = current_word[:38]
                 for j, (tr, pr) in enumerate(zip(word_trues, word_preds)):
@@ -1747,11 +1873,11 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                         print(f"{display:<40} {tr:<15} {pr:<15} {match}")
                     else:
                         print(f"{'':<40} {tr:<15} {pr:<15} {match}")
-            
-            # Summary
             correct = sum(1 for t, p in zip(test_labels, preds) if t == p)
-            self.log(f"\n{correct}/{len(test_labels)} correct "
-                  f"({correct/len(test_labels)*100:.1f}%)")
+            self.log(
+                f"\n{correct}/{len(test_labels)} correct "
+                f"({correct/len(test_labels)*100:.1f}%)"
+            )
         
     def step10_visualize_group(self, patient_ids=None, show_table=False):
         """Visualize results for a group of patients.

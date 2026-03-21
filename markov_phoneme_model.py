@@ -25,7 +25,7 @@ class MarkovPhonemeModel(DebugMixin):
     """
     
     def __init__(self, phonetic_dict=None, order=2, output_dir='./models/markov_phoneme', 
-             debug_mode=False, use_groups=False, class_weight='balanced', classifier_type='random_forest', scaler_type='standard',  random_state=37):
+             debug_mode=False, use_groups=False, class_weight='balanced', classifier_type='random_forest', scaler_type='standard', feature_pooling_method='flatten',  random_state=37):
         """
         Initialize the Markov chain phoneme model.
         
@@ -65,6 +65,7 @@ class MarkovPhonemeModel(DebugMixin):
         self.classifier_type = classifier_type
         self.random_state = random_state
         self.scaler_type = scaler_type
+        self.feature_pooling_method = feature_pooling_method
         
         # Set up phonetic dictionary
         if phonetic_dict is None:
@@ -240,7 +241,7 @@ class MarkovPhonemeModel(DebugMixin):
             
         else:
             # Pool features to fixed size for sklearn classifiers
-            X = self._pool_features(features, method='flatten')
+            X = self._pool_features(features, method=self.feature_pooling_method)
             
             # Filter invalid samples
             valid_mask = ~(np.isnan(X).any(axis=1) | np.isinf(X).any(axis=1))
@@ -320,7 +321,7 @@ class MarkovPhonemeModel(DebugMixin):
             classifier_probs = self.neural_classifier.predict_proba(features)
         else:
             # Pool features for sklearn classifiers
-            X = self._pool_features(features)
+            X = self._pool_features(features, method=self.feature_pooling_method)
             X_scaled = self.feature_scaler.transform(X)
             
             classifier_probs = self.neural_classifier.predict_proba(X_scaled)

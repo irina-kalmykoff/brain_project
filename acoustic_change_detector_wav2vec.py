@@ -50,8 +50,9 @@ class AcousticChangeDetector(DebugMixin):
         self.phonetic_dict = phonetic_dict or PhoneticDictionary()
         self.feature_extraction_method = feature_extraction_method
         
-        self.use_rms_boundaries = use_rms_boundaries 
-        self.use_multifeature = use_multifeature    
+        self.use_rms_boundaries = use_rms_boundaries
+        self.use_multifeature = use_multifeature
+        self.peak_prominence = 0.05  # default; tune via detector.peak_prominence = X
         
         self.log(f"Using feature extraction method: {self.feature_extraction_method}")
         
@@ -380,9 +381,9 @@ class AcousticChangeDetector(DebugMixin):
             enhanced_distances, 
             height=height, 
             distance=min_dist_frames,
-            prominence=0.05 # previously 0.1, cahnged to detect smaller peaks 
+            prominence=self.peak_prominence
         )
-        
+
         self.debug(f"  Found {len(peaks)} candidate peaks")
         
         # If number of phonemes is known, select the best ones
@@ -417,7 +418,7 @@ class AcousticChangeDetector(DebugMixin):
                         enhanced_distances,
                         height=height,
                         distance=min_dist_frames,
-                        prominence=0.05  # Lower prominence requirement
+                        prominence=self.peak_prominence
                     )
                     
                     self.debug(f"    Found {len(peaks)} peaks")

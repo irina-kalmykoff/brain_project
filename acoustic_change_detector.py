@@ -2005,7 +2005,9 @@ class AcousticChangeDetector(DebugMixin):
         best_peaks = None
         best_diff = float('inf')
         
-        threshold_factors = [0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.7, 0.8, 0.9, 1.0, 1.2]
+        threshold_factors = getattr(self.config, 'adaptive_threshold_factors', None)
+        if threshold_factors is None:
+            threshold_factors = [0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.7, 0.8, 0.9, 1.0, 1.2]
         
         for factor in threshold_factors:
             threshold = mean_dist + factor * std_dist
@@ -2014,9 +2016,9 @@ class AcousticChangeDetector(DebugMixin):
                 distances_smooth,
                 height=threshold,
                 distance=min_dist_frames,
-                prominence=0.01 * np.max(distances_smooth)
+                prominence=getattr(self.config, 'adaptive_prominence_factor', 0.01) * np.max(distances_smooth)
             )
-            
+
             diff = abs(len(peaks) - n_boundaries_needed)
             
             if diff < best_diff:

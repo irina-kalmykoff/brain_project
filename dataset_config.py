@@ -134,6 +134,10 @@ class Dutch30Config:
     # Length normalization for neural features
     boundary_detection_method = 'wav2vec'  # Options: 'rms', 'wav2vec'
     min_eeg_samples_for_features: int = 40  # Minimum EEG samples for extractHG
+
+    # Adaptive peak detection tuning (used by _adaptive_peak_detection)
+    adaptive_threshold_factors: list = None   # None = default [0.6, 0.5, ..., 1.2]; best: [1.3]
+    adaptive_prominence_factor: float = 0.03  # prominence = factor * max(distances); tuned from 0.01
     
     """
         phoneme duration

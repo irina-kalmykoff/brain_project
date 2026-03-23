@@ -1,0 +1,707 @@
+[
+  {
+    "label": "conservative",
+    "factors": [
+      0.8,
+      0.6,
+      0.5,
+      0.4,
+      0.3
+    ],
+    "mean_acc": 0.06687710039984798,
+    "mean_adj_acc": 0.059460213550778185,
+    "std_acc": 0.019250356118051294,
+    "n_patients": 10,
+    "n_features_total": 14792,
+    "n_one_frame": 4989,
+    "pct_one_frame": 33.7,
+    "median_frames": 4.0,
+    "per_patient": {
+      "P21": {
+        "acc": 0.041530944625407164,
+        "adj_acc": 0.03876221498371335,
+        "n_classes": 30,
+        "train_size": 2250,
+        "test_size": 1228
+      },
+      "P22": {
+        "acc": 0.04648862512363996,
+        "adj_acc": 0.04167945700740134,
+        "n_classes": 29,
+        "train_size": 2980,
+        "test_size": 1011
+      },
+      "P23": {
+        "acc": 0.06223692122669874,
+        "adj_acc": 0.05334593248002749,
+        "n_classes": 35,
+        "train_size": 8887,
+        "test_size": 3326
+      },
+      "P24": {
+        "acc": 0.09057971014492754,
+        "adj_acc": 0.07808595702148925,
+        "n_classes": 29,
+        "train_size": 3846,
+        "test_size": 828
+      },
+      "P25": {
+        "acc": 0.08607198748043818,
+        "adj_acc": 0.073775989268947,
+        "n_classes": 28,
+        "train_size": 1762,
+        "test_size": 639
+      },
+      "P26": {
+        "acc": 0.06459948320413436,
+        "adj_acc": 0.05742176284811943,
+        "n_classes": 27,
+        "train_size": 2768,
+        "test_size": 774
+      },
+      "P27": {
+        "acc": 0.10408432147562582,
+        "adj_acc": 0.09251939686722295,
+        "n_classes": 27,
+        "train_size": 3319,
+        "test_size": 759
+      },
+      "P28": {
+        "acc": 0.057097541633624106,
+        "adj_acc": 0.053413829270164484,
+        "n_classes": 31,
+        "train_size": 2714,
+        "test_size": 1261
+      },
+      "P29": {
+        "acc": 0.05282112845138055,
+        "adj_acc": 0.046418567426970786,
+        "n_classes": 33,
+        "train_size": 3412,
+        "test_size": 1666
+      },
+      "P30": {
+        "acc": 0.06326034063260341,
+        "adj_acc": 0.05917902833372577,
+        "n_classes": 31,
+        "train_size": 3392,
+        "test_size": 1233
+      }
+    }
+  },
+  {
+    "label": "high_only",
+    "factors": [
+      1.0,
+      0.8,
+      0.7,
+      0.6,
+      0.5
+    ],
+    "mean_acc": 0.06751021212800092,
+    "mean_adj_acc": 0.059556061930650314,
+    "std_acc": 0.023036240140850102,
+    "n_patients": 10,
+    "n_features_total": 14319,
+    "n_one_frame": 4768,
+    "pct_one_frame": 33.3,
+    "median_frames": 4.0,
+    "per_patient": {
+      "P21": {
+        "acc": 0.04193849021435228,
+        "adj_acc": 0.0391425908667288,
+        "n_classes": 30,
+        "train_size": 2162,
+        "test_size": 1073
+      },
+      "P22": {
+        "acc": 0.04241071428571429,
+        "adj_acc": 0.037698412698412696,
+        "n_classes": 27,
+        "train_size": 2633,
+        "test_size": 896
+      },
+      "P23": {
+        "acc": 0.060810810810810814,
+        "adj_acc": 0.053656597774244835,
+        "n_classes": 34,
+        "train_size": 8521,
+        "test_size": 3108
+      },
+      "P24": {
+        "acc": 0.0880597014925373,
+        "adj_acc": 0.07287699433865157,
+        "n_classes": 29,
+        "train_size": 3357,
+        "test_size": 670
+      },
+      "P25": {
+        "acc": 0.09281961471103327,
+        "adj_acc": 0.0856796443486461,
+        "n_classes": 26,
+        "train_size": 1393,
+        "test_size": 571
+      },
+      "P26": {
+        "acc": 0.06200527704485488,
+        "adj_acc": 0.052819310075246755,
+        "n_classes": 27,
+        "train_size": 2551,
+        "test_size": 758
+      },
+      "P27": {
+        "acc": 0.09943181818181818,
+        "adj_acc": 0.08838383838383837,
+        "n_classes": 27,
+        "train_size": 2735,
+        "test_size": 704
+      },
+      "P28": {
+        "acc": 0.0966824644549763,
+        "adj_acc": 0.08334695211635888,
+        "n_classes": 29,
+        "train_size": 2448,
+        "test_size": 1055
+      },
+      "P29": {
+        "acc": 0.05012690355329949,
+        "adj_acc": 0.04386104060913705,
+        "n_classes": 32,
+        "train_size": 3181,
+        "test_size": 1576
+      },
+      "P30": {
+        "acc": 0.04081632653061224,
+        "adj_acc": 0.03809523809523809,
+        "n_classes": 30,
+        "train_size": 2961,
+        "test_size": 1176
+      }
+    }
+  },
+  {
+    "label": "very_high",
+    "factors": [
+      1.5,
+      1.2,
+      1.0,
+      0.8,
+      0.6
+    ],
+    "mean_acc": 0.06979806515033216,
+    "mean_adj_acc": 0.06251680464644783,
+    "std_acc": 0.027390155912595745,
+    "n_patients": 10,
+    "n_features_total": 14007,
+    "n_one_frame": 4626,
+    "pct_one_frame": 33.0,
+    "median_frames": 4.0,
+    "per_patient": {
+      "P21": {
+        "acc": 0.03632694248234107,
+        "adj_acc": 0.03498150016818029,
+        "n_classes": 27,
+        "train_size": 1917,
+        "test_size": 991
+      },
+      "P22": {
+        "acc": 0.042606516290726815,
+        "adj_acc": 0.03629443980321173,
+        "n_classes": 27,
+        "train_size": 2325,
+        "test_size": 798
+      },
+      "P23": {
+        "acc": 0.05997931747673216,
+        "adj_acc": 0.0529229271853519,
+        "n_classes": 34,
+        "train_size": 7967,
+        "test_size": 2901
+      },
+      "P24": {
+        "acc": 0.09291338582677165,
+        "adj_acc": 0.08009774640238936,
+        "n_classes": 29,
+        "train_size": 3342,
+        "test_size": 635
+      },
+      "P25": {
+        "acc": 0.11830357142857142,
+        "adj_acc": 0.10844494047619047,
+        "n_classes": 24,
+        "train_size": 1267,
+        "test_size": 448
+      },
+      "P26": {
+        "acc": 0.05741626794258373,
+        "adj_acc": 0.0531632110579479,
+        "n_classes": 27,
+        "train_size": 2222,
+        "test_size": 627
+      },
+      "P27": {
+        "acc": 0.09392265193370165,
+        "adj_acc": 0.08000818498056067,
+        "n_classes": 27,
+        "train_size": 2480,
+        "test_size": 724
+      },
+      "P28": {
+        "acc": 0.09780439121756487,
+        "adj_acc": 0.09105926078876729,
+        "n_classes": 29,
+        "train_size": 2286,
+        "test_size": 1002
+      },
+      "P29": {
+        "acc": 0.06167056986729118,
+        "adj_acc": 0.053713076981189094,
+        "n_classes": 31,
+        "train_size": 2725,
+        "test_size": 1281
+      },
+      "P30": {
+        "acc": 0.037037037037037035,
+        "adj_acc": 0.034482758620689655,
+        "n_classes": 29,
+        "train_size": 2636,
+        "test_size": 1053
+      }
+    }
+  },
+  {
+    "label": "single_0.8",
+    "factors": [
+      0.8
+    ],
+    "mean_acc": 0.06983291450040514,
+    "mean_adj_acc": 0.057475430303414884,
+    "std_acc": 0.039977264406252336,
+    "n_patients": 10,
+    "n_features_total": 13100,
+    "n_one_frame": 4218,
+    "pct_one_frame": 32.2,
+    "median_frames": 5.0,
+    "per_patient": {
+      "P21": {
+        "acc": 0.06797583081570997,
+        "adj_acc": 0.06797583081570997,
+        "n_classes": 24,
+        "train_size": 1459,
+        "test_size": 662
+      },
+      "P22": {
+        "acc": 0.03110419906687403,
+        "adj_acc": 0.02861586314152411,
+        "n_classes": 25,
+        "train_size": 1638,
+        "test_size": 643
+      },
+      "P23": {
+        "acc": 0.04900601017105871,
+        "adj_acc": 0.041580857114837694,
+        "n_classes": 33,
+        "train_size": 6680,
+        "test_size": 2163
+      },
+      "P24": {
+        "acc": 0.06220095693779904,
+        "adj_acc": 0.04607478291688818,
+        "n_classes": 27,
+        "train_size": 2364,
+        "test_size": 418
+      },
+      "P25": {
+        "acc": 0.17391304347826086,
+        "adj_acc": 0.13250517598343683,
+        "n_classes": 21,
+        "train_size": 867,
+        "test_size": 276
+      },
+      "P26": {
+        "acc": 0.022847100175746926,
+        "adj_acc": 0.020210896309314587,
+        "n_classes": 26,
+        "train_size": 1510,
+        "test_size": 569
+      },
+      "P27": {
+        "acc": 0.09112709832134293,
+        "adj_acc": 0.06925659472422063,
+        "n_classes": 25,
+        "train_size": 2135,
+        "test_size": 417
+      },
+      "P28": {
+        "acc": 0.08243243243243244,
+        "adj_acc": 0.06771235521235522,
+        "n_classes": 28,
+        "train_size": 1835,
+        "test_size": 740
+      },
+      "P29": {
+        "acc": 0.06568627450980392,
+        "adj_acc": 0.05436105476673428,
+        "n_classes": 29,
+        "train_size": 2045,
+        "test_size": 1020
+      },
+      "P30": {
+        "acc": 0.05203619909502263,
+        "adj_acc": 0.046460892049127345,
+        "n_classes": 28,
+        "train_size": 2150,
+        "test_size": 884
+      }
+    }
+  },
+  {
+    "label": "single_1.0",
+    "factors": [
+      1.0
+    ],
+    "mean_acc": 0.07816935397050721,
+    "mean_adj_acc": 0.06163944852007488,
+    "std_acc": 0.03661719373157469,
+    "n_patients": 10,
+    "n_features_total": 11884,
+    "n_one_frame": 3692,
+    "pct_one_frame": 31.1,
+    "median_frames": 6.0,
+    "per_patient": {
+      "P21": {
+        "acc": 0.05526315789473684,
+        "adj_acc": 0.05526315789473684,
+        "n_classes": 21,
+        "train_size": 1013,
+        "test_size": 380
+      },
+      "P22": {
+        "acc": 0.06761565836298933,
+        "adj_acc": 0.048833531039936734,
+        "n_classes": 18,
+        "train_size": 1074,
+        "test_size": 281
+      },
+      "P23": {
+        "acc": 0.04357798165137615,
+        "adj_acc": 0.03813073394495413,
+        "n_classes": 32,
+        "train_size": 5360,
+        "test_size": 1744
+      },
+      "P24": {
+        "acc": 0.06551724137931035,
+        "adj_acc": 0.056583072100313485,
+        "n_classes": 22,
+        "train_size": 1553,
+        "test_size": 290
+      },
+      "P25": {
+        "acc": 0.17699115044247787,
+        "adj_acc": 0.10411244143675169,
+        "n_classes": 17,
+        "train_size": 629,
+        "test_size": 226
+      },
+      "P26": {
+        "acc": 0.04524886877828054,
+        "adj_acc": 0.03934684241589612,
+        "n_classes": 23,
+        "train_size": 884,
+        "test_size": 442
+      },
+      "P27": {
+        "acc": 0.09821428571428571,
+        "adj_acc": 0.07142857142857142,
+        "n_classes": 22,
+        "train_size": 1781,
+        "test_size": 336
+      },
+      "P28": {
+        "acc": 0.0782122905027933,
+        "adj_acc": 0.06952203600248293,
+        "n_classes": 27,
+        "train_size": 959,
+        "test_size": 537
+      },
+      "P29": {
+        "acc": 0.08419243986254296,
+        "adj_acc": 0.07745704467353953,
+        "n_classes": 25,
+        "train_size": 1209,
+        "test_size": 582
+      },
+      "P30": {
+        "acc": 0.06686046511627906,
+        "adj_acc": 0.055717054263565886,
+        "n_classes": 24,
+        "train_size": 1883,
+        "test_size": 688
+      }
+    }
+  },
+  {
+    "label": "single_1.2",
+    "factors": [
+      1.2
+    ],
+    "mean_acc": 0.07350211002096295,
+    "mean_adj_acc": 0.06141023697140215,
+    "std_acc": 0.024517700999507425,
+    "n_patients": 10,
+    "n_features_total": 10765,
+    "n_one_frame": 3229,
+    "pct_one_frame": 30.0,
+    "median_frames": 6.0,
+    "per_patient": {
+      "P21": {
+        "acc": 0.056768558951965066,
+        "adj_acc": 0.056768558951965066,
+        "n_classes": 16,
+        "train_size": 676,
+        "test_size": 229
+      },
+      "P22": {
+        "acc": 0.05365853658536585,
+        "adj_acc": 0.04024390243902439,
+        "n_classes": 16,
+        "train_size": 699,
+        "test_size": 205
+      },
+      "P23": {
+        "acc": 0.05749636098981077,
+        "adj_acc": 0.05353109471465141,
+        "n_classes": 29,
+        "train_size": 4435,
+        "test_size": 1374
+      },
+      "P24": {
+        "acc": 0.07604562737642585,
+        "adj_acc": 0.051849291393017624,
+        "n_classes": 22,
+        "train_size": 1245,
+        "test_size": 263
+      },
+      "P25": {
+        "acc": 0.09693877551020408,
+        "adj_acc": 0.08401360544217687,
+        "n_classes": 15,
+        "train_size": 456,
+        "test_size": 196
+      },
+      "P26": {
+        "acc": 0.0380952380952381,
+        "adj_acc": 0.029131652661064426,
+        "n_classes": 17,
+        "train_size": 781,
+        "test_size": 315
+      },
+      "P27": {
+        "acc": 0.06666666666666667,
+        "adj_acc": 0.05185185185185185,
+        "n_classes": 18,
+        "train_size": 1444,
+        "test_size": 285
+      },
+      "P28": {
+        "acc": 0.12173913043478261,
+        "adj_acc": 0.10821256038647342,
+        "n_classes": 18,
+        "train_size": 643,
+        "test_size": 230
+      },
+      "P29": {
+        "acc": 0.10232558139534884,
+        "adj_acc": 0.08953488372093023,
+        "n_classes": 24,
+        "train_size": 1115,
+        "test_size": 430
+      },
+      "P30": {
+        "acc": 0.06528662420382166,
+        "adj_acc": 0.048964968152866245,
+        "n_classes": 24,
+        "train_size": 1725,
+        "test_size": 628
+      }
+    }
+  },
+  {
+    "label": "single_0.6",
+    "factors": [
+      0.6
+    ],
+    "mean_acc": 0.06979806515033216,
+    "mean_adj_acc": 0.06251680464644783,
+    "std_acc": 0.027390155912595745,
+    "n_patients": 10,
+    "n_features_total": 14007,
+    "n_one_frame": 4626,
+    "pct_one_frame": 33.0,
+    "median_frames": 4.0,
+    "per_patient": {
+      "P21": {
+        "acc": 0.03632694248234107,
+        "adj_acc": 0.03498150016818029,
+        "n_classes": 27,
+        "train_size": 1917,
+        "test_size": 991
+      },
+      "P22": {
+        "acc": 0.042606516290726815,
+        "adj_acc": 0.03629443980321173,
+        "n_classes": 27,
+        "train_size": 2325,
+        "test_size": 798
+      },
+      "P23": {
+        "acc": 0.05997931747673216,
+        "adj_acc": 0.0529229271853519,
+        "n_classes": 34,
+        "train_size": 7967,
+        "test_size": 2901
+      },
+      "P24": {
+        "acc": 0.09291338582677165,
+        "adj_acc": 0.08009774640238936,
+        "n_classes": 29,
+        "train_size": 3342,
+        "test_size": 635
+      },
+      "P25": {
+        "acc": 0.11830357142857142,
+        "adj_acc": 0.10844494047619047,
+        "n_classes": 24,
+        "train_size": 1267,
+        "test_size": 448
+      },
+      "P26": {
+        "acc": 0.05741626794258373,
+        "adj_acc": 0.0531632110579479,
+        "n_classes": 27,
+        "train_size": 2222,
+        "test_size": 627
+      },
+      "P27": {
+        "acc": 0.09392265193370165,
+        "adj_acc": 0.08000818498056067,
+        "n_classes": 27,
+        "train_size": 2480,
+        "test_size": 724
+      },
+      "P28": {
+        "acc": 0.09780439121756487,
+        "adj_acc": 0.09105926078876729,
+        "n_classes": 29,
+        "train_size": 2286,
+        "test_size": 1002
+      },
+      "P29": {
+        "acc": 0.06167056986729118,
+        "adj_acc": 0.053713076981189094,
+        "n_classes": 31,
+        "train_size": 2725,
+        "test_size": 1281
+      },
+      "P30": {
+        "acc": 0.037037037037037035,
+        "adj_acc": 0.034482758620689655,
+        "n_classes": 29,
+        "train_size": 2636,
+        "test_size": 1053
+      }
+    }
+  },
+  {
+    "label": "descending_tight",
+    "factors": [
+      1.0,
+      0.9,
+      0.8,
+      0.7,
+      0.6,
+      0.5
+    ],
+    "mean_acc": 0.06751021212800092,
+    "mean_adj_acc": 0.059556061930650314,
+    "std_acc": 0.023036240140850102,
+    "n_patients": 10,
+    "n_features_total": 14319,
+    "n_one_frame": 4768,
+    "pct_one_frame": 33.3,
+    "median_frames": 4.0,
+    "per_patient": {
+      "P21": {
+        "acc": 0.04193849021435228,
+        "adj_acc": 0.0391425908667288,
+        "n_classes": 30,
+        "train_size": 2162,
+        "test_size": 1073
+      },
+      "P22": {
+        "acc": 0.04241071428571429,
+        "adj_acc": 0.037698412698412696,
+        "n_classes": 27,
+        "train_size": 2633,
+        "test_size": 896
+      },
+      "P23": {
+        "acc": 0.060810810810810814,
+        "adj_acc": 0.053656597774244835,
+        "n_classes": 34,
+        "train_size": 8521,
+        "test_size": 3108
+      },
+      "P24": {
+        "acc": 0.0880597014925373,
+        "adj_acc": 0.07287699433865157,
+        "n_classes": 29,
+        "train_size": 3357,
+        "test_size": 670
+      },
+      "P25": {
+        "acc": 0.09281961471103327,
+        "adj_acc": 0.0856796443486461,
+        "n_classes": 26,
+        "train_size": 1393,
+        "test_size": 571
+      },
+      "P26": {
+        "acc": 0.06200527704485488,
+        "adj_acc": 0.052819310075246755,
+        "n_classes": 27,
+        "train_size": 2551,
+        "test_size": 758
+      },
+      "P27": {
+        "acc": 0.09943181818181818,
+        "adj_acc": 0.08838383838383837,
+        "n_classes": 27,
+        "train_size": 2735,
+        "test_size": 704
+      },
+      "P28": {
+        "acc": 0.0966824644549763,
+        "adj_acc": 0.08334695211635888,
+        "n_classes": 29,
+        "train_size": 2448,
+        "test_size": 1055
+      },
+      "P29": {
+        "acc": 0.05012690355329949,
+        "adj_acc": 0.04386104060913705,
+        "n_classes": 32,
+        "train_size": 3181,
+        "test_size": 1576
+      },
+      "P30": {
+        "acc": 0.04081632653061224,
+        "adj_acc": 0.03809523809523809,
+        "n_classes": 30,
+        "train_size": 2961,
+        "test_size": 1176
+      }
+    }
+  }
+]

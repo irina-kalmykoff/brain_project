@@ -1,7 +1,5 @@
 from pipeline import UnifiedPhonemePipeline
 from phonetic_dictionary import PhoneticDictionary
-from scipy.signal import hilbert
-
 import os
 import re
 import json

@@ -227,18 +227,6 @@ class Dutch30Config:
             'default_random_seed': self.default_random_seed,
         }
     
-    def save(self, filepath: str):
-        """Save config to JSON file"""
-        with open(filepath, 'w') as f:
-            json.dump(self.to_dict(), f, indent=2)
-    
-    @classmethod
-    def load(cls, filepath: str):
-        """Load config from JSON file"""
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-        return cls(**data)
-    
     def __str__(self):
         """Pretty print configuration"""
         lines = ["Dutch30 Configuration:"]

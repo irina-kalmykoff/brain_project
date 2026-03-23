@@ -1,10 +1,8 @@
 import matplotlib.pyplot as plt
 from scipy import signal
-from scipy.spatial.distance import cosine, euclidean
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, savgol_filter
 from numpy.lib.stride_tricks import sliding_window_view
-from sklearn.preprocessing import normalize
 from scipy.signal import welch
 import gc
 import os
@@ -621,43 +619,10 @@ class AcousticChangeDetector(DebugMixin):
         boundary_times = boundaries_final * self.config.frameshift    
         boundary_samples = np.round(boundary_times * self.config.eeg_sr).astype(int)
         
-        # Enforce minimum segment duration for feature extraction
-        # Note: Short segment handling is done in process_batch via _extend_short_segments
-        # This allows overlapping segments rather than shifting boundaries
-        
-        # min_samples = self.config.min_eeg_samples_for_features
-        # boundary_samples = self._enforce_minimum_segment_duration(boundary_samples, min_samples)
-
         # Update boundaries_final to match adjusted samples
-        boundaries_final = np.round(boundary_samples / self.config.eeg_sr / self.config.frameshift).astype(int)
+        boundaries_final = np.round(boundary_samples / self.config.eeg_sr / self.config.frameshift).astype(int)     
         
-        
-        # Only check for segment/phoneme count match - duration handling is in process_batch
-        # Remove the drop_word logic based on duration since we now use _extend_short_segments
 
-        #min_valid_duration = self.config.min_phoneme_duration
-        #max_valid_duration = self.config.max_phoneme_duration
-        #frameshift = self.config.frameshift
-
-        #segment_durations = []
-        #for i in range(len(boundary_samples) - 1):
-        #    dur_samples = boundary_samples[i + 1] - boundary_samples[i]
-        #    dur_seconds = dur_samples / self.config.eeg_sr
-        #    segment_durations.append(dur_seconds)
-
-        #has_invalid = any(d < min_valid_duration or d > max_valid_duration for d in segment_durations)
-
-        # STEP 5: Mark word for dropping if still invalid
-        #if has_invalid:
-         #   self.debug(f"  Marking '{word}' for dropping - invalid segment durations: {segment_durations}")
-            # Return a flag indicating this word should be dropped
-          #  return {
-           #     'boundaries': boundaries_final,
-            #    'boundary_samples': boundary_samples,
-            #    'segments': [],  # Empty segments signal to drop
-            #    'drop_word': True,
-            #    'reason': f"Invalid durations: {[f'{d:.3f}s' for d in segment_durations]}"
-            #}
         # STEP 4: Create result
         result = {
             'boundaries': boundaries_final,
@@ -1306,12 +1271,6 @@ class AcousticChangeDetector(DebugMixin):
                     elif feature_extraction_method == 'band_powers':  
                         feat = self._extract_band_power_features(eeg) 
                         
-                    elif feature_extraction_method == 'hjorth':
-                        feat = self._extract_hjorth_features(eeg) 
-                        
-                    elif feature_extraction_method == 'band_power_hjorth':
-                        feat = self._extract_band_power_hjorth_features(eeg)
-
                     elif feature_extraction_method == 'combined':  
                         feat = self._extract_combined_features(eeg)
             
@@ -1962,22 +1921,6 @@ class AcousticChangeDetector(DebugMixin):
         
         return distances
     
-    def _extract_band_power_hjorth_features(self, eeg_segment: np.ndarray) -> np.ndarray:
-        """
-        Combine band power features with Hjorth parameters.
-        
-        Args:
-            eeg_segment: EEG data array of shape (n_samples, n_channels)
-        
-        Returns:
-            Fixed-length feature vector of shape (1, n_channels * 9)
-            (6 band powers + 3 Hjorth parameters per channel)
-        """
-        band_feats = self._extract_band_power_features(eeg_segment)
-        hjorth_feats = self._extract_hjorth_features(eeg_segment)
-        
-        return np.concatenate([band_feats, hjorth_feats], axis=1)
-        
     def _adaptive_peak_detection(self, distances, n_phonemes, participant_id=None, word=None):
         """
         Adaptively find peaks by adjusting threshold until we get the right number.

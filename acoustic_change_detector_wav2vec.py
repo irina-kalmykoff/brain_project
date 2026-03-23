@@ -1,9 +1,7 @@
 import matplotlib.pyplot as plt
 from scipy import signal
-from scipy.spatial.distance import cosine, euclidean
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, savgol_filter, decimate
-import torch
 from transformers import Wav2Vec2Model, Wav2Vec2Processor
 
 import gc
@@ -13,7 +11,7 @@ from numpy import ndarray
 import librosa
 from collections import Counter, defaultdict
 
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, normalize
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
 
 from extract_features import extractHG

@@ -3,14 +3,106 @@ import os
 from collections import defaultdict, Counter
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 
 
 import matplotlib.pyplot as plt
 import pickle
+import torch
+import torch.nn as nn
 from debugger import DebugMixin
+
+
+class SnakeActivation(nn.Module):
+    """Snake activation: x + (1/alpha) * sin(alpha * x)^2."""
+    def __init__(self, dim, alpha=1.0):
+        super().__init__()
+        self.alpha = nn.Parameter(torch.ones(dim) * alpha)
+
+    def forward(self, x):
+        return x + (1.0 / (self.alpha + 1e-8)) * torch.sin(self.alpha * x) ** 2
+
+
+def build_nn_model(n_features, n_classes, activation='relu'):
+    """Build a three-layer MLP with the specified activation function."""
+    if activation == 'relu':
+        act1, act2 = nn.ReLU(), nn.ReLU()
+    elif activation == 'snake':
+        act1, act2 = SnakeActivation(256), SnakeActivation(128)
+    else:
+        raise ValueError(f"Unknown activation: {activation}")
+
+    return nn.Sequential(
+        nn.Linear(n_features, 256),
+        act1,
+        nn.Dropout(0.3),
+        nn.Linear(256, 128),
+        act2,
+        nn.Dropout(0.3),
+        nn.Linear(128, n_classes),
+    )
+
+
+class TorchClassifierWrapper:
+    """Wraps a PyTorch model with sklearn-compatible predict/predict_proba."""
+
+    def __init__(self, n_features, n_classes, activation='relu',
+                 class_weight='balanced', random_state=42,
+                 epochs=300, batch_size=64, lr=0.001, weight_decay=1e-4):
+        self.n_features = n_features
+        self.n_classes = n_classes
+        self.activation = activation
+        self.class_weight = class_weight
+        self.random_state = random_state
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.model = None
+
+    def fit(self, X, y):
+        torch.manual_seed(self.random_state)
+        self.model = build_nn_model(self.n_features, self.n_classes, self.activation)
+
+        # Compute class weights
+        counts = Counter(int(v) for v in y)
+        total = sum(counts.values())
+        weights = torch.FloatTensor([
+            total / (self.n_classes * counts.get(i, 1))
+            for i in range(self.n_classes)
+        ])
+
+        optimizer = torch.optim.Adam(self.model.parameters(),
+                                     lr=self.lr, weight_decay=self.weight_decay)
+        criterion = nn.CrossEntropyLoss(weight=weights)
+
+        X_t = torch.FloatTensor(X)
+        y_t = torch.LongTensor(y)
+
+        self.model.train()
+        for epoch in range(self.epochs):
+            perm = torch.randperm(len(X_t))
+            for i in range(0, len(X_t), self.batch_size):
+                idx = perm[i:i + self.batch_size]
+                out = self.model(X_t[idx])
+                loss = criterion(out, y_t[idx])
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+        return self
+
+    def predict(self, X):
+        self.model.eval()
+        with torch.no_grad():
+            logits = self.model(torch.FloatTensor(X))
+            return logits.argmax(dim=1).numpy()
+
+    def predict_proba(self, X):
+        self.model.eval()
+        with torch.no_grad():
+            logits = self.model(torch.FloatTensor(X))
+            return torch.softmax(logits, dim=1).numpy()
 
 class MarkovPhonemeModel(DebugMixin):
     
@@ -84,7 +176,6 @@ class MarkovPhonemeModel(DebugMixin):
         # Markov chain parameters
         self.order = order
         self.transition_probs = {}
-        self.emission_probs = {}
         self.initial_probs = {}
         
         # Neural signal classifier (trained on EEG features)
@@ -179,10 +270,7 @@ class MarkovPhonemeModel(DebugMixin):
         # Rest of the training continues as normal
         self._build_corpus_transition_model()
         self._build_neural_classifier(features, training_labels)
-        #self._build_neural_model(features, training_labels)
-        #self._build_initial_probs(training_labels, words)
-        
-        #self.save_model()
+
         
         return {
             'transition_matrix_size': len(self.transition_probs),
@@ -286,6 +374,15 @@ class MarkovPhonemeModel(DebugMixin):
                     random_state=37,
                     n_jobs=-1
                 )
+            elif self.classifier_type in ('nn_relu', 'nn_snake'):
+                activation = 'snake' if self.classifier_type == 'nn_snake' else 'relu'
+                self.neural_classifier = TorchClassifierWrapper(
+                    n_features=X_scaled.shape[1],
+                    n_classes=len(self.trained_classes),
+                    activation=activation,
+                    class_weight=self.class_weight,
+                    random_state=self.random_state,
+                )
             else:  # random_forest
                 self.neural_classifier = RandomForestClassifier(
                     n_estimators=500,
@@ -302,37 +399,34 @@ class MarkovPhonemeModel(DebugMixin):
             self.log(f"Trained {self.classifier_type} on {len(X)} samples, {X.shape[1]} features")
         
     def predict(self, features, use_viterbi=True):
-        """Predict phoneme groups for a sequence of features.
-        
+        """Predict phoneme labels for a sequence of neural signal features.
+
         Args:
             features: List of feature arrays to predict.
-            use_viterbi: Whether to use Viterbi decoding for sequence prediction.
-            
+            use_viterbi: Whether to use Viterbi decoding for sequence
+                prediction.
+
         Returns:
             Tuple of (predicted_labels, probabilities).
         """
         if self.neural_classifier is None:
             self.log("Error: Model must be trained before prediction")
             return None, None
-        
+
         if getattr(self, '_use_dtw', False):
-            # DTW classifier handles variable-length directly
             classifier_preds = self.neural_classifier.predict(features)
             classifier_probs = self.neural_classifier.predict_proba(features)
         else:
-            # Pool features for sklearn classifiers
             X = self._pool_features(features, method=self.feature_pooling_method)
-            X_scaled = self.feature_scaler.transform(X)
-            
+            if self.feature_scaler is not None:
+                X_scaled = self.feature_scaler.transform(X)
+            else:
+                X_scaled = X
+
             classifier_probs = self.neural_classifier.predict_proba(X_scaled)
-            classifier_preds = self.neural_classifier.predict(X_scaled)            
-            
-        if self.feature_scaler is not None:
-            X_scaled = self.feature_scaler.transform(X)
-        else:
-            X_scaled = X
-        
-        # Map to group names
+            classifier_preds = self.neural_classifier.predict(X_scaled)
+
+        # Map classifier indices to label names
         predicted_labels = []
         for pred_idx in classifier_preds:
             if pred_idx in self.index_to_class:
@@ -340,112 +434,78 @@ class MarkovPhonemeModel(DebugMixin):
             else:
                 self.log(f"Warning: Prediction index {pred_idx} not in mapping!")
                 predicted_labels.append('unknown')
-        
-        # Build probabilities matrix for Viterbi
-        n_all_groups = len(self.group_encoder.classes_)
-        probabilities = np.zeros((len(predicted_labels), n_all_groups))
-        
+
+        # Build emission probability matrix aligned to trained_classes
+        n_classes = len(self.trained_classes)
+        probabilities = np.zeros((len(predicted_labels), n_classes))
+
         for i, probs in enumerate(classifier_probs):
-            for j, class_idx in enumerate(range(len(probs))):
-                if class_idx in self.index_to_class:
-                    group = self.index_to_class[class_idx]
-                    if group in self.group_encoder.classes_:
-                        group_idx = np.where(self.group_encoder.classes_ == group)[0][0]
-                        probabilities[i, group_idx] = probs[j]
-        
-        # Apply Viterbi smoothing if requested
+            for j in range(len(probs)):
+                if j < n_classes:
+                    probabilities[i, j] = probs[j]
+
+        # Apply Viterbi decoding if requested
         if use_viterbi and len(features) > 1:
-            predicted_labels = self._apply_viterbi_smoothing(predicted_labels, probabilities)
-        
+            path = self._viterbi_decode(probabilities)
+            predicted_labels = [self.trained_classes[idx] for idx in path]
+
         return predicted_labels, probabilities 
     
-    def _apply_viterbi_smoothing(self, predictions, probabilities):
-        """
-        Apply simple Viterbi smoothing to predictions.
-        """
-        # Simple smoothing - could be enhanced with full Viterbi
-        smoothed = [predictions[0]]
-        
-        for i in range(1, len(predictions)):
-            # Check transition probability
-            prev = smoothed[-1]
-            curr = predictions[i]
-            
-            context = (prev,)
-            if context in self.transition_probs:
-                trans_prob = self.transition_probs[context].get(curr, 0.1)
-                
-                # If transition is very unlikely, consider alternatives
-                if trans_prob < 0.01:
-                    # Find more likely transition
-                    best_next = curr
-                    best_prob = trans_prob
-                    
-                    for alt_state in self.trained_classes:
-                        alt_prob = self.transition_probs[context].get(alt_state, 0.1)
-                        if alt_prob > best_prob * 2:  # Significantly better
-                            # Check if acoustic score is reasonable
-                            if alt_state in self.group_encoder.classes_:
-                                alt_idx = np.where(self.group_encoder.classes_ == alt_state)[0][0]
-                                if probabilities[i, alt_idx] > 0.1:  # Reasonable acoustic score
-                                    best_next = alt_state
-                                    best_prob = alt_prob
-                    
-                    smoothed.append(best_next)
-                else:
-                    smoothed.append(curr)
-            else:
-                smoothed.append(curr)
-        
-        return smoothed
         
     def _viterbi_decode(self, emission_probs):
-        """
-        Viterbi algorithm for finding most likely state sequence.
-        Simplified version for proof of concept.
+        """Find the most likely state sequence using the Viterbi algorithm.
+
+        Operates in log-space to avoid numerical underflow on long
+        sequences. Uses trained_classes as the state space so it works
+        in both raw phoneme and group modes.
+
+        Args:
+            emission_probs: Array of shape (n_samples, n_trained_classes)
+                with classifier output probabilities.
+
+        Returns:
+            Array of integer indices into self.trained_classes.
         """
         n_samples = emission_probs.shape[0]
-        n_states = emission_probs.shape[1]
-        
-        # Initialize
-        viterbi = np.zeros((n_samples, n_states))
+        n_states = len(self.trained_classes)
+
+        viterbi = np.full((n_samples, n_states), -np.inf)
         backpointer = np.zeros((n_samples, n_states), dtype=int)
-        
-        # Initial probabilities
-        states = self.group_encoder.classes_
-        for i, state in enumerate(states):
-            viterbi[0, i] = self.initial_probs.get(state, 1e-10) * emission_probs[0, i]
-        
+
+        # Initial step
+        for i, state in enumerate(self.trained_classes):
+            init_p = self.initial_probs.get(state, 1e-10)
+            emit_p = emission_probs[0, i]
+            if init_p > 0 and emit_p > 0:
+                viterbi[0, i] = np.log(init_p) + np.log(emit_p)
+
         # Forward pass
         for t in range(1, n_samples):
-            for j, curr_state in enumerate(states):
-                max_prob = 0
-                best_prev = 0
-                
-                for i, prev_state in enumerate(states):
-                    # Use first-order transitions for simplicity
+            for j, curr_state in enumerate(self.trained_classes):
+                emit_p = emission_probs[t, j]
+                log_emit = np.log(emit_p) if emit_p > 0 else -np.inf
+
+                for i, prev_state in enumerate(self.trained_classes):
                     context = (prev_state,)
                     if context in self.transition_probs:
-                        trans_prob = self.transition_probs[context].get(curr_state, 1e-10)
+                        trans_p = self.transition_probs[context].get(curr_state, 1e-10)
                     else:
-                        trans_prob = 1.0 / n_states  # Uniform if unknown
-                    
-                    prob = viterbi[t-1, i] * trans_prob * emission_probs[t, j]
-                    
-                    if prob > max_prob:
-                        max_prob = prob
-                        best_prev = i
-                
-                viterbi[t, j] = max_prob
-                backpointer[t, j] = best_prev
-        
+                        trans_p = self.default_transition.get(curr_state, 1.0 / n_states)
+
+                    log_trans = np.log(trans_p) if trans_p > 0 else -np.inf
+                    score = viterbi[t-1, i] + log_trans + log_emit
+
+                    if score > viterbi[t, j]:
+                        viterbi[t, j] = score
+                        backpointer[t, j] = i
+
         # Backtrack
         path = np.zeros(n_samples, dtype=int)
         path[-1] = np.argmax(viterbi[-1, :])
-        
+
         for t in range(n_samples - 2, -1, -1):
             path[t] = backpointer[t + 1, path[t + 1]]
-        
+
         return path
     
     def evaluate(self, features, true_labels, use_viterbi=True):

@@ -3,6 +3,7 @@ from scipy import signal
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, savgol_filter
 from numpy.lib.stride_tricks import sliding_window_view
+from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
 from scipy.signal import welch
 import gc
 import os
@@ -56,8 +57,8 @@ class AcousticChangeDetector(DebugMixin):
         self.use_wav2vec = use_wav2vec
         if self.use_wav2vec:
             self.log("Initializing wav2vec model for boundary detection...")
-            self.wav2vec_processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
-            self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base", use_safetensors=True)
+            self.wav2vec_processor = Wav2Vec2FeatureExtractor.from_pretrained("facebook/wav2vec2-large-xlsr-53") #Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
+            self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-large-xlsr-53") #Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base", use_safetensors=True)
             self.wav2vec_model.eval()
             self.log("Wav2vec model initialized successfully")
         
@@ -1887,8 +1888,11 @@ class AcousticChangeDetector(DebugMixin):
         """
         # Initialize models once (cache them)
         if not hasattr(self, 'wav2vec_processor'):
-            self.wav2vec_processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
-            self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base")
+            #self.wav2vec_processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
+            #self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base")
+
+            self.wav2vec_processor = Wav2Vec2FeatureExtractor.from_pretrained("facebook/wav2vec2-large-xlsr-53")
+            self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-large-xlsr-53")
             self.wav2vec_model.eval()
         
         # CRITICAL: Resample to 16kHz if needed

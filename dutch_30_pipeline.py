@@ -694,8 +694,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         print(f"{'Patient':<10} {'Channels':<10}")
         print("-"*20)
         for pid in sorted(counts.keys()):
-            print(f"{pid:<10} {counts[pid]:<10}")
-    
+            print(f"{pid:<10} {counts[pid]:<10}")    
 
 
     def save_checkpoint_after_step3(pipeline, filepath='checkpoint_after_step3.pkl'):
@@ -1065,6 +1064,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             # Detect word instance boundaries
             instance_groups = []
             current_start = 0
+            
             for i in range(1, n_input):
                 is_boundary = (
                     positions[i] == 0
@@ -1077,6 +1077,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             instance_groups.append((current_start, n_input))
 
             new_features = []
+            new_instance_ids = []
             new_labels = []
             new_words = []
             new_positions = []
@@ -1085,12 +1086,15 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             n_skipped_short = 0
             n_skipped_unknown = 0
 
+            instance_counter = 0
             for start, end in instance_groups:
                 # Collect phoneme segments for this instance
                 instance_feats = []
                 instance_labels = []
                 offset = 0
                 skip_instance = False
+                instance_id = f"{pids[start]}_{instance_counter}"
+                instance_counter += 1
 
                 for i in range(start, end):
                     feat = features[i]
@@ -1154,6 +1158,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                                 assigned = True
                                 break
                             new_features.append(stacked[frame_idx])
+                            new_instance_ids.append(instance_id)
                             new_labels.append(lbl)
                             new_words.append(words[orig_i])
                             new_positions.append(positions[orig_i])
@@ -1184,6 +1189,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                      f"skipped unknown: {n_skipped_unknown}")
 
             data['features'] = new_features
+            data['phoneme_instance_ids'] = new_instance_ids
             data['phoneme_labels'] = new_labels
             data['phoneme_words'] = new_words
             data['phoneme_positions'] = new_positions
@@ -1461,32 +1467,43 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 self.train["phoneme_labels"][i]
                 for i, m in enumerate(train_mask) if m
             ]
-            test_feat = [
-                self.test["features"][i]
-                for i, m in enumerate(test_mask) if m
-            ]
-            test_labels = [
-                self.test["phoneme_labels"][i]
-                for i, m in enumerate(test_mask) if m
-            ]
+            test_indices = [i for i, m in enumerate(test_mask) if m]
+            test_feat = [self.test["features"][i] for i in test_indices]
+            test_labels = [self.test["phoneme_labels"][i] for i in test_indices]
 
-            if len(train_feat) < min_train or len(test_feat) < min_test:
-                self.log(f"  {pid}: skipped (train={len(train_feat)}, "
-                         f"test={len(test_feat)})")
-                continue
+            has_instance_ids = 'phoneme_instance_ids' in self.test
 
-            # Create and train model
-            model = model_factory(**model_params)
-            model.train(features=train_feat, phoneme_labels=train_labels)
+            if use_viterbi and has_instance_ids:
+                # Group test samples by word instance for sequential decoding
+                from collections import defaultdict, OrderedDict
+                instance_order = OrderedDict()
+                for list_pos, data_idx in enumerate(test_indices):
+                    inst_id = self.test['phoneme_instance_ids'][data_idx]
+                    if inst_id not in instance_order:
+                        instance_order[inst_id] = []
+                    instance_order[inst_id].append(list_pos)
 
-            # Predict
-            try:
-                preds, probs = model.predict(
-                    test_feat, use_viterbi=use_viterbi
-                )
-            except TypeError:
-                # Model.predict() may not accept use_viterbi
-                preds, probs = model.predict(test_feat)
+                # Predict each word instance as a sequence
+                preds = [None] * len(test_feat)
+                for inst_id, positions in instance_order.items():
+                    inst_features = [test_feat[p] for p in positions]
+                    try:
+                        inst_preds, _ = model.predict(
+                            inst_features, use_viterbi=True
+                        )
+                    except TypeError:
+                        inst_preds, _ = model.predict(inst_features)
+
+                    for p, pred in zip(positions, inst_preds):
+                        preds[p] = pred
+            else:
+                # Flat prediction without Viterbi
+                try:
+                    preds, probs = model.predict(
+                        test_feat, use_viterbi=False
+                    )
+                except TypeError:
+                    preds, probs = model.predict(test_feat)
 
             # Flatten nested predictions if needed
             if preds and isinstance(preds[0], list):

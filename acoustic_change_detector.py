@@ -922,44 +922,61 @@ class AcousticChangeDetector(DebugMixin):
                                     phoneme_eeg_segments.append(np.array([]))
                                     phoneme_durations_samples.append(0)
                     else:
-                        # Mismatch - use a simple distribution based on segment count
                         mismatched_words += 1
-                        self.debug(f"Mismatch for word '{word}': {len(phonemes)} phonemes but {len(segments)} segments")
-                        
-                        # Still add segments with unknown phoneme labels
-                        for j, segment in enumerate(segments):
+                        self.debug(
+                            f"Mismatch for word '{word}': "
+                            f"{len(phonemes)} phonemes but {len(segments)} segments"
+                        )
+
+                        if len(segments) == 0 or len(phonemes) == 0:
+                            continue
+
+                        seg_positions = np.linspace(0, len(phonemes) - 1, len(segments))
+                        assigned_labels = [
+                            phonemes[int(round(pos))] for pos in seg_positions
+                        ]
+
+                        for j, (segment, phoneme) in enumerate(
+                            zip(segments, assigned_labels)
+                        ):
                             phoneme_spectrogram_segments.append(segment)
-                            # Use '?' as placeholder for unknown phoneme
-                            phoneme_labels.append('?')
+                            phoneme_labels.append(phoneme)
                             phoneme_words.append(word)
                             phoneme_positions.append(j)
                             phoneme_participant_ids.append(participant_id)
                             phoneme_instance_indices.append(instance_idx)
-                            
-                            # Extract corresponding EEG segment if available
-                            if eeg_segment is not None and result.get('boundary_samples') is not None:
-                                boundaries = result['boundary_samples']
-                                if extended_segments is not None and j < len(extended_segments):
+
+                            if (eeg_segment is not None
+                                    and result.get('boundary_samples') is not None):
+                                if (extended_segments is not None
+                                        and j < len(extended_segments)):
                                     start, end = extended_segments[j]
-                                    
-                                    # Ensure valid indices
                                     start = max(0, start)
                                     end = min(eeg_segment.shape[0], end)
-                                    
+
                                     if start < end:
-                                        raw_segment = eeg_segment[start:end]
+                                        phoneme_eeg_segments.append(
+                                            eeg_segment[start:end]
+                                        )
                                         phoneme_durations_samples.append(end - start)
-                                        #fixed_segment = self._extract_fixed_window(
-                                        #    raw_segment, 
-                                        #    self.config.fixed_feature_samples
-                                        #)
-                                        phoneme_eeg_segments.append(raw_segment)
                                     else:
-                                        phoneme_eeg_segments.append(np.array([]))
+                                        phoneme_eeg_segments.append(
+                                            np.array([]).reshape(0, eeg_segment.shape[1])
+                                        )
                                         phoneme_durations_samples.append(0)
                                 else:
-                                    phoneme_eeg_segments.append(np.array([]))
+                                    phoneme_eeg_segments.append(
+                                        np.array([]).reshape(0, eeg_segment.shape[1])
+                                    )
                                     phoneme_durations_samples.append(0)
+                            else:
+                                if eeg_segment is not None:
+                                    phoneme_eeg_segments.append(
+                                        np.array([]).reshape(0, eeg_segment.shape[1])
+                                    )
+                                else:
+                                    phoneme_eeg_segments.append(np.array([]))
+                                phoneme_durations_samples.append(0)
                 else:
                     # No transcription available
                     self.debug(f"No transcription for word '{word}'")

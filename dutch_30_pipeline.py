@@ -352,9 +352,16 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             # -----------------------------------------------------------
             # 2A. Parse sentence text into individual words
             # -----------------------------------------------------------
-            cleaned_sentence = re.sub(r'["""„"''\r\n]+', '', sentence_text)
-            #word_texts = [w for w in cleaned_sentence.split() if w]
-            word_texts = [w.strip(string.punctuation).lower() for w in cleaned_sentence.split() if w.strip(string.punctuation)]
+            # Remove Unicode quotes and control characters from the sentence
+            cleaned_sentence = re.sub(
+                r'[\u2018\u2019\u201A\u201B\u2032\u2035'   # single curly/prime quotes
+                r'\u201C\u201D\u201E\u201F\u2033\u2036'    # double curly/prime quotes
+                r'"""„\'\'\r\n]+', '', sentence_text)
+            # Strip all punctuation (ASCII + Unicode quotes) from each word
+            strip_chars = string.punctuation + '\u2018\u2019\u201C\u201D\u201E\u201F""„"'''
+            word_texts = [w.strip(strip_chars).lower()
+                          for w in cleaned_sentence.split()
+                          if w.strip(strip_chars)]
             
             if not word_texts:
                 #self.debug(f"Skipping empty sentence")

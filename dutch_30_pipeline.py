@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from datetime import datetime
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, OrderedDict
 from debugger import DebugMixin
 from phoneme_validator import PhonemeValidator
 
@@ -696,7 +696,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         for pid in sorted(counts.keys()):
             print(f"{pid:<10} {counts[pid]:<10}")    
 
-
     def save_checkpoint_after_step3(pipeline, filepath='checkpoint_after_step3.pkl'):
         """Save pipeline state after steps 1-3 (load data, split, channel exclusions).
         
@@ -713,7 +712,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             pickle.dump(state, f)
         size_mb = os.path.getsize(filepath) / (1024 * 1024)
         print(f"Step 3 checkpoint saved: {filepath} ({size_mb:.1f} MB)")
-
 
     def load_checkpoint_after_step3(pipeline, filepath='checkpoint_after_step3.pkl'):
         """Load pipeline state from step 3 checkpoint.
@@ -739,8 +737,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         size_mb = os.path.getsize(filepath) / (1024 * 1024)
         print(f"Step 3 checkpoint loaded: {filepath} ({size_mb:.1f} MB)")
         return True
-
-
 
     def step4_custom_detector(self):
         """Initialize detector without BIDS decoder"""
@@ -1416,11 +1412,17 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         self.log("Switched to grouped phoneme labels")
         
     def step9_train_and_evaluate(self, model_factory, model_params=None,
-                             use_viterbi=True, min_train=10, min_test=5):
+                                 use_viterbi=True, min_train=10, min_test=5):
         """Train a per-patient model and evaluate on test set.
 
         Model-agnostic: accepts any callable that returns a model with
         train(features, phoneme_labels) and predict(features) methods.
+
+        When use_viterbi is True and phoneme_instance_ids are available,
+        predictions are grouped by word instance. Classifier probabilities
+        are averaged per phoneme position within each instance, then
+        Viterbi decodes the phoneme-level sequence using corpus transition
+        probabilities.
 
         Args:
             model_factory: callable that accepts **model_params and returns
@@ -1436,8 +1438,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             accuracy, train_size, test_size, n_classes, predictions,
             true_labels.
         """
-        from collections import Counter
-
         if model_params is None:
             model_params = {}
 
@@ -1471,11 +1471,20 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             test_feat = [self.test["features"][i] for i in test_indices]
             test_labels = [self.test["phoneme_labels"][i] for i in test_indices]
 
+            if len(train_feat) < min_train or len(test_feat) < min_test:
+                self.log(f"  {pid}: skipped (train={len(train_feat)}, "
+                         f"test={len(test_feat)})")
+                continue
+
+            # Create and train model
+            model = model_factory(**model_params)
+            model.train(features=train_feat, phoneme_labels=train_labels)
+
             has_instance_ids = 'phoneme_instance_ids' in self.test
+            preds_no_viterbi = None
 
             if use_viterbi and has_instance_ids:
                 # Group test samples by word instance for sequential decoding
-                from collections import defaultdict, OrderedDict
                 instance_order = OrderedDict()
                 for list_pos, data_idx in enumerate(test_indices):
                     inst_id = self.test['phoneme_instance_ids'][data_idx]
@@ -1485,17 +1494,48 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
 
                 # Predict each word instance as a sequence
                 preds = [None] * len(test_feat)
+                preds_no_viterbi = [None] * len(test_feat)
                 for inst_id, positions in instance_order.items():
                     inst_features = [test_feat[p] for p in positions]
-                    try:
-                        inst_preds, _ = model.predict(
-                            inst_features, use_viterbi=True
-                        )
-                    except TypeError:
-                        inst_preds, _ = model.predict(inst_features)
+                    inst_positions = [
+                        self.test['phoneme_positions'][test_indices[p]]
+                        for p in positions
+                    ]
 
+                    # Get raw classifier probabilities (no Viterbi)
+                    inst_preds, inst_probs = model.predict(
+                        inst_features, use_viterbi=False
+                    )
+                    
                     for p, pred in zip(positions, inst_preds):
-                        preds[p] = pred
+                        preds_no_viterbi[p] = pred
+
+                    # Aggregate probabilities per phoneme position
+                    pos_probs = OrderedDict()
+                    pos_frames = OrderedDict()
+                    for frame_idx, pos in enumerate(inst_positions):
+                        if pos not in pos_probs:
+                            pos_probs[pos] = []
+                            pos_frames[pos] = []
+                        pos_probs[pos].append(inst_probs[frame_idx])
+                        pos_frames[pos].append(frame_idx)
+
+                    # Average probabilities per position
+                    agg_probs = np.array([
+                        np.mean(pos_probs[pos], axis=0)
+                        for pos in pos_probs
+                    ])
+
+                    # Run Viterbi on phoneme-level sequence
+                    path = model._viterbi_decode(agg_probs)
+                    phoneme_preds = [
+                        model.trained_classes[idx] for idx in path
+                    ]
+
+                    # Map back to frame-level predictions
+                    for pos_idx, pos in enumerate(pos_probs):
+                        for frame_idx in pos_frames[pos]:
+                            preds[positions[frame_idx]] = phoneme_preds[pos_idx]
             else:
                 # Flat prediction without Viterbi
                 try:
@@ -1534,6 +1574,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 "test_size": len(test_feat),
                 "n_classes": len(set(train_labels)),
                 "predictions": preds,
+                "predictions_no_viterbi": preds_no_viterbi if use_viterbi and has_instance_ids else None,
                 "true_labels": test_labels,
             }
 
@@ -1826,11 +1867,12 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         )
 
         # 5. confusion matrix precision-normalised post-viterbi
-        draw_confusion(
-            axes[1, 2], cm, cm_precision, unique_labels,
-            "Confusion Matrix - Precision normalised (post-Viterbi)"
-            if has_viterbi_comparison else "Confusion Matrix - Precision normalised",
-            "Greens", "Precision"
+        if has_viterbi_comparison:
+            draw_confusion(
+                axes[1, 2], cm, cm_precision, unique_labels,
+                "Confusion Matrix - Precision normalised (post-Viterbi)",
+                "Greens", "Precision"
+            )
 )
 
         plt.tight_layout()

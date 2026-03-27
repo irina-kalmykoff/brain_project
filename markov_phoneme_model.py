@@ -1,11 +1,10 @@
 import numpy as np
 import os
 from collections import defaultdict, Counter
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import confusion_matrix
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
+from sklearn.linear_model import LogisticRegression
 
 import matplotlib.pyplot as plt
 import pickle
@@ -289,10 +288,7 @@ class MarkovPhonemeModel(DebugMixin):
             group_labels: List of target labels corresponding to each
                 feature array.
         """
-        from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.preprocessing import StandardScaler
-        
+       
         self.log(f"Building neural classifier: {self.classifier_type}")
         
         lengths = [feat.shape[0] for feat in features]
@@ -452,7 +448,7 @@ class MarkovPhonemeModel(DebugMixin):
         return predicted_labels, probabilities 
     
         
-    def _viterbi_decode(self, emission_probs):
+    def _viterbi_decode(self, emission_probs, transition_weight=0.1):
         """Find the most likely state sequence using the Viterbi algorithm.
 
         Operates in log-space to avoid numerical underflow on long
@@ -477,7 +473,7 @@ class MarkovPhonemeModel(DebugMixin):
             init_p = self.initial_probs.get(state, 1e-10)
             emit_p = emission_probs[0, i]
             if init_p > 0 and emit_p > 0:
-                viterbi[0, i] = np.log(init_p) + np.log(emit_p)
+                viterbi[0, i] = transition_weight * np.log(init_p) + np.log(emit_p)
 
         # Forward pass
         for t in range(1, n_samples):
@@ -493,7 +489,7 @@ class MarkovPhonemeModel(DebugMixin):
                         trans_p = self.default_transition.get(curr_state, 1.0 / n_states)
 
                     log_trans = np.log(trans_p) if trans_p > 0 else -np.inf
-                    score = viterbi[t-1, i] + log_trans + log_emit
+                    score = viterbi[t-1, i] + transition_weight * log_trans + log_emit
 
                     if score > viterbi[t, j]:
                         viterbi[t, j] = score

@@ -47,6 +47,12 @@ from dataset_config import Dutch30Config
 from transformers import Wav2Vec2Model, Wav2Vec2Processor
 import torch
 
+from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
+
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("facebook/wav2vec2-large-xlsr-53")
+model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-large-xlsr-53")
+print("Downloaded successfully, hidden size:", model.config.hidden_size)
+
 dutch30_dir = DUTCH_30_PATH
 
 # List all .npy files for one patient
@@ -61,85 +67,6 @@ path_bids = BIDS_PATH # './SingleWordProductionDutch-iBIDS'  # Path to the BIDS 
 path_output = OUTPUT_PATH #'./features'  # Path to save extracted features
 path_results = RESULTS_PATH #'./results'  # Path to save results
 paths_30 = get_dataset_paths('dutch30')
-
-# extractor = Dutch30FeatureExtractor()
-
-# pipeline = Dutch30Pipeline(
-#         dutch30_extractor=extractor,
-#         debug_mode=False,
-#         pca_components= None, #100,
-#         feature_extraction_method = 'high_gamma',# 'high_gamma', #'band_powers', #'band_power_hjorth', # 'hjorth', #'band_powers',# 'hjorth', #'high_gamma', # 'band_powers', # 'band_power_hjorth'
-#         use_rms_boundaries=False,   
-#         use_multifeature=False,
-#         use_wav2vec=True,
-#         subtract_baseline=False,
-#         #baseline_method = 'band_powers' #'feature_matched', 'band_powers', 'raw'
-#     )
-
-# sample_fraction = 1
-# patient_range = (21,30)
-# stacking_order = 7
-# stacking_step_size = 1
-# max_frames = 25
-# target_frames = 4
-
-
-# print(f"Attempting to load checkpoint (sample_fraction={sample_fraction})...")
-
-# if pipeline.try_load_checkpoint(sample_fraction=sample_fraction,
-#                                  stage='after_step6'):
-#     print(f"Step 6 checkpoint loaded - ready for classification")
-#     print(f"  Train samples: {len(pipeline.train.get('features', []))}")
-#     print(f"  Test samples: {len(pipeline.test.get('features', []))}")
-
-# elif pipeline.try_load_checkpoint(sample_fraction=sample_fraction,
-#                                    stage='after_step5'):
-#     print(f"Step 5 checkpoint loaded - running remaining steps...")
-#     print(f"  Train samples: {len(pipeline.train.get('features', []))}")
-#     print(f"  Test samples: {len(pipeline.test.get('features', []))}")
-
-#     # Step 5a, b: choose one
-#     pipeline.step5a_filter_by_frame_count(min_frames=2, max_frames=max_frames)
-#     pipeline.step5b_stack_features(model_order=stacking_order, step_size=stacking_step_size)
-#     # pipeline.step5b_normalize_feature_lengths(target_frames=target_frames)
-
-#     # Step 6
-#     pipeline.dutch30_step6_resolve_unknowns()
-#     # pipeline.checkpoint_after_step6(sample_fraction=sample_fraction)
-
-#     pipeline.step7_filter_unknowns(unknown_keep_ratio=0.0025);
-
-# else:
-#     print(f"No checkpoint found. Running full pipeline...")
-
-#     # print(f"\n  Step 1: Loading data (patients {patient_range})...")
-#     # pipeline.step1_load_dutch30_data(patient_range=patient_range)
-
-#     # print(f"\n  Step 2: Splitting by instances...")
-#     # pipeline.step2_split_by_instances()
-
-#     # print(f"\n  Step 3: Loading channel exclusions...")
-#     # pipeline.step3_load_channel_exclusions('channel_exclusions.json')
-#     # pipeline.apply_channel_exclusions()
-#     # pipeline.print_channel_counts()
-
-#     # print(f"\n  Step 4: custom decoder")
-#     # pipeline.step4_custom_detector() 
-
-#     # print(f"\n  Step 5: Accumulating data...")
-#     # pipeline.step5_accumulate_data_dutch30()
-#     # pipeline.checkpoint_after_step5(sample_fraction=sample_fraction)
-
-#     # #pipeline.step5a_filter_by_frame_count(min_frames=2, max_frames=max_frames)
-#     # # Step 5b: choose one    
-#     # #pipeline.step5b_stack_features(model_order=stacking_order, step_size=stacking_step_size)
-#     # pipeline.step5b_normalize_feature_lengths(target_frames=target_frames)
-
-#     # # Step 6
-#     # pipeline.dutch30_step6_resolve_unknowns()
-#     # # pipeline.checkpoint_after_step6(sample_fraction=sample_fraction)
-
-#     # pipeline.step7_filter_unknowns(unknown_keep_ratio=0.0025);
 
     def run_from_config(pipeline, run_config):
         """Run experiment using a unified config dict.
@@ -671,15 +598,6 @@ class ExperimentLogger:
 
         return best_exp
 
-import importlib
-import markov_phoneme_model
-importlib.reload(markov_phoneme_model)
-from markov_phoneme_model import MarkovPhonemeModel
-
-import inspect
-src = inspect.getsource(MarkovPhonemeModel.predict)
-print(src[src.find('use_viterbi and'):src.find('use_viterbi and')+300])
-
 import copy
 import pickle
 import numpy as np
@@ -694,10 +612,10 @@ run_config = {
     'subtract_baseline': False,
     # Step 5a: frame filtering
     'min_frames': 4,
-    'max_frames': 150,
+    'max_frames': 300,
     # Step 5b: choose ONE approach
-    'stacking_order': 9,
-    'stacking_step_size': 2,
+    'stacking_order': 5,
+    'stacking_step_size': 1,
     'target_frames': None,
     # Classifier
     'classifier_type': 'logistic_regression',
@@ -707,7 +625,7 @@ run_config = {
     'random_state': 37,
     'scaler_type': 'standard',
     'feature_pooling_method': 'flatten',
-    'min_class_samples': 7,
+    'min_class_samples': 0,
     # Unknown filtering
     'unknown_keep_ratio': 0.0025,
 }
@@ -834,8 +752,11 @@ for pid, pr in results.items():
     lift = pr['accuracy'] / chance if chance > 0 else 0
     pipeline.patient_results[pid] = {
         'accuracy': pr['accuracy'],
+
+        
         'lift': lift,
         'predictions': pr['predictions'],
+        
         'predictions_no_viterbi': pr.get('predictions_no_viterbi'),
         'true_labels': pr['true_labels'],
         'model': pr['model'],
@@ -848,18 +769,144 @@ pids = sorted(pipeline.patient_results.keys())
 for pid in pids:
     pipeline.step10_visualize_patient(pid, show_table=False, min_class_samples = run_config.get('min_class_samples', 5))
 
+# import gc
+# import json
+# import numpy as np
+
+# RESULTS_FILE = 'adaptive_threshold_sweep_v4_results.json'
+
+# threshold_configs = [
+#     {'label': '1.2_p01',   'factors': [1.2],  'prom': 0.01},
+#     {'label': '1.25_p01',  'factors': [1.25], 'prom': 0.01},
+#     {'label': '1.3_p01',   'factors': [1.3],  'prom': 0.01},
+#     {'label': '1.35_p01',  'factors': [1.35], 'prom': 0.01},
+#     {'label': '1.4_p01',   'factors': [1.4],  'prom': 0.01},
+#     {'label': '1.3_p005',  'factors': [1.3],  'prom': 0.005},
+#     {'label': '1.3_p02',   'factors': [1.3],  'prom': 0.02},
+#     {'label': '1.3_p03',   'factors': [1.3],  'prom': 0.03},
+#     {'label': '1.35_p02',  'factors': [1.35], 'prom': 0.02},
+#     {'label': '1.4_p02',   'factors': [1.4],  'prom': 0.02},
+# ]
+
+# all_results = []
+
+# for cfg in threshold_configs:
+#     print(f"\n--- {cfg['label']} ---")
+    
+#     pipeline.detector.config.adaptive_threshold_factors = cfg['factors']
+#     pipeline.detector.config.adaptive_prominence_factor = cfg['prom']
+    
+#     pipeline.step4_custom_detector()
+#     pipeline.step5_accumulate_data_dutch30()
+    
+#     lengths = [f.shape[0] if hasattr(f, 'ndim') and f.ndim == 2 else 1
+#                for f in pipeline.train['features']]
+#     n_total = len(lengths)
+#     n_one_frame = sum(1 for l in lengths if l == 1)
+    
+#     run_step5b(pipeline, run_config)
+#     pipeline.dutch30_step6_resolve_unknowns()
+#     pipeline.step7_filter_unknowns(unknown_keep_ratio=run_config['unknown_keep_ratio'])
+    
+#     name, params, results = run_from_config(pipeline, run_config)
+    
+#     accs = [r['accuracy'] for r in results.values()]
+#     adj_accs = [r['adjusted_accuracy'] for r in results.values()]
+#     per_patient = {pid: {'acc': r['accuracy'], 'adj_acc': r['adjusted_accuracy'],
+#                          'n_classes': r['n_classes_test'], 'train_size': r['train_size'],
+#                          'test_size': r['test_size']}
+#                    for pid, r in results.items()}
+    
+#     entry = {
+#         'label': cfg['label'],
+#         'factors': cfg['factors'],
+#         'prominence_factor': cfg['prom'],
+#         'mean_acc': float(np.mean(accs)),
+#         'mean_adj_acc': float(np.mean(adj_accs)),
+#         'std_acc': float(np.std(accs)),
+#         'n_patients': len(results),
+#         'n_features_total': n_total,
+#         'n_one_frame': n_one_frame,
+#         'pct_one_frame': round(n_one_frame / n_total * 100, 1),
+#         'median_frames': float(np.median(lengths)),
+#         'per_patient': per_patient,
+#     }
+#     all_results.append(entry)
+    
+#     print(f"  acc={entry['mean_acc']:.4f} adj={entry['mean_adj_acc']:.4f} "
+#           f"1-frame={entry['pct_one_frame']}% median={entry['median_frames']:.0f}")
+    
+#     del results
+#     gc.collect()
+
+# pipeline.detector.config.adaptive_threshold_factors = None
+# pipeline.detector.config.adaptive_prominence_factor = 0.01
+
+# with open(RESULTS_FILE, 'w') as f:
+#     json.dump(all_results, f, indent=2)
+# print(f"\nSaved to {RESULTS_FILE}")
+
+# import json
+# import numpy as np
+# import matplotlib.pyplot as plt
+
+# with open('adaptive_threshold_sweep_v4_results.json', 'r') as f:
+#     data = json.load(f)
+
+# print(f"{'Label':<15s}  {'Adj Acc':>8s}  {'Raw Acc':>8s}  {'Std':>8s}  {'1-frm%':>7s}  {'Med':>5s}  {'N':>3s}")
+# print("-" * 62)
+# for d in data:
+#     print(f"{d['label']:<15s}  {d['mean_adj_acc']:>8.4f}  {d['mean_acc']:>8.4f}  {d['std_acc']:>8.4f}  {d['pct_one_frame']:>6.1f}%  {d['median_frames']:>5.0f}  {d['n_patients']:>3d}")
+
+# best = max(data, key=lambda d: d['mean_adj_acc'])
+# print(f"\nBest: {best['label']} (adj acc={best['mean_adj_acc']:.4f}, raw={best['mean_acc']:.4f})")
+
+
+# import json
+# import matplotlib.pyplot as plt
+
+# with open('adaptive_threshold_sweep_v2_results.json', 'r') as f:
+#     data = json.load(f)
+
+# print(f"{'Label':<15s}  {'Adj Acc':>8s}  {'Raw Acc':>8s}  {'Std':>8s}  {'1-frm%':>7s}  {'Med':>5s}  {'N':>3s}")
+# print("-" * 62)
+# for d in data:
+#     print(f"{d['label']:<15s}  {d['mean_adj_acc']:>8.4f}  {d['mean_acc']:>8.4f}  {d['std_acc']:>8.4f}  {d['pct_one_frame']:>6.1f}%  {d['median_frames']:>5.0f}  {d['n_patients']:>3d}")
+
+# best = max(data, key=lambda d: d['mean_adj_acc'])
+# print(f"\nBest: {best['label']} (adj acc={best['mean_adj_acc']:.4f})")
+
+# fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# labels = [d['label'] for d in data]
+# adj_accs = [d['mean_adj_acc'] for d in data]
+# pct_1f = [d['pct_one_frame'] for d in data]
+
+# axes[0].barh(labels, adj_accs, color='steelblue', edgecolor='black')
+# axes[0].set_xlabel('Adjusted Accuracy')
+# axes[0].set_title('Accuracy by Threshold Config')
+
+# axes[1].barh(labels, pct_1f, color='orange', edgecolor='black')
+# axes[1].set_xlabel('% Single-Frame Features')
+# axes[1].set_title('Feature Quality by Threshold Config')
+
+# plt.tight_layout()
+# plt.show()
+
+
 import gc
 import json
 import os
+import copy
 from itertools import product
 
 # Save to a NEW file so old results stay separate
-logger = ExperimentLogger('experiments_v2_boundary_fix.json')
+logger = ExperimentLogger('experiments_v5_new_border_detection.json')
 
 # ============================================================
 # LOAD ALREADY-COMPLETED EXPERIMENTS
 # ============================================================
-RESULTS_FILE = 'experiments_v2_boundary_fix.json'
+RESULTS_FILE = 'experiments_v5_new_border_detection.json'
 done_keys = set()
 if os.path.exists(RESULTS_FILE):
     with open(RESULTS_FILE, 'r') as f:
@@ -879,27 +926,20 @@ if os.path.exists(RESULTS_FILE):
     print(f"Found {len(done_keys)} completed experiments")
 
 # ============================================================
-# PHASE 1: COARSE SWEEP (only ~100 experiments)
+# PHASE 1: COARSE SWEEP
 # ============================================================
-# Fewer stacking params — skip step_size=2 for now
 stacking_params = [
     (5, 1),
+    (5, 2),
     (7, 1),
+    (7, 2),
     (9, 1),
-    (9, 2),  # your previous best
+    (9, 2),
 ]
-
-# Fewer resampling targets — spread out
-resampling_target_frames = [3, 5, 7, 10]
-
-# Wider frame range since boundaries are now correct
-min_frames_options = [2, 4]
-max_frames_options = [80, 120]
-
-# Only standard scaler for phase 1
+resampling_target_frames = [5, 7]
+min_frames_options = [2, 3, 4]
+max_frames_options = [100, 120, 150, 170]
 scaler_types = ['standard']
-
-# No baseline subtraction for phase 1
 subtract_baseline_options = [False]
 
 # ============================================================
@@ -947,11 +987,13 @@ for i, (config, scaler_type, subtract_bl) in enumerate(experiments, 1):
     print(f"\n--- [{i}/{n_total}] {label} ---")
 
     try:
+        # Restore fresh post-step5 state each iteration
+        pipeline.train = copy.deepcopy(cached_train)
+        pipeline.test = copy.deepcopy(cached_test)
+
         run_config.update(config)
         run_config['scaler_type'] = scaler_type
         run_config['subtract_baseline'] = subtract_bl
-
-       ## pipeline.try_load_checkpoint(sample_fraction=sf, stage='after_step5')
 
         if subtract_bl and hasattr(pipeline, 'patient_baselines'):
             pipeline.train = pipeline.subtract_baseline(
@@ -972,8 +1014,9 @@ for i, (config, scaler_type, subtract_bl) in enumerate(experiments, 1):
 
     except Exception as e:
         print(f"  FAILED: {e}")
+        import traceback
+        traceback.print_exc()
         continue
-
 
 import json
 import numpy as np
@@ -982,7 +1025,7 @@ import matplotlib
 matplotlib.use('inline' if 'inline' in matplotlib.get_backend() else matplotlib.get_backend())
 import matplotlib.pyplot as plt
 
-with open('experiments_v2_boundary_fix.json', 'r') as f:
+with open('experiments_v5_new_border_detection.json', 'r') as f:
     experiments = json.load(f)
 print(f"Loaded {len(experiments)} experiments")
 
@@ -1749,13 +1792,13 @@ def phoneme_duration_diagnostic(pipeline, pid,
                 print(f"    {bin_name}: n=0")
         print()
 
-# # # Auto-select 3 consonants + 3 vowels
-phoneme_duration_diagnostic(pipeline, pid="P27", phonemes=["t", "n", "s", "d", "k", "r",
-                                       "\u0259", "\u025b", "\u0251", "i"], target_frames= 9, model_order=9, step_size=2)
+# # # # Auto-select 3 consonants + 3 vowels
+# phoneme_duration_diagnostic(pipeline, pid="P27", phonemes=["t", "n", "s", "d", "k", "r",
+#                                        "\u0259", "\u025b", "\u0251", "i"], target_frames= 9, model_order=9, step_size=2)
 
-# # # Or pick specific phonemes
-# # phoneme_duration_diagnostic(pipeline, pid="P23",
-# #                              phonemes=["t", "n", "s", "\u0259", "a:", "\u025b"])
+# # # # Or pick specific phonemes
+# # # phoneme_duration_diagnostic(pipeline, pid="P23",
+# # #                              phonemes=["t", "n", "s", "\u0259", "a:", "\u025b"])
 
 import torch
 import torch.nn as nn

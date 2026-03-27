@@ -1,0 +1,32 @@
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{0}: checkout: moving from wav2vec2 to wav2vec
+[33m24e2a98[m[33m ([m[1;31morigin/wav2vec2[m[33m, [m[1;32mwav2vec2[m[33m)[m HEAD@{1}: reset: moving to HEAD
+[33m24e2a98[m[33m ([m[1;31morigin/wav2vec2[m[33m, [m[1;32mwav2vec2[m[33m)[m HEAD@{2}: pull: Fast-forward
+[33m9ee85c1[m HEAD@{3}: commit: pipeline optimization for 1 patient
+[33m1e4d076[m HEAD@{4}: pull origin wav2vec2: Fast-forward
+[33me247995[m HEAD@{5}: pull origin wav2vec2: Fast-forward
+[33m75fff58[m HEAD@{6}: commit: switching to another PC
+[33mc884627[m HEAD@{7}: reset: moving to HEAD
+[33mc884627[m HEAD@{8}: reset: moving to HEAD
+[33mc884627[m HEAD@{9}: commit: Add wav2vec
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{10}: reset: moving to HEAD
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{11}: checkout: moving from wav2vec to wav2vec2
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{12}: checkout: moving from wav2vec2 to wav2vec
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{13}: reset: moving to HEAD
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{14}: checkout: moving from wav2vec to wav2vec2
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{15}: checkout: moving from wav2vec2 to wav2vec
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{16}: checkout: moving from wav2vec to wav2vec2
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{17}: checkout: moving from wav2vec2 to wav2vec
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{18}: reset: moving to HEAD
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{19}: checkout: moving from improve-phoneme-variance-analysis to wav2vec2
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{20}: checkout: moving from wav2vec to improve-phoneme-variance-analysis
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{21}: reset: moving to HEAD
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{22}: checkout: moving from improve-phoneme-variance-analysis to wav2vec
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{23}: checkout: moving from master to improve-phoneme-variance-analysis
+[33mdd21b27[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/fix-phoneme-detection-variance[m[33m, [m[1;32mmaster[m[33m, [m[1;32mfix-phoneme-detection-variance[m[33m)[m HEAD@{24}: checkout: moving from improve-phoneme-variance-analysis to master
+[33mbcf0a36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mwav2vec[m[33m, [m[1;32mimprove-phoneme-variance-analysis[m[33m)[m HEAD@{25}: commit: last step before switching to wav2vec model
+[33mdd21b27[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/fix-phoneme-detection-variance[m[33m, [m[1;32mmaster[m[33m, [m[1;32mfix-phoneme-detection-variance[m[33m)[m HEAD@{26}: checkout: moving from master to improve-phoneme-variance-analysis
+[33mdd21b27[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/fix-phoneme-detection-variance[m[33m, [m[1;32mmaster[m[33m, [m[1;32mfix-phoneme-detection-variance[m[33m)[m HEAD@{27}: merge fix-phoneme-detection-variance: Fast-forward
+[33m4f46bca[m[33m ([m[1;31morigin/pca-refactoring-clean[m[33m)[m HEAD@{28}: checkout: moving from fix-phoneme-detection-variance to master
+[33mdd21b27[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/fix-phoneme-detection-variance[m[33m, [m[1;32mmaster[m[33m, [m[1;32mfix-phoneme-detection-variance[m[33m)[m HEAD@{29}: commit: Work on phoneme detection variance and boundary issues
+[33m4f46bca[m[33m ([m[1;31morigin/pca-refactoring-clean[m[33m)[m HEAD@{30}: checkout: moving from master to fix-phoneme-detection-variance
+[33m4f46bca[m[33m ([m[1;31morigin/pca-refactoring-clean[m[33m)[m HEAD@{31}: commit (initial): Clean version of pca-refactoring - code only

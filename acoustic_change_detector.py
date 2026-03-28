@@ -1800,21 +1800,29 @@ class AcousticChangeDetector(DebugMixin):
         # Adaptive threshold for peak detection
         median_val = np.median(distances_speech)
         mad = np.median(np.abs(distances_speech - median_val))
-        peak_threshold = median_val + 1.0 * mad
-        
+
+        word_k_factors = getattr(self.config, 'word_threshold_factors', None)
+        k = word_k_factors[0] if word_k_factors else 1.0
+        peak_threshold = median_val + k * mad
+
+        word_prom_factor = getattr(self.config, 'word_prominence_factor', 0.01)
+
         # Minimum distance between peaks (in wav2vec frames)
         # wav2vec outputs ~50 frames per second at 16kHz
         wav2vec_fps = 50
         min_phoneme_frames = int(self.config.min_phoneme_duration * wav2vec_fps)
-        
+
         # Find peaks with adaptive threshold
         for attempt in range(5):
-            peaks, _ = find_peaks(
-                distances_speech,
-                height=peak_threshold,
-                distance=max(1, min_phoneme_frames),
-                prominence=0.01 * np.max(distances_speech)
-            )
+            prom_val = word_prom_factor * np.max(distances_speech) if word_prom_factor > 0 else None
+            peak_kwargs = {
+                'height': peak_threshold,
+                'distance': max(1, min_phoneme_frames),
+            }
+            if prom_val is not None:
+                peak_kwargs['prominence'] = prom_val
+
+            peaks, _ = find_peaks(distances_speech, **peak_kwargs)
             
             self.debug(f"  Attempt {attempt+1}: threshold={peak_threshold:.4f}, found {len(peaks)} peaks (need {n_boundaries_needed})")
             
@@ -1847,32 +1855,17 @@ class AcousticChangeDetector(DebugMixin):
         
         phoneme_boundaries_samples = np.array(phoneme_boundaries_samples)
         
-        # Group phonemes into words based on expected counts.
-        # When we have fewer phoneme boundaries than needed, distribute
-        # the remaining audio equally among the uncovered words instead
-        # of collapsing them to zero-length segments.
+        # Group phonemes into words based on expected counts
         word_boundaries_samples = [phoneme_boundaries_samples[0]]
-
+        
         phoneme_idx = 0
         for word_idx, n_phonemes in enumerate(word_phoneme_counts):
             phoneme_idx += n_phonemes
-
+            
             if phoneme_idx < len(phoneme_boundaries_samples):
                 word_boundaries_samples.append(phoneme_boundaries_samples[phoneme_idx])
             else:
-                # Ran out of phoneme boundaries — fill remaining words
-                # with equally spaced boundaries in the leftover audio.
-                last_known = word_boundaries_samples[-1]
-                audio_end = phoneme_boundaries_samples[-1]
-                remaining_words = len(word_phoneme_counts) - word_idx
-                if remaining_words > 0 and audio_end > last_known:
-                    spacing = np.linspace(last_known, audio_end, remaining_words + 1)[1:]
-                    word_boundaries_samples.extend(spacing.astype(int).tolist())
-                else:
-                    # No audio left — pad with audio_end
-                    for _ in range(remaining_words):
-                        word_boundaries_samples.append(audio_end)
-                break
+                word_boundaries_samples.append(phoneme_boundaries_samples[-1])
         
         word_boundaries_samples = np.array(word_boundaries_samples)
         

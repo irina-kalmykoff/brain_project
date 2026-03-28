@@ -1873,7 +1873,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 "Confusion Matrix - Precision normalised (post-Viterbi)",
                 "Greens", "Precision"
             )
-)
+
 
         plt.tight_layout()
         plt.show()

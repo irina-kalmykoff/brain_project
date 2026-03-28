@@ -140,7 +140,7 @@ class Dutch30Config:
     adaptive_prominence_factor: float = 0.03  # prominence = factor * max(distances); tuned from 0.01
 
     # Word-level boundary detection tuning (used by segment_sentence_by_wav2vec)
-    word_threshold_factors: list = None    # None = default k=1.0; try [0.0] for more words
+    word_threshold_factors: list = field(default_factory=lambda: [0.0])  # [0.0] = no height filter; None = default k=1.0
     word_prominence_factor: float = 0.0    # prominence = factor * max(distances); 0 = no filter
     
     """

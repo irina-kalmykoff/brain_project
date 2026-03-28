@@ -59,9 +59,8 @@ class AcousticChangeDetector(DebugMixin):
             self.log("Initializing wav2vec model for boundary detection...")
             self.wav2vec_processor = Wav2Vec2FeatureExtractor.from_pretrained("facebook/wav2vec2-large-xlsr-53") #Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
             self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-large-xlsr-53") #Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base", use_safetensors=True)
-            self.wav2vec_model = self.wav2vec_model.to('cpu')  # Force CPU for cross-machine reproducibility
             self.wav2vec_model.eval()
-            self.log("Wav2vec model initialized successfully (forced CPU)")
+            self.log("Wav2vec model initialized successfully")
         
         self.frameshift = config.frameshift
         self.eeg_sr = config.eeg_sr
@@ -1894,7 +1893,6 @@ class AcousticChangeDetector(DebugMixin):
 
             self.wav2vec_processor = Wav2Vec2FeatureExtractor.from_pretrained("facebook/wav2vec2-large-xlsr-53")
             self.wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-large-xlsr-53")
-            self.wav2vec_model = self.wav2vec_model.to('cpu')  # Force CPU for cross-machine reproducibility
             self.wav2vec_model.eval()
         
         # CRITICAL: Resample to 16kHz if needed

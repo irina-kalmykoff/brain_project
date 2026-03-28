@@ -1847,17 +1847,32 @@ class AcousticChangeDetector(DebugMixin):
         
         phoneme_boundaries_samples = np.array(phoneme_boundaries_samples)
         
-        # Group phonemes into words based on expected counts
+        # Group phonemes into words based on expected counts.
+        # When we have fewer phoneme boundaries than needed, distribute
+        # the remaining audio equally among the uncovered words instead
+        # of collapsing them to zero-length segments.
         word_boundaries_samples = [phoneme_boundaries_samples[0]]
-        
+
         phoneme_idx = 0
         for word_idx, n_phonemes in enumerate(word_phoneme_counts):
             phoneme_idx += n_phonemes
-            
+
             if phoneme_idx < len(phoneme_boundaries_samples):
                 word_boundaries_samples.append(phoneme_boundaries_samples[phoneme_idx])
             else:
-                word_boundaries_samples.append(phoneme_boundaries_samples[-1])
+                # Ran out of phoneme boundaries — fill remaining words
+                # with equally spaced boundaries in the leftover audio.
+                last_known = word_boundaries_samples[-1]
+                audio_end = phoneme_boundaries_samples[-1]
+                remaining_words = len(word_phoneme_counts) - word_idx
+                if remaining_words > 0 and audio_end > last_known:
+                    spacing = np.linspace(last_known, audio_end, remaining_words + 1)[1:]
+                    word_boundaries_samples.extend(spacing.astype(int).tolist())
+                else:
+                    # No audio left — pad with audio_end
+                    for _ in range(remaining_words):
+                        word_boundaries_samples.append(audio_end)
+                break
         
         word_boundaries_samples = np.array(word_boundaries_samples)
         

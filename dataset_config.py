@@ -137,7 +137,7 @@ class Dutch30Config:
 
     # Adaptive peak detection tuning (used by _adaptive_peak_detection)
     adaptive_threshold_factors: list = None   # None = default [0.6, 0.5, ..., 1.2]; best: [1.3]
-    adaptive_prominence_factor: float = 0.03  # prominence = factor * max(distances); tuned from 0.01
+    adaptive_prominence_factor: float = 0.005  # prominence = factor * max(distances); tuned from 0.01
 
     # Word-level boundary detection tuning (used by segment_sentence_by_wav2vec)
     word_threshold_factors: list = field(default_factory=lambda: [0.0])  # [0.0] = no height filter; None = default k=1.0

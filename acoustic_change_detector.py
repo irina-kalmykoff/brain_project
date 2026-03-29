@@ -1812,8 +1812,8 @@ class AcousticChangeDetector(DebugMixin):
         wav2vec_fps = 50
         min_phoneme_frames = int(self.config.min_phoneme_duration * wav2vec_fps)
 
-        # Find peaks with adaptive threshold
-        for attempt in range(5):
+        # Find peaks with adaptive threshold (aggressive retry)
+        for attempt in range(10):
             prom_val = word_prom_factor * np.max(distances_speech) if word_prom_factor > 0 else None
             peak_kwargs = {
                 'height': peak_threshold,
@@ -1823,9 +1823,9 @@ class AcousticChangeDetector(DebugMixin):
                 peak_kwargs['prominence'] = prom_val
 
             peaks, _ = find_peaks(distances_speech, **peak_kwargs)
-            
+
             self.debug(f"  Attempt {attempt+1}: threshold={peak_threshold:.4f}, found {len(peaks)} peaks (need {n_boundaries_needed})")
-            
+
             if len(peaks) >= n_boundaries_needed:
                 # Keep strongest n peaks
                 if len(peaks) > n_boundaries_needed:
@@ -1835,7 +1835,7 @@ class AcousticChangeDetector(DebugMixin):
                     peaks = np.sort(peaks)
                 break
             else:
-                peak_threshold *= 0.75
+                peak_threshold *= 0.5  # more aggressive reduction (was 0.75)
         
         # Convert wav2vec frame indices to audio samples
         # wav2vec processes at 16kHz with ~320 samples per frame (20ms)

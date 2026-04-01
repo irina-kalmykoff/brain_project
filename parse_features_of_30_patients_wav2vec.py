@@ -1,5 +1,36 @@
 # Converted from parse_features_of_30_patients_wav2vec.ipynb
 
+packages = [
+    "torch",
+    "transformers",
+    "numpy",
+    "scipy",
+    ("sklearn", "sklearn"),  # skip this one
+    "librosa",
+    "mne",
+    "h5py",
+]
+
+import sys, platform, importlib
+print(f"python: {sys.version}")
+print(f"platform: {platform.platform()}\n")
+
+import torch
+print(f"torch: {torch.__version__}")
+print(f"cuda available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"cuda device: {torch.cuda.get_device_name(0)}")
+    print(f"cuda version: {torch.version.cuda}")
+print(f"device: {'cuda' if torch.cuda.is_available() else 'cpu'}")
+
+import transformers
+print(f"\ntransformers: {importlib.metadata.version('transformers')}")
+
+import numpy; print(f"numpy: {numpy.__version__}")
+import scipy; print(f"scipy: {scipy.__version__}")
+print(f"sklearn: {importlib.metadata.version('scikit-learn')}")
+
+
 import os
 import gc
 import glob
@@ -645,6 +676,8 @@ pipeline = Dutch30Pipeline(
 sf = run_config['sample_fraction']
 pr = run_config['patient_range']
 
+STEP3_CHECKPOINT = f'checkpoint_after_step3_P{pr[0]:02d}-P{pr[1]:02d}.pkl'
+
 use_stacking = run_config['stacking_order'] is not None
 use_resampling = run_config['target_frames'] is not None
 
@@ -659,13 +692,11 @@ else:
 print(f"Approach: {approach}")
 print(f"Patients: P{pr[0]:02d}-P{pr[1]:02d}")
 
-
 # ---- Helpers ----
 def count(pipeline, label=""):
     tr = len(pipeline.train['features']) if pipeline.train else 0
     te = len(pipeline.test['features']) if pipeline.test else 0
     print(f"  {label:.<40s} train={tr:>6d}  test={te:>6d}")
-
 
 def run_step5b(pipeline, run_config):
     if run_config['stacking_order'] is not None:
@@ -674,11 +705,14 @@ def run_step5b(pipeline, run_config):
             max_frames=run_config['max_frames'])
         count(pipeline, "After 5a (frame filter)")
 
+        print(f"Feature shape before step5b: {pipeline.train['features'][0].shape}")
+        print(f"Feature ndim: {pipeline.train['features'][0].ndim}")
+
         pipeline.step5b_stack_features(
             model_order=run_config['stacking_order'],
             step_size=run_config['stacking_step_size'])
         count(pipeline, "After 5b (stacking)")
-
+        
         if hasattr(pipeline, 'step5c_collapse_to_phoneme_level'):
             pipeline.step5c_collapse_to_phoneme_level()
             count(pipeline, "After 5c (collapse)")
@@ -692,207 +726,238 @@ def run_step5b(pipeline, run_config):
     else:
         print("WARNING: No step 5b configured")
 
+# ---- Try step 5 checkpoint first ----
+step5b_method = 'stack' if use_stacking else ('normalize' if use_resampling else None)
+step5_loaded = pipeline.try_load_checkpoint(
+    stage='after_step5',
+    step5b_method=step5b_method,
+    model_order=run_config.get('stacking_order'),
+    step_size=run_config.get('stacking_step_size'),
+    target_frames=run_config.get('target_frames'),
+)
 
-# ---- Steps 1-3: Load or restore from checkpoint ----
-STEP3_CHECKPOINT = f'checkpoint_after_step3_P{pr[0]:02d}-P{pr[1]:02d}.pkl'
-
-if os.path.exists(STEP3_CHECKPOINT):
-    print(f"Loading step 3 checkpoint: {STEP3_CHECKPOINT}")
-    with open(STEP3_CHECKPOINT, 'rb') as f:
-        state = pickle.load(f)
-    pipeline.split_result = state['split_result']
-    pipeline.patient_data = state['patient_data']
-    pipeline.patient_baselines = state['patient_baselines']
-    print(f"Step 3 checkpoint loaded")
+if step5_loaded:
+    print("Step 5 checkpoint found, skipping steps 1-5b")
+    cached_train = copy.deepcopy(pipeline.train)
+    cached_test = copy.deepcopy(pipeline.test)
 else:
-    print("No step 3 checkpoint found. Running steps 1-3...")
-    pipeline.step1_load_dutch30_data(patient_range=pr)
-    pipeline.step2_split_by_instances()
-    pipeline.step3_load_channel_exclusions('channel_exclusions.json')
-    pipeline.apply_channel_exclusions()
-    pipeline.print_channel_counts()
+    # ---- Fall back to step 3 checkpoint or full run ----
+    if os.path.exists(STEP3_CHECKPOINT):
+        print(f"Loading step 3 checkpoint: {STEP3_CHECKPOINT}")
+        with open(STEP3_CHECKPOINT, 'rb') as f:
+            state = pickle.load(f)
+        pipeline.split_result = state['split_result']
+        pipeline.patient_data = state['patient_data']
+        pipeline.patient_baselines = state['patient_baselines']
+        print("Step 3 checkpoint loaded")
+    else:
+        print("No checkpoint found. Running steps 1-3...")
+        pipeline.step1_load_dutch30_data(patient_range=pr)
+        pipeline.step2_split_by_instances()
+        pipeline.step3_load_channel_exclusions('channel_exclusions.json')
+        pipeline.apply_channel_exclusions()
+        pipeline.print_channel_counts()
 
-    # Save checkpoint
-    with open(STEP3_CHECKPOINT, 'wb') as f:
-        pickle.dump({
-            'split_result': pipeline.split_result,
-            'patient_data': pipeline.patient_data,
-            'patient_baselines': getattr(pipeline, 'patient_baselines', None),
-        }, f)
-    print(f"Step 3 checkpoint saved: {STEP3_CHECKPOINT}")
+        with open(STEP3_CHECKPOINT, 'wb') as f:
+            pickle.dump({
+                'split_result': pipeline.split_result,
+                'patient_data': pipeline.patient_data,
+                'patient_baselines': getattr(pipeline, 'patient_baselines', None),
+            }, f)
+        print(f"Step 3 checkpoint saved: {STEP3_CHECKPOINT}")
+    
+    # ---- Steps 4-5 ----
+    pipeline.step4_custom_detector()
+    pipeline.step5_accumulate_data_dutch30()
+    count(pipeline, "After step 5 (accumulate)")
 
+    cached_train = copy.deepcopy(pipeline.train)
+    cached_test = copy.deepcopy(pipeline.test)
+    print("Cached post-step5 state in memory")
+
+    run_step5b(pipeline, run_config)
+    print(f"'phoneme_instance_ids' in train: {'phoneme_instance_ids' in pipeline.train}")
+    print(f"'phoneme_instance_ids' in test: {'phoneme_instance_ids' in pipeline.test}")
+    print(f"Train keys: {list(pipeline.train.keys())}")
+    print(f"Test keys: {list(pipeline.test.keys())}")
+    
+    pipeline.checkpoint_after_step5(
+        sample_fraction=run_config['sample_fraction'] if run_config['sample_fraction'] != 1 else None,
+        step5b_method=step5b_method,
+        model_order=run_config.get('stacking_order'),
+        step_size=run_config.get('stacking_step_size'),
+        target_frames=run_config.get('target_frames'),
+    )
 # ---- Steps 4-5 ----
-pipeline.step4_custom_detector()
-pipeline.step5_accumulate_data_dutch30()
-count(pipeline, "After step 5 (accumulate)")
-
-# ---- Cache post-step5 state for experiment loop later ----
-cached_train = copy.deepcopy(pipeline.train)
-cached_test = copy.deepcopy(pipeline.test)
-print(f"Cached post-step5 state in memory")
-
-# ---- Steps 5b-7 ----
-run_step5b(pipeline, run_config)
 
 pipeline.dutch30_step6_resolve_unknowns()
 count(pipeline, "After step 6 (resolve unknowns)")
+print(f"After step6 - instance_ids in test: {'phoneme_instance_ids' in pipeline.test}")
 
 pipeline.step7_filter_unknowns(
     unknown_keep_ratio=run_config['unknown_keep_ratio'])
 count(pipeline, "After step 7 (filter unknowns)")
+print(f"After step7 - instance_ids in test: {'phoneme_instance_ids' in pipeline.test}")
 
-# ---- Run experiment ----
-name, params, results = run_from_config(pipeline, run_config)
+# # Check per-patient counts on this machine
+# for pid in sorted(set(pipeline.train['phoneme_participant_ids'])):
+#     train_count = sum(1 for p in pipeline.train['phoneme_participant_ids'] if p == pid)
+#     test_count = sum(1 for p in pipeline.test['phoneme_participant_ids'] if p == pid)
+#     print(f"  {pid}: train={train_count}, test={test_count}, total={train_count + test_count}")
+
+print(f"Results dir: {pipeline.path_results}")
+
+import glob
+for f in glob.glob(os.path.join(pipeline.path_results, 'pipeline_*_after_step5_*.pkl')):
+    print(f"  {f} ({os.path.getsize(f)/1e6:.1f} MB)")
 
 
-pipeline.patient_results = {}
-for pid, pr in results.items():
-    n_classes = pr['n_classes_test']
-    chance = 1.0 / n_classes if n_classes > 0 else 0
-    lift = pr['accuracy'] / chance if chance > 0 else 0
-    pipeline.patient_results[pid] = {
-        'accuracy': pr['accuracy'],
+results = pipeline.step9_train_and_evaluate(
+    model_factory=MarkovPhonemeModel,
+    model_params={
+        'phonetic_dict': pipeline.detector.phonetic_dict,
+        'order': run_config['markov_order'],
+        'use_groups': False,
+        'class_weight': run_config['class_weight'],
+        'classifier_type': run_config['classifier_type'],
+        'random_state': run_config['random_state'],
+        'scaler_type': run_config['scaler_type'],
+    },
+    use_viterbi=True,
+)
 
-        
-        'lift': lift,
-        'predictions': pr['predictions'],
-        
-        'predictions_no_viterbi': pr.get('predictions_no_viterbi'),
-        'true_labels': pr['true_labels'],
-        'model': pr['model'],
-        'n_classes': pr['n_classes'],
-        'train_size': pr['train_size'],
-        'test_size': pr['test_size'],
-    }
+for pid in sorted(pipeline.patient_results.keys()):
+    print(f"--- {pid} ---")
+    r = pipeline.patient_results[pid]
+    print(f"  acc={r['accuracy']:.4f}  n_pred={len(set(r['predictions']))}")
+    pipeline.step10_visualize_patient(pid, show_table=False, min_class_samples=run_config.get('min_class_samples', 5))
 
-pids = sorted(pipeline.patient_results.keys())
-for pid in pids:
-    pipeline.step10_visualize_patient(pid, show_table=False, min_class_samples = run_config.get('min_class_samples', 5))
+# # ---- Run experiment ----
+# name, params, results = run_from_config(pipeline, run_config)
 
-# import gc
-# import json
+# results_nn = pipeline.step9_train_and_evaluate(
+#     model_factory=MarkovPhonemeModel,
+#     model_params={
+#         'phonetic_dict': pipeline.detector.phonetic_dict,
+#         'order': 1,
+#         'use_groups': False,
+#         'class_weight': 'balanced',
+#         'classifier_type': 'nn_relu',
+#         'random_state': 37,
+#         'scaler_type': 'standard',
+#     },
+#     use_viterbi=True,
+# )
+
+# for pid in sorted(pipeline.patient_results.keys()):
+#     print(f"--- {pid} ---")
+#     r = pipeline.patient_results[pid]
+#     print(f"  acc={r['accuracy']:.4f}  n_pred={len(set(r['predictions']))}")
+#     try:
+#         pipeline.step10_visualize_patient(pid, show_table=False, min_class_samples=run_config.get('min_class_samples', 5))
+#     except Exception as e:
+#         print(f"  FAILED: {type(e).__name__}: {e}")
+
 # import numpy as np
+# from scipy.signal import find_peaks
+# from scipy.ndimage import gaussian_filter1d
 
-# RESULTS_FILE = 'adaptive_threshold_sweep_v4_results.json'
+# all_pids = sorted(set(pipeline.train['phoneme_participant_ids']))
+# print(f"Testing on {len(all_pids)} patients\n")
 
-# threshold_configs = [
-#     {'label': '1.2_p01',   'factors': [1.2],  'prom': 0.01},
-#     {'label': '1.25_p01',  'factors': [1.25], 'prom': 0.01},
-#     {'label': '1.3_p01',   'factors': [1.3],  'prom': 0.01},
-#     {'label': '1.35_p01',  'factors': [1.35], 'prom': 0.01},
-#     {'label': '1.4_p01',   'factors': [1.4],  'prom': 0.01},
-#     {'label': '1.3_p005',  'factors': [1.3],  'prom': 0.005},
-#     {'label': '1.3_p02',   'factors': [1.3],  'prom': 0.02},
-#     {'label': '1.3_p03',   'factors': [1.3],  'prom': 0.03},
-#     {'label': '1.35_p02',  'factors': [1.35], 'prom': 0.02},
-#     {'label': '1.4_p02',   'factors': [1.4],  'prom': 0.02},
+# configs = [
+#   #  {'label': 'current (k=1.5, p=0.05)',  'k': 1.5, 'mhf': 0.1,   'prom': 0.05},
+# #    {'label': 'k=0, p=0.03',              'k': 0.0, 'mhf': 0.0,   'prom': 0.03},
+#     {'label': 'k=0, p=0.02',              'k': 0.0, 'mhf': 0.0,   'prom': 0.02},
+# #    {'label': 'k=0, p=0.015',             'k': 0.0, 'mhf': 0.0,   'prom': 0.015},
+#     {'label': 'k=0, p=0.01',              'k': 0.0, 'mhf': 0.0,   'prom': 0.01},
+#     {'label': 'current (k=0, p=0.005)',             'k': 0.0, 'mhf': 0.0,   'prom': 0.005},
+#     {'label': 'k=0, p=0.002',             'k': 0.0, 'mhf': 0.0,   'prom': 0.002},
+#     {'label': 'k=0, p=0',                 'k': 0.0, 'mhf': 0.0,   'prom': 0.0},
+#     {'label': 'k=0.1, p=0.01',            'k': 0.1, 'mhf': 0.01,  'prom': 0.01},
+#     {'label': 'k=0.2, p=0.01',            'k': 0.2, 'mhf': 0.02,  'prom': 0.01},
+#   #  {'label': 'k=0.3, p=0.01',            'k': 0.3, 'mhf': 0.03,  'prom': 0.01},
+#     {'label': 'k=0.1, p=0.015',           'k': 0.1, 'mhf': 0.01,  'prom': 0.015},
+#    # {'label': 'k=0.2, p=0.015',           'k': 0.2, 'mhf': 0.02,  'prom': 0.015},
 # ]
 
-# all_results = []
+# # Collect per-patient results
+# results = {cfg['label']: {} for cfg in configs}
 
-# for cfg in threshold_configs:
-#     print(f"\n--- {cfg['label']} ---")
+# for pid in all_pids:
+#     words = list(pipeline.split_result['train'][pid].keys())
     
-#     pipeline.detector.config.adaptive_threshold_factors = cfg['factors']
-#     pipeline.detector.config.adaptive_prominence_factor = cfg['prom']
-    
-#     pipeline.step4_custom_detector()
-#     pipeline.step5_accumulate_data_dutch30()
-    
-#     lengths = [f.shape[0] if hasattr(f, 'ndim') and f.ndim == 2 else 1
-#                for f in pipeline.train['features']]
-#     n_total = len(lengths)
-#     n_one_frame = sum(1 for l in lengths if l == 1)
-    
-#     run_step5b(pipeline, run_config)
-#     pipeline.dutch30_step6_resolve_unknowns()
-#     pipeline.step7_filter_unknowns(unknown_keep_ratio=run_config['unknown_keep_ratio'])
-    
-#     name, params, results = run_from_config(pipeline, run_config)
-    
-#     accs = [r['accuracy'] for r in results.values()]
-#     adj_accs = [r['adjusted_accuracy'] for r in results.values()]
-#     per_patient = {pid: {'acc': r['accuracy'], 'adj_acc': r['adjusted_accuracy'],
-#                          'n_classes': r['n_classes_test'], 'train_size': r['train_size'],
-#                          'test_size': r['test_size']}
-#                    for pid, r in results.items()}
-    
-#     entry = {
-#         'label': cfg['label'],
-#         'factors': cfg['factors'],
-#         'prominence_factor': cfg['prom'],
-#         'mean_acc': float(np.mean(accs)),
-#         'mean_adj_acc': float(np.mean(adj_accs)),
-#         'std_acc': float(np.std(accs)),
-#         'n_patients': len(results),
-#         'n_features_total': n_total,
-#         'n_one_frame': n_one_frame,
-#         'pct_one_frame': round(n_one_frame / n_total * 100, 1),
-#         'median_frames': float(np.median(lengths)),
-#         'per_patient': per_patient,
-#     }
-#     all_results.append(entry)
-    
-#     print(f"  acc={entry['mean_acc']:.4f} adj={entry['mean_adj_acc']:.4f} "
-#           f"1-frame={entry['pct_one_frame']}% median={entry['median_frames']:.0f}")
-    
-#     del results
-#     gc.collect()
+#     for cfg in configs:
+#         total_peaks = 0
+#         total_needed = 0
+#         underfound = 0
+        
+#         for word in words:
+#             instances = pipeline.split_result['train'][pid][word]
+#             idx = instances[0]
+#             wd = pipeline.split_result['word_segments_dict'][pid]['words'][word]['instances'][idx]
+            
+#             audio = wd['audio_segment']
+#             if audio is None:
+#                 continue
+#             audio_sr = pipeline.detector.config.audio_sr
+            
+#             wav2vec_features = pipeline.detector.extract_wav2vec_features(audio, audio_sr)
+#             distances = pipeline.detector.compute_wav2vec_distances(wav2vec_features)
+#             enhanced = gaussian_filter1d(distances, sigma=1.0)
+            
+#             median_val = np.median(enhanced)
+#             mad = np.median(np.abs(enhanced - median_val))
+#             height = median_val + cfg['k'] * mad
+#             min_height = cfg['mhf'] * np.max(enhanced)
+#             height = max(height, min_height)
+#             if height <= 0:
+#                 height = 1e-10
+            
+#             phonemes = pipeline.detector.phonetic_dict.extract_phonemes(word)
+#             n_needed = len(phonemes) - 1
+            
+#             kwargs = {'height': height, 'distance': 1}
+#             if cfg['prom'] > 0:
+#                 kwargs['prominence'] = cfg['prom']
+            
+#             peaks, _ = find_peaks(enhanced, **kwargs)
+            
+#             total_peaks += len(peaks)
+#             total_needed += n_needed
+#             if len(peaks) < n_needed:
+#                 underfound += 1
+        
+#         results[cfg['label']][pid] = {
+#             'peaks': total_peaks,
+#             'needed': total_needed,
+#             'underfound': underfound,
+#             'n_words': len(words),
+#             'ratio': total_peaks / total_needed if total_needed > 0 else 0,
+#         }
 
-# pipeline.detector.config.adaptive_threshold_factors = None
-# pipeline.detector.config.adaptive_prominence_factor = 0.01
+# # Print summary table
+# print(f"{'Config':<25s}", end="")
+# for pid in all_pids:
+#     print(f"  {pid:>5s}", end="")
+# print(f"  {'MEAN':>6s}  {'Under%':>6s}")
+# print("-" * (25 + 7 * len(all_pids) + 16))
 
-# with open(RESULTS_FILE, 'w') as f:
-#     json.dump(all_results, f, indent=2)
-# print(f"\nSaved to {RESULTS_FILE}")
+# for cfg in configs:
+#     label = cfg['label']
+#     print(f"{label:<25s}", end="")
+#     ratios = []
+#     under_pcts = []
+#     for pid in all_pids:
+#         r = results[label][pid]
+#         print(f"  {r['ratio']:>5.2f}", end="")
+#         ratios.append(r['ratio'])
+#         under_pcts.append(r['underfound'] / r['n_words'] * 100)
+#     print(f"  {np.mean(ratios):>6.2f}  {np.mean(under_pcts):>5.1f}%")
 
-# import json
-# import numpy as np
-# import matplotlib.pyplot as plt
-
-# with open('adaptive_threshold_sweep_v4_results.json', 'r') as f:
-#     data = json.load(f)
-
-# print(f"{'Label':<15s}  {'Adj Acc':>8s}  {'Raw Acc':>8s}  {'Std':>8s}  {'1-frm%':>7s}  {'Med':>5s}  {'N':>3s}")
-# print("-" * 62)
-# for d in data:
-#     print(f"{d['label']:<15s}  {d['mean_adj_acc']:>8.4f}  {d['mean_acc']:>8.4f}  {d['std_acc']:>8.4f}  {d['pct_one_frame']:>6.1f}%  {d['median_frames']:>5.0f}  {d['n_patients']:>3d}")
-
-# best = max(data, key=lambda d: d['mean_adj_acc'])
-# print(f"\nBest: {best['label']} (adj acc={best['mean_adj_acc']:.4f}, raw={best['mean_acc']:.4f})")
-
-
-# import json
-# import matplotlib.pyplot as plt
-
-# with open('adaptive_threshold_sweep_v2_results.json', 'r') as f:
-#     data = json.load(f)
-
-# print(f"{'Label':<15s}  {'Adj Acc':>8s}  {'Raw Acc':>8s}  {'Std':>8s}  {'1-frm%':>7s}  {'Med':>5s}  {'N':>3s}")
-# print("-" * 62)
-# for d in data:
-#     print(f"{d['label']:<15s}  {d['mean_adj_acc']:>8.4f}  {d['mean_acc']:>8.4f}  {d['std_acc']:>8.4f}  {d['pct_one_frame']:>6.1f}%  {d['median_frames']:>5.0f}  {d['n_patients']:>3d}")
-
-# best = max(data, key=lambda d: d['mean_adj_acc'])
-# print(f"\nBest: {best['label']} (adj acc={best['mean_adj_acc']:.4f})")
-
-# fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-# labels = [d['label'] for d in data]
-# adj_accs = [d['mean_adj_acc'] for d in data]
-# pct_1f = [d['pct_one_frame'] for d in data]
-
-# axes[0].barh(labels, adj_accs, color='steelblue', edgecolor='black')
-# axes[0].set_xlabel('Adjusted Accuracy')
-# axes[0].set_title('Accuracy by Threshold Config')
-
-# axes[1].barh(labels, pct_1f, color='orange', edgecolor='black')
-# axes[1].set_xlabel('% Single-Frame Features')
-# axes[1].set_title('Feature Quality by Threshold Config')
-
-# plt.tight_layout()
-# plt.show()
-
+# print()
+# print("Ratio = peaks_found / peaks_needed (>1.0 = enough peaks)")
+# print("Under% = mean % of words where not enough peaks were found")
 
 import gc
 import json
@@ -901,12 +966,12 @@ import copy
 from itertools import product
 
 # Save to a NEW file so old results stay separate
-logger = ExperimentLogger('experiments_v5_new_border_detection.json')
+logger = ExperimentLogger('experiments_v7_new_border_detection.json')
 
 # ============================================================
 # LOAD ALREADY-COMPLETED EXPERIMENTS
 # ============================================================
-RESULTS_FILE = 'experiments_v5_new_border_detection.json'
+RESULTS_FILE = 'experiments_v7_new_border_detection.json'
 done_keys = set()
 if os.path.exists(RESULTS_FILE):
     with open(RESULTS_FILE, 'r') as f:
@@ -937,8 +1002,8 @@ stacking_params = [
     (9, 2),
 ]
 resampling_target_frames = [5, 7]
-min_frames_options = [2, 3, 4]
-max_frames_options = [100, 120, 150, 170]
+min_frames_options = [3, 4]
+max_frames_options = [150]
 scaler_types = ['standard']
 subtract_baseline_options = [False]
 
@@ -1025,7 +1090,7 @@ import matplotlib
 matplotlib.use('inline' if 'inline' in matplotlib.get_backend() else matplotlib.get_backend())
 import matplotlib.pyplot as plt
 
-with open('experiments_v5_new_border_detection.json', 'r') as f:
+with open('experiments_v7_new_border_detection.json', 'r') as f:
     experiments = json.load(f)
 print(f"Loaded {len(experiments)} experiments")
 
@@ -1800,64 +1865,204 @@ def phoneme_duration_diagnostic(pipeline, pid,
 # # # phoneme_duration_diagnostic(pipeline, pid="P23",
 # # #                              phonemes=["t", "n", "s", "\u0259", "a:", "\u025b"])
 
-import torch
-import torch.nn as nn
+# import torch
+# import torch.nn as nn
 
 
-class SinActivation(nn.Module):
-    def __init__(self, dim):
+# class SinActivation(nn.Module):
+#     def __init__(self, dim):
+#         super().__init__()
+#         self.freq = nn.Parameter(torch.ones(dim) * 30.0)
+#         self.phase = nn.Parameter(torch.zeros(dim))
+
+#     def forward(self, x):
+#         return torch.sin(self.freq * x + self.phase)
+
+
+# class SnakeActivation(nn.Module):
+#     def __init__(self, dim, alpha=1.0):
+#         super().__init__()
+#         self.alpha = nn.Parameter(torch.ones(dim) * alpha)
+
+#     def forward(self, x):
+#         return x + (1.0 / (self.alpha + 1e-8)) * torch.sin(self.alpha * x) ** 2
+
+
+# def build_model(n_features, n_classes, activation='relu'):
+#     """Build a three-layer MLP with the specified activation function.
+
+#     Args:
+#         n_features: int, input feature dimension.
+#         n_classes: int, number of output classes.
+#         activation: str, one of 'relu', 'sin', 'snake', 'sin_relu'.
+
+#     Returns:
+#         nn.Sequential model.
+#     """
+#     if activation == 'relu':
+#         act = nn.ReLU()
+#         act2 = nn.ReLU()
+#     elif activation == 'sin':
+#         act = SinActivation(256)
+#         act2 = SinActivation(128)
+#     elif activation == 'snake':
+#         act = SnakeActivation(256)
+#         act2 = SnakeActivation(128)
+#     elif activation == 'sin_relu':
+#         act = SinActivation(256)
+#         act2 = nn.ReLU()
+#     else:
+#         raise ValueError(f"unknown activation: {activation}")
+
+#     return nn.Sequential(
+#         nn.Linear(n_features, 256),
+#         act,
+#         nn.Dropout(0.3),
+#         nn.Linear(256, 128),
+#         act2,
+#         nn.Dropout(0.3),
+#         nn.Linear(128, n_classes)
+#     )
+
+class ChannelAwareMLP(nn.Module):
+    def __init__(self, n_channels, n_frames_per_channel, n_classes, 
+                 channel_hidden=16, global_hidden=256):
         super().__init__()
-        self.freq = nn.Parameter(torch.ones(dim) * 30.0)
-        self.phase = nn.Parameter(torch.zeros(dim))
+        self.n_channels = n_channels
+        self.n_frames = n_frames_per_channel
+        
+        # Per-channel temporal processing
+        self.channel_nets = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(n_frames_per_channel, channel_hidden),
+                nn.ReLU(),
+            )
+            for _ in range(n_channels)
+        ])
+        
+        # Global combination
+        self.global_net = nn.Sequential(
+            nn.Linear(n_channels * channel_hidden, global_hidden),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(global_hidden, n_classes),
+        )
+    
+    def forward(self, x):
+        # x shape: (batch, n_channels * n_frames_per_channel)
+        # Reshape to (batch, n_channels, n_frames_per_channel)
+        x = x.view(x.size(0), self.n_channels, self.n_frames)
+        
+        # Process each channel independently
+        channel_outs = []
+        for ch in range(self.n_channels):
+            channel_outs.append(self.channel_nets[ch](x[:, ch, :]))
+        
+        # Concatenate channel representations
+        combined = torch.cat(channel_outs, dim=1)
+        return self.global_net(combined)
+        
+
+class SharedChannelMLP(nn.Module):
+    def __init__(self, n_frames_per_channel, n_classes,
+                 channel_hidden=CHANNEL_HIDDEN, global_hidden=GLOBAL_HIDDEN):
+        """Shared-weight MLP with switchable pooling or concatenation head.
+
+        During joint pretraining, uses mean pooling over channels so the
+        model is channel-count agnostic. During per-patient fine-tuning,
+        a full-capacity concatenation head is attached via attach_patient_head.
+
+        Args:
+            n_frames_per_channel: int, number of time frames per channel.
+            n_classes: int, number of output classes for joint pretraining.
+            channel_hidden: int, hidden size of per-channel network.
+            global_hidden: int, hidden size of global classifier.
+        """
+        super().__init__()
+        self.n_frames = n_frames_per_channel
+        self.channel_hidden = channel_hidden
+        self.global_hidden = global_hidden
+        self.patient_head = None
+
+        self.channel_net = nn.Sequential(
+            nn.Linear(n_frames_per_channel, channel_hidden),
+            nn.ReLU(),
+        )
+
+        # pooling head used only during joint pretraining
+        self.global_net = nn.Sequential(
+            nn.Linear(channel_hidden, global_hidden),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(global_hidden, n_classes),
+        )
+
+    def attach_patient_head(self, n_channels, n_classes):
+        """Replace global_net with a full-capacity concatenation head.
+
+        Call this after loading pretrained channel_net weights, before
+        per-patient fine-tuning. The new head is sized for this patient's
+        specific channel count.
+
+        Args:
+            n_channels: int, number of channels for this patient.
+            n_classes: int, number of phoneme classes for this patient.
+        """
+        self.patient_head = nn.Sequential(
+            nn.Linear(n_channels * self.channel_hidden, self.global_hidden),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(self.global_hidden, n_classes),
+        )
+
+    def forward(self, x, n_channels):
+        """Forward pass.
+
+        Args:
+            x: tensor of shape (batch, n_channels * n_frames).
+            n_channels: int, number of channels for this batch.
+
+        Returns:
+            tensor of shape (batch, n_classes).
+        """
+        x = x.view(x.size(0), n_channels, self.n_frames)
+        channel_outs = self.channel_net(x)           # (batch, n_channels, channel_hidden)
+
+        if self.patient_head is not None:
+            combined = channel_outs.view(x.size(0), -1)
+            return self.patient_head(combined)
+        else:
+            pooled = channel_outs.mean(dim=1)
+            return self.global_net(pooled)
+
+class Conv1DClassifier(nn.Module):
+    def __init__(self, n_channels, n_frames, n_classes):
+        super().__init__()
+        self.n_channels = n_channels
+        self.n_frames = n_frames
+
+        self.conv = nn.Sequential(
+            nn.Conv1d(n_channels, 64, kernel_size=3, padding=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Conv1d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool1d(1),
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, n_classes),
+        )
 
     def forward(self, x):
-        return torch.sin(self.freq * x + self.phase)
-
-
-class SnakeActivation(nn.Module):
-    def __init__(self, dim, alpha=1.0):
-        super().__init__()
-        self.alpha = nn.Parameter(torch.ones(dim) * alpha)
-
-    def forward(self, x):
-        return x + (1.0 / (self.alpha + 1e-8)) * torch.sin(self.alpha * x) ** 2
-
-
-def build_model(n_features, n_classes, activation='relu'):
-    """Build a three-layer MLP with the specified activation function.
-
-    Args:
-        n_features: int, input feature dimension.
-        n_classes: int, number of output classes.
-        activation: str, one of 'relu', 'sin', 'snake', 'sin_relu'.
-
-    Returns:
-        nn.Sequential model.
-    """
-    if activation == 'relu':
-        act = nn.ReLU()
-        act2 = nn.ReLU()
-    elif activation == 'sin':
-        act = SinActivation(256)
-        act2 = SinActivation(128)
-    elif activation == 'snake':
-        act = SnakeActivation(256)
-        act2 = SnakeActivation(128)
-    elif activation == 'sin_relu':
-        act = SinActivation(256)
-        act2 = nn.ReLU()
-    else:
-        raise ValueError(f"unknown activation: {activation}")
-
-    return nn.Sequential(
-        nn.Linear(n_features, 256),
-        act,
-        nn.Dropout(0.3),
-        nn.Linear(256, 128),
-        act2,
-        nn.Dropout(0.3),
-        nn.Linear(128, n_classes)
-    )
+        x = x.view(x.size(0), self.n_channels, self.n_frames)
+        x = self.conv(x)
+        x = x.squeeze(-1)
+        return self.classifier(x)
 
 import numpy as np
 import torch
@@ -1871,12 +2076,21 @@ from sklearn.metrics import accuracy_score
 
 MIN_CLASS_SAMPLES = 5
 
-skip_patients = {'P21', 'P24'}
+skip_patients = {}
 all_pids = sorted(set(pipeline.train['phoneme_participant_ids']))
 all_pids = [p for p in all_pids if p not in skip_patients]
 
 print(f"running on {len(all_pids)} patients: {all_pids}")
 print()
+
+# Detect n_channels and n_frames from stacking/resampling config
+so = run_config.get('stacking_order')
+ss = run_config.get('stacking_step_size')
+if so is not None:
+    n_frames_per_ch = 2 * so + 1
+else:
+    tf = run_config.get('target_frames')
+    n_frames_per_ch = tf if tf is not None else None
 
 patient_results = {}
 
@@ -1934,20 +2148,24 @@ for pid in all_pids:
         for i in range(n_classes)
     ])
 
+    # Detect channel count for this patient
+    n_channels_detected = None
+    if n_frames_per_ch is not None and n_features % n_frames_per_ch == 0:
+        n_channels_detected = n_features // n_frames_per_ch
+
     print(f"--- {pid} (train={len(X_train)}, test={len(X_test)}, "
           f"classes={n_classes}, chance={chance:.4f}, "
-          f"dropped={len(train_counts) - len(valid_classes)}) ---")
+          f"dropped={len(train_counts) - len(valid_classes)}, "
+          f"channels={n_channels_detected}, frames={n_frames_per_ch}) ---")
 
     patient_results[pid] = {}
 
     # sklearn classifiers
     classifiers = {
         'LogReg':     LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42),
-        'SVM_RBF':    SVC(kernel='rbf', C=10, gamma='scale', class_weight='balanced', random_state=42),
-        'SVM_poly2':  SVC(kernel='poly', degree=2, C=10, gamma='scale', class_weight='balanced', random_state=42),
-        'SVM_linear': SVC(kernel='linear', C=1, class_weight='balanced', random_state=42),
-        'RF200':      RandomForestClassifier(n_estimators=200, class_weight='balanced', random_state=42),
-        'RF500':      RandomForestClassifier(n_estimators=500, class_weight='balanced', random_state=42),
+       # 'SVM_RBF':    SVC(kernel='rbf', C=10, gamma='scale', class_weight='balanced', random_state=42),
+       # 'SVM_poly2':  SVC(kernel='poly', degree=2, C=10, gamma='scale', class_weight='balanced', random_state=42),
+       # 'SVM_linear': SVC(kernel='linear', C=1, class_weight='balanced', random_state=42),
     }
 
     for name, clf in classifiers.items():
@@ -1958,7 +2176,8 @@ for pid in all_pids:
         adj = acc * (n_pred / n_classes)
         patient_results[pid][name] = {
             'acc': acc, 'adj': adj, 'lift': acc / chance,
-            'n_pred': n_pred, 'n_classes': n_classes
+            'n_pred': n_pred, 'n_classes': n_classes,
+            'test_size': len(X_test),
         }
         print(f"  {name:<15} acc={acc:.4f}  lift={acc/chance:.2f}x  "
               f"cls={n_pred}/{n_classes}  adj={adj:.4f}")
@@ -1968,59 +2187,526 @@ for pid in all_pids:
     y_tr_t = torch.LongTensor(y_train_enc)
     X_te_t = torch.FloatTensor(X_test_s)
 
-    for act_name in ['relu', 'snake']:
+    nn_models = {
+        'NN_relu': lambda: build_model(n_features, n_classes, activation='relu'),
+        'NN_snake': lambda: build_model(n_features, n_classes, activation='snake'),
+    }
+
+    if n_channels_detected is not None:
+        nn_models['NN_conv1d'] = lambda: Conv1DClassifier(
+            n_channels_detected, n_frames_per_ch, n_classes)
+        def make_scratch_shared_ch():
+            m = SharedChannelMLP(n_frames_per_ch, n_classes)
+            m.attach_patient_head(n_channels_detected, n_classes)
+            return m
+        nn_models['NN_shared_ch'] = make_scratch_shared_ch
+
+    for nn_name, model_fn in nn_models.items():
         torch.manual_seed(42)
-        model = build_model(n_features, n_classes, activation=act_name)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
-        criterion = nn.CrossEntropyLoss(weight=nn_weights)
+        model = model_fn()
 
-        model.train()
-        for epoch in range(300):
-            perm = torch.randperm(len(X_tr_t))
-            for i in range(0, len(X_tr_t), 64):
-                idx = perm[i:i+64]
-                out = model(X_tr_t[idx])
-                loss = criterion(out, y_tr_t[idx])
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-        model.eval()
-        with torch.no_grad():
+        if isinstance(model, SharedChannelMLP):
+            train_nn(model, X_tr_t, y_tr_t, nn_weights, 300, n_channels_detected)
+            model.eval()
+            with torch.no_grad():
+                preds_enc = model(X_te_t, n_channels_detected).argmax(dim=1).numpy()
+        else:
+            optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+            criterion = nn.CrossEntropyLoss(weight=nn_weights)
+            model.train()
+            for epoch in range(300):
+                perm = torch.randperm(len(X_tr_t))
+                for i in range(0, len(X_tr_t), 64):
+                    idx = perm[i:i+64]
+                    out = model(X_tr_t[idx])
+                    loss = criterion(out, y_tr_t[idx])
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+            model.eval()
+            with torch.no_grad():
+                preds_enc = model(X_te_t).argmax(dim=1).numpy()
             preds_enc = model(X_te_t).argmax(dim=1).numpy()
         preds = le.inverse_transform(preds_enc)
         acc = accuracy_score(y_test, preds)
         n_pred = len(set(preds))
         adj = acc * (n_pred / n_classes)
 
-        nn_name = f"NN_{act_name}"
         patient_results[pid][nn_name] = {
             'acc': acc, 'adj': adj, 'lift': acc / chance,
-            'n_pred': n_pred, 'n_classes': n_classes
+            'n_pred': n_pred, 'n_classes': n_classes,
+            'test_size': len(X_test),
         }
         print(f"  {nn_name:<15} acc={acc:.4f}  lift={acc/chance:.2f}x  "
               f"cls={n_pred}/{n_classes}  adj={adj:.4f}")
 
     print()
 
-# summary
+# weighted summary
 print("-" * 70)
-print("mean across patients")
+print("mean across patients (weighted by test size)")
 print("%-15s  %8s  %8s  %8s  %8s" % ('classifier', 'acc', 'adjAcc', 'lift', 'classes'))
 print("-" * 60)
 all_clf_names = sorted(set().union(*(r.keys() for r in patient_results.values())))
 for name in all_clf_names:
-    accs = [patient_results[pid][name]['acc']
-            for pid in patient_results if name in patient_results[pid]]
-    adjs = [patient_results[pid][name]['adj']
-            for pid in patient_results if name in patient_results[pid]]
-    lifts = [patient_results[pid][name]['lift']
-             for pid in patient_results if name in patient_results[pid]]
-    cls_pcts = [patient_results[pid][name]['n_pred'] / patient_results[pid][name]['n_classes']
-                for pid in patient_results if name in patient_results[pid]]
+    accs = []
+    adjs = []
+    lifts = []
+    cls_pcts = []
+    weights = []
+    for pid in patient_results:
+        if name not in patient_results[pid]:
+            continue
+        r = patient_results[pid][name]
+        accs.append(r['acc'])
+        adjs.append(r['adj'])
+        lifts.append(r['lift'])
+        cls_pcts.append(r['n_pred'] / r['n_classes'])
+        weights.append(r['test_size'])
+
+    w = np.array(weights, dtype=float)
+    w = w / w.sum()
+
     print("%-15s  %7.2f%%  %7.2f%%  %7.2fx  %7.1f%%" % (
-        name, np.mean(accs)*100, np.mean(adjs)*100,
-        np.mean(lifts), np.mean(cls_pcts)*100))
+        name,
+        np.average(accs, weights=w) * 100,
+        np.average(adjs, weights=w) * 100,
+        np.average(lifts, weights=w),
+        np.average(cls_pcts, weights=w) * 100))
+
+import numpy as np
+import torch
+import torch.nn as nn
+from collections import Counter
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
+
+MIN_CLASS_SAMPLES = 5
+CHANNEL_HIDDEN = 16
+GLOBAL_HIDDEN = 256
+JOINT_EPOCHS = 150
+FINETUNE_EPOCHS = 150
+BATCH_SIZE = 64
+LR = 0.001
+WEIGHT_DECAY = 1e-4
+
+
+class SharedChannelMLP(nn.Module):
+    def __init__(self, n_frames_per_channel, n_classes,
+                 channel_hidden=CHANNEL_HIDDEN, global_hidden=GLOBAL_HIDDEN):
+        """Shared-weight MLP with switchable pooling or concatenation head.
+
+        During joint pretraining, uses mean pooling over channels so the
+        model is channel-count agnostic. During per-patient fine-tuning,
+        a full-capacity concatenation head is attached via attach_patient_head.
+
+        Args:
+            n_frames_per_channel: int, number of time frames per channel.
+            n_classes: int, number of output classes for joint pretraining.
+            channel_hidden: int, hidden size of per-channel network.
+            global_hidden: int, hidden size of global classifier.
+        """
+        super().__init__()
+        self.n_frames = n_frames_per_channel
+        self.channel_hidden = channel_hidden
+        self.global_hidden = global_hidden
+        self.patient_head = None
+
+        self.channel_net = nn.Sequential(
+            nn.Linear(n_frames_per_channel, channel_hidden),
+            nn.ReLU(),
+        )
+
+        # pooling head used only during joint pretraining
+        self.global_net = nn.Sequential(
+            nn.Linear(channel_hidden, global_hidden),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(global_hidden, n_classes),
+        )
+
+    def attach_patient_head(self, n_channels, n_classes):
+        """Replace global_net with a full-capacity concatenation head.
+
+        Call this after loading pretrained channel_net weights, before
+        per-patient fine-tuning. The new head is sized for this patient's
+        specific channel count.
+
+        Args:
+            n_channels: int, number of channels for this patient.
+            n_classes: int, number of phoneme classes for this patient.
+        """
+        self.patient_head = nn.Sequential(
+            nn.Linear(n_channels * self.channel_hidden, self.global_hidden),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(self.global_hidden, n_classes),
+        )
+
+    def forward(self, x, n_channels):
+        """Forward pass.
+
+        Args:
+            x: tensor of shape (batch, n_channels * n_frames).
+            n_channels: int, number of channels for this batch.
+
+        Returns:
+            tensor of shape (batch, n_classes).
+        """
+        x = x.view(x.size(0), n_channels, self.n_frames)
+        channel_outs = self.channel_net(x)           # (batch, n_channels, channel_hidden)
+
+        if self.patient_head is not None:
+            combined = channel_outs.view(x.size(0), -1)
+            return self.patient_head(combined)
+        else:
+            pooled = channel_outs.mean(dim=1)
+            return self.global_net(pooled)
+
+
+def train_nn(model, X_tr_t, y_tr_t, nn_weights, epochs, n_channels):
+    """Train a SharedChannelMLP for a fixed number of epochs.
+
+    Args:
+        model: SharedChannelMLP instance.
+        X_tr_t: FloatTensor of shape (n_samples, n_channels * n_frames).
+        y_tr_t: LongTensor of shape (n_samples,).
+        nn_weights: FloatTensor of shape (n_classes,) for loss weighting.
+        epochs: int, number of training epochs.
+        n_channels: int, channel count for this dataset.
+    """
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+    criterion = nn.CrossEntropyLoss(weight=nn_weights)
+    model.train()
+    for epoch in range(epochs):
+        perm = torch.randperm(len(X_tr_t))
+        for i in range(0, len(X_tr_t), BATCH_SIZE):
+            idx = perm[i:i + BATCH_SIZE]
+            out = model(X_tr_t[idx], n_channels)
+            loss = criterion(out, y_tr_t[idx])
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+
+def collect_joint_data(all_pids, pipeline, n_frames_per_ch, le_joint):
+    """Collect and stack scaled features across all patients for joint training.
+
+    Each patient's data is scaled independently before stacking, since
+    channel scales differ across patients.
+
+    Args:
+        all_pids: list of str, patient ids to include.
+        pipeline: pipeline object with train data.
+        n_frames_per_ch: int, frames per channel.
+        le_joint: fitted LabelEncoder on the union of all valid classes.
+
+    Returns:
+        tuple of (X_joint, y_joint, n_channels_per_pid, scalers_per_pid)
+        where X_joint is a list of (FloatTensor, int) pairs
+        and scalers_per_pid is a dict of pid -> StandardScaler.
+    """
+    X_joint = []
+    y_joint = []
+    n_channels_per_pid = {}
+    scalers_per_pid = {}
+
+    for pid in all_pids:
+        train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+        train_feat = [pipeline.train['features'][i] for i, m in enumerate(train_mask) if m]
+        train_labels = [pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m]
+
+        if len(train_feat) < 10:
+            continue
+
+        X = np.array(train_feat)
+        y = np.array(train_labels)
+
+        train_counts = Counter(y)
+        valid_classes = {cls for cls, cnt in train_counts.items() if cnt >= MIN_CLASS_SAMPLES}
+        keep = np.array([lbl in valid_classes and lbl in le_joint.classes_ for lbl in y])
+        X, y = X[keep], y[keep]
+
+        if len(X) < 10:
+            continue
+
+        n_features = X.shape[1]
+        if n_features % n_frames_per_ch != 0:
+            continue
+
+        n_channels = n_features // n_frames_per_ch
+        n_channels_per_pid[pid] = n_channels
+
+        scaler = StandardScaler()
+        X_s = scaler.fit_transform(X)
+        scalers_per_pid[pid] = scaler
+
+        y_enc = le_joint.transform(y)
+
+        X_joint.append((torch.FloatTensor(X_s), n_channels))
+        y_joint.append(torch.LongTensor(y_enc))
+
+    return X_joint, y_joint, n_channels_per_pid, scalers_per_pid
+
+
+def build_joint_label_encoder(all_pids, pipeline):
+    """Build a label encoder over the union of all valid classes across patients.
+
+    Args:
+        all_pids: list of str, patient ids.
+        pipeline: pipeline object with train data.
+
+    Returns:
+        fitted LabelEncoder.
+    """
+    all_valid = set()
+    for pid in all_pids:
+        train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+        train_labels = [pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m]
+        counts = Counter(train_labels)
+        all_valid.update(cls for cls, cnt in counts.items() if cnt >= MIN_CLASS_SAMPLES)
+    le = LabelEncoder()
+    le.fit(sorted(all_valid))
+    return le
+
+
+# --- setup ---
+
+skip_patients = {}
+all_pids = sorted(set(pipeline.train['phoneme_participant_ids']))
+all_pids = [p for p in all_pids if p not in skip_patients]
+
+so = run_config.get('stacking_order')
+ss = run_config.get('stacking_step_size')
+if so is not None:
+    n_frames_per_ch = 2 * so + 1
+else:
+    tf = run_config.get('target_frames')
+    n_frames_per_ch = tf if tf is not None else None
+
+print(f"running on {len(all_pids)} patients: {all_pids}")
+print()
+
+# --- joint pretraining of shared_ch ---
+
+pretrained_channel_net = None
+
+if n_frames_per_ch is not None:
+    print("pretraining shared_ch on all patients jointly...")
+
+    le_joint = build_joint_label_encoder(all_pids, pipeline)
+    n_joint_classes = len(le_joint.classes_)
+
+    X_joint, y_joint, n_channels_per_pid, scalers_per_pid = collect_joint_data(
+        all_pids, pipeline, n_frames_per_ch, le_joint
+    )
+
+    joint_model = SharedChannelMLP(n_frames_per_ch, n_joint_classes)
+
+    # uniform weights for joint training
+    joint_weights = torch.ones(n_joint_classes)
+
+    joint_model.train()
+    optimizer = torch.optim.Adam(joint_model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+    criterion = nn.CrossEntropyLoss(weight=joint_weights)
+
+    for epoch in range(JOINT_EPOCHS):
+        # shuffle patient order each epoch
+        order = torch.randperm(len(X_joint))
+        for idx in order:
+            X_p, n_ch = X_joint[idx]
+            y_p = y_joint[idx]
+            perm = torch.randperm(len(X_p))
+            for i in range(0, len(X_p), BATCH_SIZE):
+                bidx = perm[i:i + BATCH_SIZE]
+                out = joint_model(X_p[bidx], n_ch)
+                loss = criterion(out, y_p[bidx])
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+    pretrained_channel_net = joint_model.channel_net.state_dict()
+    print(f"joint pretraining done over {len(X_joint)} patients, {n_joint_classes} classes")
+    print()
+
+# --- per patient loop ---
+
+patient_results = {}
+
+for pid in all_pids:
+    train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+    test_mask = [p == pid for p in pipeline.test['phoneme_participant_ids']]
+
+    train_feat = [pipeline.train['features'][i] for i, m in enumerate(train_mask) if m]
+    train_labels = [pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m]
+    test_feat = [pipeline.test['features'][i] for i, m in enumerate(test_mask) if m]
+    test_labels = [pipeline.test['phoneme_labels'][i] for i, m in enumerate(test_mask) if m]
+
+    if len(train_feat) < 10 or len(test_feat) < 5:
+        continue
+
+    X_train = np.array(train_feat)
+    y_train = np.array(train_labels)
+    X_test = np.array(test_feat)
+    y_test = np.array(test_labels)
+
+    train_counts = Counter(y_train)
+    valid_classes = {cls for cls, cnt in train_counts.items() if cnt >= MIN_CLASS_SAMPLES}
+    train_keep = np.array([y in valid_classes for y in y_train])
+    test_keep = np.array([y in valid_classes for y in y_test])
+
+    X_train = X_train[train_keep]
+    y_train = y_train[train_keep]
+    X_test = X_test[test_keep]
+    y_test = y_test[test_keep]
+
+    if len(X_train) < 10 or len(X_test) < 5:
+        continue
+
+    le = LabelEncoder()
+    le.fit(sorted(valid_classes))
+    n_classes = len(le.classes_)
+    chance = 1.0 / n_classes
+
+    scaler = StandardScaler()
+    X_train_s = scaler.fit_transform(X_train)
+    X_test_s = scaler.transform(X_test)
+
+    n_features = X_train_s.shape[1]
+    y_train_enc = le.transform(y_train)
+    y_test_enc = le.transform(y_test)
+
+    full_counts = Counter(y_train_enc)
+    full_total = sum(full_counts.values())
+    nn_weights = torch.FloatTensor([
+        full_total / (n_classes * full_counts.get(i, 1))
+        for i in range(n_classes)
+    ])
+
+    n_channels_detected = None
+    if n_frames_per_ch is not None and n_features % n_frames_per_ch == 0:
+        n_channels_detected = n_features // n_frames_per_ch
+
+    print(f"--- {pid} (train={len(X_train)}, test={len(X_test)}, "
+          f"classes={n_classes}, chance={chance:.4f}, "
+          f"dropped={len(train_counts) - len(valid_classes)}, "
+          f"channels={n_channels_detected}, frames={n_frames_per_ch}) ---")
+
+    patient_results[pid] = {}
+
+    classifiers = {
+        'LogReg': LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42),
+    }
+
+    for name, clf in classifiers.items():
+        clf.fit(X_train_s, y_train)
+        preds = clf.predict(X_test_s)
+        acc = accuracy_score(y_test, preds)
+        n_pred = len(set(preds))
+        adj = acc * (n_pred / n_classes)
+        patient_results[pid][name] = {
+            'acc': acc, 'adj': adj, 'lift': acc / chance,
+            'n_pred': n_pred, 'n_classes': n_classes,
+            'test_size': len(X_test),
+        }
+        print(f"  {name:<15} acc={acc:.4f}  lift={acc/chance:.2f}x  "
+              f"cls={n_pred}/{n_classes}  adj={adj:.4f}")
+
+    X_tr_t = torch.FloatTensor(X_train_s)
+    y_tr_t = torch.LongTensor(y_train_enc)
+    X_te_t = torch.FloatTensor(X_test_s)
+
+    nn_models = {
+        'NN_relu': lambda: build_model(n_features, n_classes, activation='relu'),
+        'NN_snake': lambda: build_model(n_features, n_classes, activation='snake'),
+    }
+
+    if n_channels_detected is not None:
+        nn_models['NN_conv1d'] = lambda: Conv1DClassifier(
+            n_channels_detected, n_frames_per_ch, n_classes)
+
+        # scratch shared_ch for comparison
+        nn_models['NN_shared_ch'] = lambda: SharedChannelMLP(n_frames_per_ch, n_classes)
+
+        # pretrained shared_ch
+        if pretrained_channel_net is not None:
+            def make_pretrained_shared_ch():
+                m = SharedChannelMLP(n_frames_per_ch, n_classes)
+                m.channel_net.load_state_dict(pretrained_channel_net)
+                m.attach_patient_head(n_channels_detected, n_classes)
+                return m
+            nn_models['NN_shared_ch_pt'] = make_pretrained_shared_ch
+
+    for nn_name, model_fn in nn_models.items():
+        torch.manual_seed(42)
+        model = model_fn()
+
+        epochs = FINETUNE_EPOCHS if nn_name == 'NN_shared_ch_pt' else 600
+
+        if isinstance(model, SharedChannelMLP):
+            train_nn(model, X_tr_t, y_tr_t, nn_weights, epochs, n_channels_detected)
+            model.eval()
+            with torch.no_grad():
+                preds_enc = model(X_te_t, n_channels_detected).argmax(dim=1).numpy()
+        else:
+            optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+            criterion = nn.CrossEntropyLoss(weight=nn_weights)
+            model.train()
+            for epoch in range(300):
+                perm = torch.randperm(len(X_tr_t))
+                for i in range(0, len(X_tr_t), 64):
+                    idx = perm[i:i + 64]
+                    out = model(X_tr_t[idx])
+                    loss = criterion(out, y_tr_t[idx])
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+            model.eval()
+            with torch.no_grad():
+                preds_enc = model(X_te_t).argmax(dim=1).numpy()
+
+        preds = le.inverse_transform(preds_enc)
+        acc = accuracy_score(y_test, preds)
+        n_pred = len(set(preds))
+        adj = acc * (n_pred / n_classes)
+
+        patient_results[pid][nn_name] = {
+            'acc': acc, 'adj': adj, 'lift': acc / chance,
+            'n_pred': n_pred, 'n_classes': n_classes,
+            'test_size': len(X_test),
+        }
+        print(f"  {nn_name:<15} acc={acc:.4f}  lift={acc/chance:.2f}x  "
+              f"cls={n_pred}/{n_classes}  adj={adj:.4f}")
+
+    print()
+
+# weighted summary
+print("-" * 70)
+print("mean across patients (weighted by test size)")
+print("%-20s  %8s  %8s  %8s  %8s" % ('classifier', 'acc', 'adjAcc', 'lift', 'classes'))
+print("-" * 60)
+all_clf_names = sorted(set().union(*(r.keys() for r in patient_results.values())))
+for name in all_clf_names:
+    accs, adjs, lifts, cls_pcts, weights = [], [], [], [], []
+    for pid in patient_results:
+        if name not in patient_results[pid]:
+            continue
+        r = patient_results[pid][name]
+        accs.append(r['acc'])
+        adjs.append(r['adj'])
+        lifts.append(r['lift'])
+        cls_pcts.append(r['n_pred'] / r['n_classes'])
+        weights.append(r['test_size'])
+    w = np.array(weights, dtype=float)
+    w = w / w.sum()
+    print("%-20s  %7.2f%%  %7.2f%%  %7.2fx  %7.1f%%" % (
+        name,
+        np.average(accs, weights=w) * 100,
+        np.average(adjs, weights=w) * 100,
+        np.average(lifts, weights=w),
+        np.average(cls_pcts, weights=w) * 100))
 
 print(sorted(set(pipeline.train['phoneme_labels'])))
 raw_phoneme_count = len(set(pipeline.train['phoneme_labels']))

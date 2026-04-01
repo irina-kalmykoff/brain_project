@@ -1193,7 +1193,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             if has_durations:
                 data['phoneme_durations_samples'] = new_durations
     
-    def checkpoint_after_step5(self, sample_fraction=None):
+    def checkpoint_after_step5(self, sample_fraction=None, step5b_method=None,
+                            model_order=None, step_size=None, target_frames=None):
         """Save checkpoint after step 5 (before stacking/resampling).
 
         Features are still 2D (n_frames, n_channels) arrays,
@@ -1215,8 +1216,14 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         fraction_str = f"_sample{int(sample_fraction*100)}" if sample_fraction else ""
+        if step5b_method == 'stack' and model_order is not None and step_size is not None:
+            step5b_str = f"_stack_o{model_order}_s{step_size}"
+        elif step5b_method == 'normalize' and target_frames is not None:
+            step5b_str = f"_norm_f{target_frames}"
+        else:
+            step5b_str = ""
         filename = (f"pipeline_{self.feature_extraction_method}"
-                    f"{fraction_str}_after_step5_{timestamp}.pkl")
+            f"{fraction_str}{step5b_str}_after_step5_{timestamp}.pkl")
         filepath = os.path.join(self.path_results, filename)
 
         self.log(f"Saving step5 checkpoint: {filename}")
@@ -1233,6 +1240,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 'timestamp': timestamp,
                 'stage': 'after_step5',
                 'feature_shape': feat_info,
+                'step5b_method': step5b_method,
+                'model_order': model_order,
+                'step_size': step_size,
+                'target_frames': target_frames,
                 'train_samples': len(self.train['features']),
                 'test_samples': (len(self.test['features'])
                                  if self.test else 0),
@@ -1849,7 +1860,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             draw_confusion(
                 axes[1, 0], cm_pre, cm_pre_recall, unique_labels_pre,
                 "Confusion Matrix - Recall normalised (pre-Viterbi)",
-                "Oranges", "Recall"
+                "Blues", "Recall"
             )
         else:
             draw_confusion(
@@ -2142,7 +2153,9 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             self.log(f"Error saving checkpoint: {e}")
             return None
 
-    def try_load_checkpoint(self, sample_fraction=None, stage=None):
+    def try_load_checkpoint(self, sample_fraction=None, stage=None,
+                         step5b_method=None, model_order=None,
+                         step_size=None, target_frames=None):
         """Load checkpoint matching current configuration.
 
         Args:
@@ -2154,7 +2167,14 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             bool, True if loaded.
         """
         fraction_str = (f"_sample{int(sample_fraction*100)}"
-                        if sample_fraction else "")
+                if sample_fraction else "")
+
+        if step5b_method == 'stack' and model_order is not None and step_size is not None:
+            step5b_str = f"_stack_o{model_order}_s{step_size}"
+        elif step5b_method == 'normalize' and target_frames is not None:
+            step5b_str = f"_norm_f{target_frames}"
+        else:
+            step5b_str = "*"
 
         if stage is not None:
             stages = [stage]
@@ -2163,7 +2183,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
 
         for try_stage in stages:
             pattern = (f"pipeline_{self.feature_extraction_method}"
-                       f"{fraction_str}*_{try_stage}_*.pkl")
+                       f"{fraction_str}{step5b_str}_{try_stage}_*.pkl")
             matching_files = glob.glob(
                 os.path.join(self.path_results, pattern)
             )

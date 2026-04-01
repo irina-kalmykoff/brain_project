@@ -1778,7 +1778,7 @@ class AcousticChangeDetector(DebugMixin):
         distances = self.compute_wav2vec_distances(wav2vec_features)
         
         # Smooth the distances
-        distances_smoothed = gaussian_filter1d(distances, sigma=2)
+        distances_smoothed = gaussian_filter1d(distances, sigma=0.5)
         
         # Find speech onset and offset using energy threshold
         threshold = np.mean(distances_smoothed) + 0.5 * np.std(distances_smoothed)

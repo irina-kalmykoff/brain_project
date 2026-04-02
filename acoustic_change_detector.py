@@ -499,7 +499,7 @@ class AcousticChangeDetector(DebugMixin):
             distances = self.compute_wav2vec_distances(wav2vec_features)
             
             # Optional: smooth the distances
-            enhanced_distances = gaussian_filter1d(distances, sigma=1.0)
+            enhanced_distances = gaussian_filter1d(distances, sigma=self.config.wav2vec_word_boundary_sigma)
             
             # Adaptive peak detection for wav2vec
             if n_phonemes is not None and n_phonemes > 1:
@@ -1778,7 +1778,7 @@ class AcousticChangeDetector(DebugMixin):
         distances = self.compute_wav2vec_distances(wav2vec_features)
         
         # Smooth the distances
-        distances_smoothed = gaussian_filter1d(distances, sigma=0.5)
+        distances_smoothed = gaussian_filter1d(distances, sigma=self.config.wav2vec_sentence_sigma)
         
         # Find speech onset and offset using energy threshold
         threshold = np.mean(distances_smoothed) + 0.5 * np.std(distances_smoothed)
@@ -1968,7 +1968,7 @@ class AcousticChangeDetector(DebugMixin):
         
         n_boundaries_needed = n_phonemes - 1
         
-        distances_smooth = gaussian_filter1d(distances, sigma=1.0)
+        distances_smooth = gaussian_filter1d(distances, sigma=self.config.wav2vec_phoneme_sigma)
         mean_dist = np.mean(distances_smooth)
         std_dist = np.std(distances_smooth)
         

@@ -65,7 +65,32 @@ class AcousticChangeDetector(DebugMixin):
         self.frameshift = config.frameshift
         self.eeg_sr = config.eeg_sr
         self.window_length = config.window_length
-    
+
+    def _smooth_distances(self, distances, sigma):
+        """Smooth distance curve using configured filter type.
+
+        Args:
+            distances: 1D array of distances.
+            sigma: gaussian sigma (only used for gaussian filter).
+        Returns:
+            Smoothed distances array.
+        """
+        filter_type = getattr(self.config, 'wav2vec_smoothing_filter', 'gaussian')
+
+        if filter_type == 'none' or (filter_type == 'gaussian' and sigma <= 0):
+            return distances.copy()
+        elif filter_type == 'savgol':
+            window = getattr(self.config, 'wav2vec_savgol_window', 7)
+            polyorder = getattr(self.config, 'wav2vec_savgol_polyorder', 3)
+            window = min(window, len(distances))
+            if window % 2 == 0:
+                window -= 1
+            if window <= polyorder:
+                return distances.copy()
+            return savgol_filter(distances, window, polyorder)
+        else:  # gaussian
+            return gaussian_filter1d(distances, sigma=sigma)
+
     def _extract_band_power_features(self, eeg_segment: np.ndarray) -> np.ndarray:
         """
         Extract power in delta, theta, alpha, beta, low_gamma, and high_gamma bands.
@@ -499,7 +524,7 @@ class AcousticChangeDetector(DebugMixin):
             distances = self.compute_wav2vec_distances(wav2vec_features)
             
             # Optional: smooth the distances
-            enhanced_distances = gaussian_filter1d(distances, sigma=self.config.wav2vec_word_boundary_sigma)
+            enhanced_distances = self._smooth_distances(distances, self.config.wav2vec_word_boundary_sigma)
             
             # Adaptive peak detection for wav2vec
             if n_phonemes is not None and n_phonemes > 1:
@@ -1778,7 +1803,7 @@ class AcousticChangeDetector(DebugMixin):
         distances = self.compute_wav2vec_distances(wav2vec_features)
         
         # Smooth the distances
-        distances_smoothed = gaussian_filter1d(distances, sigma=self.config.wav2vec_sentence_sigma)
+        distances_smoothed = self._smooth_distances(distances, self.config.wav2vec_sentence_sigma)
         
         # Find speech onset and offset using energy threshold
         threshold = np.mean(distances_smoothed) + 0.5 * np.std(distances_smoothed)
@@ -1968,7 +1993,7 @@ class AcousticChangeDetector(DebugMixin):
         
         n_boundaries_needed = n_phonemes - 1
         
-        distances_smooth = gaussian_filter1d(distances, sigma=self.config.wav2vec_phoneme_sigma)
+        distances_smooth = self._smooth_distances(distances, self.config.wav2vec_phoneme_sigma)
         mean_dist = np.mean(distances_smooth)
         std_dist = np.std(distances_smooth)
         

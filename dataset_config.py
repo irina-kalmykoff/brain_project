@@ -99,9 +99,15 @@ class Dutch30Config:
     wav2vec_decimate_factor: int = 3       # Downsample factor for wav2vec input (48kHz -> 16kHz)
 
     # Wav2vec gaussian smoothing
-    wav2vec_word_boundary_sigma: float = 0.5    # sigma for detect_boundaries (word-level)
-    wav2vec_sentence_sigma: float = 0.5         # sigma for segment_sentence_by_wav2vec
-    wav2vec_phoneme_sigma: float = 0.5          # sigma for _adaptive_peak_detection
+    wav2vec_word_boundary_sigma: float = 0    # sigma for detect_boundaries (word-level)
+    wav2vec_sentence_sigma: float = 0         # sigma for segment_sentence_by_wav2vec
+    wav2vec_phoneme_sigma: float = 0          # sigma for _adaptive_peak_detection
+
+    # Smoothing filter type: 'gaussian', 'savgol', or 'none'
+    wav2vec_smoothing_filter: str = 'gaussian'
+    # Savgol parameters (only used when filter='savgol')
+    wav2vec_savgol_window: int = 7       # must be odd, window length
+    wav2vec_savgol_polyorder: int = 3    # polynomial order, must be < window
 
     # ============================================================
     # TRAIN/TEST SPLIT DEFAULTS

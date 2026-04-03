@@ -1222,8 +1222,26 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             step5b_str = f"_norm_f{target_frames}"
         else:
             step5b_str = ""
+
+        # Build filter info string from detector config
+        filter_type = getattr(self.detector.config, 'wav2vec_smoothing_filter', 'gaussian')
+        if filter_type == 'gaussian':
+            sigma = getattr(self.detector.config, 'wav2vec_phoneme_sigma', 0.5)
+            filter_str = f"_filt-gauss-s{sigma}"
+        elif filter_type == 'savgol':
+            win = getattr(self.detector.config, 'wav2vec_savgol_window', 7)
+            poly = getattr(self.detector.config, 'wav2vec_savgol_polyorder', 3)
+            filter_str = f"_filt-savgol-w{win}-p{poly}"
+        elif filter_type == 'median':
+            size = getattr(self.detector.config, 'wav2vec_median_size', 3)
+            filter_str = f"_filt-median-k{size}"
+        elif filter_type == 'none':
+            filter_str = "_filt-none"
+        else:
+            filter_str = f"_filt-{filter_type}"
+
         filename = (f"pipeline_{self.feature_extraction_method}"
-            f"{fraction_str}{step5b_str}_after_step5_{timestamp}.pkl")
+            f"{fraction_str}{step5b_str}{filter_str}_after_step5_{timestamp}.pkl")
         filepath = os.path.join(self.path_results, filename)
 
         self.log(f"Saving step5 checkpoint: {filename}")
@@ -1247,6 +1265,13 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 'train_samples': len(self.train['features']),
                 'test_samples': (len(self.test['features'])
                                  if self.test else 0),
+                'smoothing_filter': filter_type,
+                'smoothing_params': {
+                    'sigma': getattr(self.detector.config, 'wav2vec_phoneme_sigma', None),
+                    'savgol_window': getattr(self.detector.config, 'wav2vec_savgol_window', None),
+                    'savgol_polyorder': getattr(self.detector.config, 'wav2vec_savgol_polyorder', None),
+                    'median_size': getattr(self.detector.config, 'wav2vec_median_size', None),
+                },
                 'split_result': (self.split_result
                                  if hasattr(self, 'split_result') else None),
             }
@@ -2176,6 +2201,23 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         else:
             step5b_str = "*"
 
+        # Build filter pattern for matching
+        filter_type = getattr(self.detector.config, 'wav2vec_smoothing_filter', 'gaussian')
+        if filter_type == 'gaussian':
+            sigma = getattr(self.detector.config, 'wav2vec_phoneme_sigma', 0.5)
+            filter_str = f"_filt-gauss-s{sigma}"
+        elif filter_type == 'savgol':
+            win = getattr(self.detector.config, 'wav2vec_savgol_window', 7)
+            poly = getattr(self.detector.config, 'wav2vec_savgol_polyorder', 3)
+            filter_str = f"_filt-savgol-w{win}-p{poly}"
+        elif filter_type == 'median':
+            size = getattr(self.detector.config, 'wav2vec_median_size', 3)
+            filter_str = f"_filt-median-k{size}"
+        elif filter_type == 'none':
+            filter_str = "_filt-none"
+        else:
+            filter_str = "_filt-*"
+
         if stage is not None:
             stages = [stage]
         else:
@@ -2183,7 +2225,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
 
         for try_stage in stages:
             pattern = (f"pipeline_{self.feature_extraction_method}"
-                       f"{fraction_str}{step5b_str}_{try_stage}_*.pkl")
+                       f"{fraction_str}{step5b_str}{filter_str}_{try_stage}_*.pkl")
             matching_files = glob.glob(
                 os.path.join(self.path_results, pattern)
             )

@@ -108,6 +108,8 @@ class Dutch30Config:
     # Savgol parameters (only used when filter='savgol')
     wav2vec_savgol_window: int = 7       # must be odd, window length
     wav2vec_savgol_polyorder: int = 3    # polynomial order, must be < window
+    # Median filter parameter (only used when filter='median')
+    wav2vec_median_size: int = 3         # kernel size, must be odd
 
     # ============================================================
     # TRAIN/TEST SPLIT DEFAULTS

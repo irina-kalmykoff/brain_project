@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from scipy import signal
-from scipy.ndimage import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d, median_filter
 from scipy.signal import find_peaks, savgol_filter
 from numpy.lib.stride_tricks import sliding_window_view
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
@@ -88,6 +88,14 @@ class AcousticChangeDetector(DebugMixin):
             if window <= polyorder:
                 return distances.copy()
             return savgol_filter(distances, window, polyorder)
+        elif filter_type == 'median':
+            size = getattr(self.config, 'wav2vec_median_size', 3)
+            size = min(size, len(distances))
+            if size % 2 == 0:
+                size -= 1
+            if size < 1:
+                return distances.copy()
+            return median_filter(distances, size=size)
         else:  # gaussian
             return gaussian_filter1d(distances, sigma=sigma)
 

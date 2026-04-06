@@ -1776,149 +1776,88 @@ class AcousticChangeDetector(DebugMixin):
             'speech_end': speech_end
         }
         
-    def segment_sentence_by_wav2vec(self, audio_sentence: np.ndarray, audio_sr: int,
-                                 words: list, phonetic_dict) -> dict:
+    def segment_sentence_by_wav2vec(
+        self,
+        audio_signal,
+        sample_rate,
+        word_list,
+        patient_id,
+        sentence_id,
+        sigma=0
+    ):
         """
-        Segment sentence into words using wav2vec feature distances.
+        Segment sentence audio into word boundaries using wav2vec2 distance peaks.
         
         Args:
-            audio_sentence: Audio waveform for the sentence
-            audio_sr: Sample rate of audio
-            words: List of words in the sentence
-            phonetic_dict: PhoneticDictionary for phoneme counts
+            audio_signal: Audio time series
+            sample_rate: Audio sampling rate in Hz
+            word_list: List of expected words in order
+            patient_id: Patient identifier
+            sentence_id: Sentence identifier
+            sigma: Gaussian smoothing parameter (0 = no smoothing)
             
         Returns:
-            dict with word_boundaries_samples, word_segments
+            List of tuples: [(start_ms, end_ms), ...] for each word boundary
         """
-        self.debug(f"Segmenting sentence with wav2vec: {words}")
+        from dataset_config import WAV2VEC_MODEL_NAME
         
-        # Get expected phoneme counts for each word
-        self.debug(f"Segmenting sentence with wav2vec: {words}")
+        n_words = len(word_list)
+        n_boundaries_needed = n_words - 1
         
-        # Get expected phoneme counts for each word
-        word_phoneme_counts = []
-        for word in words:
-            phonemes = phonetic_dict.extract_phonemes(word)
-            count = len(phonemes) if phonemes else 3
-            word_phoneme_counts.append(count)
+        wav2vec2_distances = self._compute_wav2vec2_distances(
+            audio_signal, 
+            sample_rate
+        )
         
-        total_phonemes = sum(word_phoneme_counts)
+        if sigma > 0:
+            from scipy.ndimage import gaussian_filter1d
+            wav2vec2_distances = gaussian_filter1d(
+                wav2vec2_distances, 
+                sigma=sigma
+            )
         
-        # Extract wav2vec features
-        wav2vec_features = self.extract_wav2vec_features(audio_sentence, audio_sr)
+        peak_prominence = self.config.get('peak_prominence', 0.0)
+        peaks, properties = find_peaks(
+            wav2vec2_distances,
+            prominence=peak_prominence,
+            height=0
+        )
         
-        # Compute distances between consecutive frames
-        distances = self.compute_wav2vec_distances(wav2vec_features)
+        print(f"words expected: {n_words}")
+        print(f"peaks found: {len(peaks)}")
         
-        # Smooth the distances
-        distances_smoothed = self._smooth_distances(distances, self.config.wav2vec_sentence_sigma)
+        if len(peaks) == 0:
+            audio_duration_ms = int((len(audio_signal) / sample_rate) * 1000)
+            print(f"word segments returned: 1")
+            print(f"  '{word_list[0]}': {audio_duration_ms}ms")
+            return [(0, audio_duration_ms)]
         
-        # Find speech onset and offset using energy threshold
-        threshold = np.mean(distances_smoothed) + 0.5 * np.std(distances_smoothed)
-        above_threshold = np.where(distances_smoothed > threshold * 0.3)[0]
+        if len(peaks) < n_boundaries_needed:
+            print(f"WARNING: Found {len(peaks)} peaks but need {n_boundaries_needed} boundaries")
         
-        if len(above_threshold) > 0:
-            speech_start = above_threshold[0]
-            speech_end = above_threshold[-1]
-        else:
-            speech_start = 0
-            speech_end = len(distances_smoothed) - 1
+        peak_times_ms = (peaks / len(wav2vec2_distances)) * (len(audio_signal) / sample_rate) * 1000
         
-        # Focus on speech region
-        distances_speech = distances_smoothed[speech_start:speech_end]
+        selected_boundaries = self._select_word_boundaries(
+            peak_times_ms,
+            n_boundaries_needed
+        )
         
-        # Find boundaries - we need (total_phonemes - 1) boundaries
-        n_boundaries_needed = total_phonemes - 1
-        
-        # Adaptive threshold for peak detection
-        median_val = np.median(distances_speech)
-        mad = np.median(np.abs(distances_speech - median_val))
-
-        word_k_factors = getattr(self.config, 'word_threshold_factors', None)
-        k = word_k_factors[0] if word_k_factors else 1.0
-        peak_threshold = median_val + k * mad
-
-        word_prom_factor = getattr(self.config, 'word_prominence_factor', 0.01)
-
-        # Minimum distance between peaks (in wav2vec frames)
-        # wav2vec outputs ~50 frames per second at 16kHz
-        wav2vec_fps = 50
-        min_phoneme_frames = int(self.config.min_phoneme_duration * wav2vec_fps)
-
-        # Find peaks with adaptive threshold (aggressive retry)
-        for attempt in range(10):
-            prom_val = word_prom_factor * np.max(distances_speech) if word_prom_factor > 0 else None
-            peak_kwargs = {
-                'height': peak_threshold,
-                'distance': max(1, min_phoneme_frames),
-            }
-            if prom_val is not None:
-                peak_kwargs['prominence'] = prom_val
-
-            peaks, _ = find_peaks(distances_speech, **peak_kwargs)
-
-            self.debug(f"  Attempt {attempt+1}: threshold={peak_threshold:.4f}, found {len(peaks)} peaks (need {n_boundaries_needed})")
-
-            if len(peaks) >= n_boundaries_needed:
-                # Keep strongest n peaks
-                if len(peaks) > n_boundaries_needed:
-                    peak_heights = distances_speech[peaks]
-                    strongest = np.argsort(peak_heights)[-n_boundaries_needed:]
-                    peaks = peaks[strongest]
-                    peaks = np.sort(peaks)
-                break
-            else:
-                peak_threshold *= 0.5  # more aggressive reduction (was 0.75)
-        
-        # Convert wav2vec frame indices to audio samples
-        # wav2vec processes at 16kHz with ~320 samples per frame (20ms)
-        target_sr = self.config.audio_target_sr
-        samples_per_frame = int(target_sr / wav2vec_fps)
-        
-        # Adjust for resampling if original audio_sr differs
-        resample_ratio = audio_sr / target_sr
-        
-        peaks_absolute = peaks + speech_start
-        onset_sample = int(speech_start * samples_per_frame * resample_ratio)
-        
-        phoneme_boundaries_samples = [onset_sample]
-        for peak in peaks_absolute:
-            phoneme_boundaries_samples.append(int(peak * samples_per_frame * resample_ratio))
-        phoneme_boundaries_samples.append(len(audio_sentence))
-        
-        phoneme_boundaries_samples = np.array(phoneme_boundaries_samples)
-        
-        # Group phonemes into words based on expected counts
-        word_boundaries_samples = [phoneme_boundaries_samples[0]]
-        
-        phoneme_idx = 0
-        for word_idx, n_phonemes in enumerate(word_phoneme_counts):
-            phoneme_idx += n_phonemes
-            
-            if phoneme_idx < len(phoneme_boundaries_samples):
-                word_boundaries_samples.append(phoneme_boundaries_samples[phoneme_idx])
-            else:
-                word_boundaries_samples.append(phoneme_boundaries_samples[-1])
-        
-        word_boundaries_samples = np.array(word_boundaries_samples)
-        
-        # Extract word segments
+        audio_duration_ms = int((len(audio_signal) / sample_rate) * 1000)
         word_segments = []
-        for i in range(len(word_boundaries_samples) - 1):
-            start = int(word_boundaries_samples[i])
-            end = int(word_boundaries_samples[i + 1])
-            word_segments.append(audio_sentence[start:end])
+        start_ms = 0
         
-        self.debug(f"  Result: {len(word_segments)} words extracted via wav2vec")
+        for boundary_ms in selected_boundaries:
+            word_segments.append((int(start_ms), int(boundary_ms)))
+            start_ms = boundary_ms
         
-        return {
-            'word_boundaries_samples': word_boundaries_samples,
-            'phoneme_boundaries_samples': phoneme_boundaries_samples,
-            'word_segments': word_segments,
-            'wav2vec_distances': distances_smoothed,
-            'speech_start': speech_start,
-            'speech_end': speech_end
-        }
+        word_segments.append((int(start_ms), audio_duration_ms))
+        
+        print(f"word segments returned: {len(word_segments)}")
+        for idx, (word, (start_ms, end_ms)) in enumerate(zip(word_list, word_segments)):
+            duration_ms = end_ms - start_ms
+            print(f"  '{word}': {duration_ms}ms")
+        
+        return word_segments
         
     def extract_wav2vec_features(self, audio_segment, audio_sr):
         """

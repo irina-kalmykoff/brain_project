@@ -1828,7 +1828,7 @@ class AcousticChangeDetector(DebugMixin):
         distances_speech = distances_smoothed[speech_start:speech_end]
         
         # Find boundaries - we need (total_phonemes - 1) boundaries
-        n_boundaries_needed = total_phonemes - 1
+        n_boundaries_needed = len(words) - 1
         
         # Adaptive threshold for peak detection
         median_val = np.median(distances_speech)
@@ -1890,16 +1890,9 @@ class AcousticChangeDetector(DebugMixin):
         
         # Group phonemes into words based on expected counts
         word_boundaries_samples = [phoneme_boundaries_samples[0]]
-        
-        phoneme_idx = 0
-        for word_idx, n_phonemes in enumerate(word_phoneme_counts):
-            phoneme_idx += n_phonemes
-            
-            if phoneme_idx < len(phoneme_boundaries_samples):
-                word_boundaries_samples.append(phoneme_boundaries_samples[phoneme_idx])
-            else:
-                word_boundaries_samples.append(phoneme_boundaries_samples[-1])
-        
+        for peak_sample in phoneme_boundaries_samples[1:-1]:
+            word_boundaries_samples.append(peak_sample)
+        word_boundaries_samples.append(phoneme_boundaries_samples[-1])
         word_boundaries_samples = np.array(word_boundaries_samples)
         
         # Extract word segments

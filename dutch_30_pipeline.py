@@ -1,3 +1,4 @@
+from pipeline import UnifiedPhonemePipeline
 from phonetic_dictionary import PhoneticDictionary
 import os
 import re
@@ -21,19 +22,27 @@ from acoustic_change_detector import AcousticChangeDetector
 from config import BIDS_PATH, OUTPUT_PATH, RESULTS_PATH, DUTCH_30_PATH, DUTCH_10_PATH, get_dataset_paths
 from dataset_config import Dutch30Config
 
-class Dutch30Pipeline(DebugMixin):
-    """Pipeline for Dutch30 intracranial EEG phoneme decoding."""
+class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
+    """Extend the pipeline for Dutch30 data"""
 
+    
     def __init__(self, dutch30_extractor, config: Dutch30Config = None,
                         decoder=None, feature_extraction_method='high_gamma',
+                        use_phoneme_groups=False, 
                         debug_mode=False, use_rms_boundaries=True, use_multifeature=False,
-                        use_wav2vec=False, subtract_baseline=True,
+                        use_wav2vec=False, subtract_baseline=True, 
                         **kwargs):
-
-        super().__init__(class_name="Dutch30Pipeline", debug_mode=debug_mode)
-        self.path_results = dutch30_extractor.results_dir
-        self.feature_extraction_method = feature_extraction_method
-        os.makedirs(self.path_results, exist_ok=True)
+        
+        super().__init__(
+            path_bids=dutch30_extractor.data_dir, 
+            path_output=dutch30_extractor.results_dir,
+            path_results=dutch30_extractor.results_dir,
+            feature_extraction_method=feature_extraction_method,
+            use_phoneme_groups=use_phoneme_groups,
+            debug_mode=debug_mode,
+            **kwargs
+        )
+        self.class_name = "Dutch30Pipeline" 
         self.dutch30_extractor = dutch30_extractor
         self.phonetic_dict = PhoneticDictionary()
         self.phonetic_dict.add_phoneme_groups()
@@ -45,7 +54,7 @@ class Dutch30Pipeline(DebugMixin):
         
         # Log config if in debug mode
         self.debug(str(self.config))
-        self.log(f"Pipeline initialized: {feature_extraction_method}")
+        self.log(f"Pipeline initialized: {feature_extraction_method}, groups={use_phoneme_groups}")
         self.log(f"Baseline subtraction: {subtract_baseline}")
         self.log(f"Boundary detection: RMS={use_rms_boundaries}, MultiFeature={use_multifeature}")
         
@@ -1335,36 +1344,7 @@ class Dutch30Pipeline(DebugMixin):
         self.log(f"  Unknown remaining: {train_unknown_after} train, {test_unknown_after} test")
         
         return self.train, self.test
-
-    def step7_filter_unknowns(self, unknown_keep_ratio=0.0):
-        """Filter unknown phonemes from training data.
-
-        Keeps all known phonemes and subsamples unknowns ('?') at the
-        given ratio. Modifies self.train in place.
-
-        Args:
-            unknown_keep_ratio: float, fraction of '?' samples to keep
-                (0.0 = remove all unknowns, 1.0 = keep all).
-        """
-        if not hasattr(self, 'train') or self.train is None:
-            self.log("Warning: No training data available for filtering")
-            return
-
-        n_before = len(self.train['features'])
-        np.random.seed(37)
-
-        keep = []
-        for i, label in enumerate(self.train['phoneme_labels']):
-            if label != '?' or np.random.random() < unknown_keep_ratio:
-                keep.append(i)
-
-        # Filter all list-type keys in sync
-        for key in self.train:
-            if isinstance(self.train[key], list) and len(self.train[key]) == n_before:
-                self.train[key] = [self.train[key][i] for i in keep]
-
-        self.log(f"Filtered training: {len(self.train['features'])} samples (from {n_before})")
-
+    
     def step8_group_phonemes(self):
         """Build the grouped-label columns alongside the raw labels.
 
@@ -2110,6 +2090,26 @@ class Dutch30Pipeline(DebugMixin):
             np.save(result_path, channel_results)
             self.log(f"  {pid}: Analyzed {n_channels} channels")     
             
+    def get_data_batch(self, split_result, batch_type='train', **kwargs):
+        """Override to handle flat list format"""
+        word_segments = split_result['word_segments_dict']
+        
+        # Convert to expected format on-the-fly
+        for pid, segments in word_segments.items():
+            if isinstance(segments['words'], list):
+                # Convert flat lists to nested dict
+                words_dict = {}
+                for i, word in enumerate(segments['words']):
+                    if word not in words_dict:
+                        words_dict[word] = {'instances': []}
+                    words_dict[word]['instances'].append({
+                        'eeg_segment': segments['eeg_segments'][i],
+                        'spectrogram_segment': segments['spectrogram_segments'][i]
+                    })
+                segments['words'] = words_dict
+        
+        return super().get_data_batch(split_result, batch_type, **kwargs)
+    
     def checkpoint_after_step6(self, sample_fraction=None):
         """Save checkpoint with sample fraction in filename"""
         

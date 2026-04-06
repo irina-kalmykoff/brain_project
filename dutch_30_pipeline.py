@@ -1335,7 +1335,36 @@ class Dutch30Pipeline(DebugMixin):
         self.log(f"  Unknown remaining: {train_unknown_after} train, {test_unknown_after} test")
         
         return self.train, self.test
-    
+
+    def step7_filter_unknowns(self, unknown_keep_ratio=0.0):
+        """Filter unknown phonemes from training data.
+
+        Keeps all known phonemes and subsamples unknowns ('?') at the
+        given ratio. Modifies self.train in place.
+
+        Args:
+            unknown_keep_ratio: float, fraction of '?' samples to keep
+                (0.0 = remove all unknowns, 1.0 = keep all).
+        """
+        if not hasattr(self, 'train') or self.train is None:
+            self.log("Warning: No training data available for filtering")
+            return
+
+        n_before = len(self.train['features'])
+        np.random.seed(37)
+
+        keep = []
+        for i, label in enumerate(self.train['phoneme_labels']):
+            if label != '?' or np.random.random() < unknown_keep_ratio:
+                keep.append(i)
+
+        # Filter all list-type keys in sync
+        for key in self.train:
+            if isinstance(self.train[key], list) and len(self.train[key]) == n_before:
+                self.train[key] = [self.train[key][i] for i in keep]
+
+        self.log(f"Filtered training: {len(self.train['features'])} samples (from {n_before})")
+
     def step8_group_phonemes(self):
         """Build the grouped-label columns alongside the raw labels.
 

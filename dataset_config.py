@@ -81,7 +81,7 @@ class Dutch30Config:
     rms_k_factor: float = 1.2              # k factor for RMS-based boundaries
     sentence_k_factor: float = 1.0         # k factor for sentence segmentation
     onset_threshold_fraction: float = 0.15  # Fraction of max RMS change for onset detection
-    peak_prominence: float = 0.05          # Minimum prominence for peak detection
+    peak_prominence: float = 0.0          # Minimum prominence for peak detection
     threshold_reduction_factor: float = 0.7 # Factor to reduce threshold when too few boundaries found
     welch_nperseg: int = 256               # Window size for Welch PSD estimation
 

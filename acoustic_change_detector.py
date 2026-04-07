@@ -2000,13 +2000,18 @@ class AcousticChangeDetector(DebugMixin):
         else:
             audio_resampled = audio_segment
         
-        # Preprocess audio
+        # Ensure 1D float32 numpy array (processor fails on non-standard dtypes/shapes)
+        audio_resampled = np.asarray(audio_resampled, dtype=np.float32).flatten()
+
+        # Preprocess audio (return numpy then convert to torch to avoid
+        # torch/numpy dtype-inference incompatibility in some versions)
         inputs = self.wav2vec_processor(
-            audio_resampled,  # Use resampled audio
-            sampling_rate=target_sr,  
-            return_tensors="pt"
+            audio_resampled,
+            sampling_rate=target_sr,
+            return_tensors="np"
         )
-        
+        inputs = {k: torch.from_numpy(np.asarray(v)) for k, v in inputs.items()}
+
         # Extract features
         with torch.no_grad():
             outputs = self.wav2vec_model(**inputs)

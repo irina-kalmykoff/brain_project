@@ -1871,7 +1871,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 3, 3, figure=fig,
                 width_ratios=[1, 1, 1],
                 height_ratios=[1, 2, 2],
-                hspace=0.4, wspace=0.3,
+                hspace=0.15, wspace=0.3,
             )
             ax_dist       = fig.add_subplot(gs[0, 0])
             ax_pre_bar    = fig.add_subplot(gs[0, 1])
@@ -1889,7 +1889,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             gs = GridSpec(
                 3, 2, figure=fig,
                 height_ratios=[1, 2, 2],
-                hspace=0.4, wspace=0.3,
+                hspace=0.15, wspace=0.3,
             )
             ax_dist      = fig.add_subplot(gs[0, 0])
             ax_post_bar  = fig.add_subplot(gs[0, 1])
@@ -2062,7 +2062,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             )
 
 
-        fig.tight_layout()
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            fig.tight_layout()
         plt.show()
 
         # print table

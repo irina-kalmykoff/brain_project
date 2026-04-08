@@ -1483,13 +1483,14 @@ def extract_phoneme_segments(pipeline, pid, max_sentences=50):
 
         # Wav2vec boundaries
         try:
-            result = pipeline.detector.segment_sentence_by_wav2vec(
+            result = pipeline.detector.segment_sentence_by_wav2vec_phoneme_level(
                 audio_sentence=audio_sent_16k,
                 audio_sr=config.audio_target_sr,
                 words=word_texts,
                 phonetic_dict=pipeline.phonetic_dict,
             )
-        except Exception:
+        except Exception as e:
+            print(f"  FAILED sentence '{word_texts}': {e}")
             n_fail += 1
             continue
 

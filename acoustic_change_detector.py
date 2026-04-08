@@ -1776,8 +1776,7 @@ class AcousticChangeDetector(DebugMixin):
             'speech_end': speech_end
         }
         
-    """
-    def segment_sentence_by_wav2vec(self, audio_sentence: np.ndarray, audio_sr: int,
+    def segment_sentence_by_wav2vec_phoneme_level(self, audio_sentence: np.ndarray, audio_sr: int,
                                  words: list, phonetic_dict) -> dict:
 
         self.debug(f"Segmenting sentence with wav2vec: {words}")
@@ -1902,8 +1901,7 @@ class AcousticChangeDetector(DebugMixin):
             'speech_start': speech_start,
             'speech_end': speech_end
         }
-        
-    """
+
     def segment_sentence_by_wav2vec(
         self,
         audio_signal,
@@ -1914,64 +1912,62 @@ class AcousticChangeDetector(DebugMixin):
         sigma=0
     ):
 
-        from dataset_config import WAV2VEC_MODEL_NAME
-        
         n_words = len(word_list)
         n_boundaries_needed = n_words - 1
-        
-        wav2vec2_distances = self._compute_wav2vec2_distances(
-            audio_signal, 
-            sample_rate
-        )
-        
-        if sigma > 0:
-            from scipy.ndimage import gaussian_filter1d
-            wav2vec2_distances = gaussian_filter1d(
-                wav2vec2_distances, 
-                sigma=sigma
-            )
-        
-        peak_prominence = self.config.get('peak_prominence', 0.0)
+
+        # Extract features and compute distances using existing methods
+        wav2vec_features = self.extract_wav2vec_features(audio_signal, sample_rate)
+        wav2vec2_distances = self.compute_wav2vec_distances(wav2vec_features)
+
+        # Apply smoothing — use config sigma or the sigma argument
+        smooth_sigma = sigma if sigma > 0 else getattr(self.config, 'wav2vec_sentence_sigma', 0)
+        wav2vec2_distances = self._smooth_distances(wav2vec2_distances, smooth_sigma)
+
+        peak_prominence = getattr(self.config, 'peak_prominence', 0.0)
         peaks, properties = find_peaks(
             wav2vec2_distances,
             prominence=peak_prominence,
             height=0
         )
-        
-        print(f"words expected: {n_words}")
-        print(f"peaks found: {len(peaks)}")
-        
-        if len(peaks) == 0:
-            audio_duration_ms = int((len(audio_signal) / sample_rate) * 1000)
-            print(f"word segments returned: 1")
-            print(f"  '{word_list[0]}': {audio_duration_ms}ms")
-            return [(0, audio_duration_ms)]
-        
-        if len(peaks) < n_boundaries_needed:
-            print(f"WARNING: Found {len(peaks)} peaks but need {n_boundaries_needed} boundaries")
-        
-        peak_times_ms = (peaks / len(wav2vec2_distances)) * (len(audio_signal) / sample_rate) * 1000
-        
-        selected_boundaries = self._select_word_boundaries(
-            peak_times_ms,
-            n_boundaries_needed
-        )
-        
+
+        self.debug(f"words expected: {n_words}, peaks found: {len(peaks)}")
+
         audio_duration_ms = int((len(audio_signal) / sample_rate) * 1000)
+
+        if len(peaks) == 0 or n_boundaries_needed == 0:
+            return [(0, audio_duration_ms)]
+
+        if len(peaks) < n_boundaries_needed:
+            self.debug(f"WARNING: Found {len(peaks)} peaks but need {n_boundaries_needed} boundaries")
+
+        # Select top n_boundaries_needed peaks by prominence, then sort by time
+        prominences = properties['prominences']
+        n_select = min(n_boundaries_needed, len(peaks))
+        top_idx = np.argsort(prominences)[-n_select:]
+        selected_peaks = sorted(peaks[top_idx])
+
+        # Convert peak indices to ms
+        peak_times_ms = [
+            (p / len(wav2vec2_distances)) * (len(audio_signal) / sample_rate) * 1000
+            for p in selected_peaks
+        ]
+
+        # If fewer peaks than needed, space remaining boundaries equally
+        if len(peak_times_ms) < n_boundaries_needed:
+            step = audio_duration_ms / n_words
+            all_boundaries = sorted(set(
+                peak_times_ms + [step * i for i in range(1, n_boundaries_needed + 1)
+                                  if step * i not in peak_times_ms]
+            ))
+            peak_times_ms = all_boundaries[:n_boundaries_needed]
+
         word_segments = []
         start_ms = 0
-        
-        for boundary_ms in selected_boundaries:
+        for boundary_ms in peak_times_ms:
             word_segments.append((int(start_ms), int(boundary_ms)))
             start_ms = boundary_ms
-        
         word_segments.append((int(start_ms), audio_duration_ms))
-        
-        print(f"word segments returned: {len(word_segments)}")
-        for idx, (word, (start_ms, end_ms)) in enumerate(zip(word_list, word_segments)):
-            duration_ms = end_ms - start_ms
-            print(f"  '{word}': {duration_ms}ms")
-        
+
         return word_segments
         
     def extract_wav2vec_features(self, audio_segment, audio_sr):

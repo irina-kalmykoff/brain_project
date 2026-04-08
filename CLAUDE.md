@@ -115,6 +115,19 @@ pynwb                # NWB format I/O for Dutch_10patients
 
 There are no tests, no linting config, and no CI. Do not suggest running `pytest`, `flake8`, or similar — they are not set up.
 
+## Step 5 Feature Stacking Pipeline
+
+`run_step5` in `dutch_30_pipeline.py` orchestrates:
+
+1. **step5a_filter_by_frame_count** — drops phonemes outside `[min_frames, max_frames]` HG frame range. Use `min_frames=1` to retain short phonemes (default was 4, which silently discarded ~79% of data for sentence patients).
+2. **Position reset** — before step5b, `phoneme_positions` is reset to all-zeros for both train and test. This forces step5b to treat each phoneme as its own independent instance rather than part of a running sentence sequence.
+3. **step5b_stack_features(model_order=5, step_size=1)** — builds stacked feature vectors using a sliding window of `2*model_order+1 = 11` HG frames (margin = `model_order * step_size = 5`). Without the position reset, phonemes near word edges fall inside the margin and get no stacked vector, losing most of the data.
+4. **step5c_collapse_to_phoneme_level** — groups rows by `(phoneme_instance_id, position)`, averaging all frames per phoneme into a single vector. Result: 1 sample per phoneme. Because positions were reset to 0, each phoneme has exactly one `position=0` entry → exactly one output row.
+
+**Zero-padding**: short phonemes (1–3 HG frames) are zero-padded to fill the 11-frame stacking window. This preserves phoneme count at the cost of introducing zeros for missing context frames. Downstream consequences are mild: the mean of the signal is diluted but spatial patterns (which channels are active) are preserved. The classifier sees reduced-magnitude vectors for short phonemes, but relative channel weights are correct.
+
+**Output dimensions**: `n_channels × 11` = e.g. `107 × 11 = 1177` features per phoneme sample.
+
 ## Signal Processing Notes
 
 - Bandpass filter: 70–170 Hz (high-gamma), notch at 50 Hz and 150 Hz

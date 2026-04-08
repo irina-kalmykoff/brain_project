@@ -387,17 +387,23 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                     audio_end_16k = int(audio_end_sent * resample_ratio)
                     audio_sent_16k = audio_resampled_16k[audio_start_16k:audio_end_16k]
                     
-                    result = self.detector.segment_sentence_by_wav2vec(
-                        audio_sentence=audio_sent_16k,
-                        audio_sr=self.config.audio_target_sr,  # Already 16kHz
-                        words=word_texts,
-                        phonetic_dict=self.phonetic_dict
+                    # Returns list of (start_ms, end_ms) tuples at 16 kHz
+                    word_segs_ms = self.detector.segment_sentence_by_wav2vec(
+                        audio_signal=audio_sent_16k,
+                        sample_rate=self.config.audio_target_sr,
+                        word_list=word_texts,
+                        patient_id=participant_id,
+                        sentence_id=sent_idx,
                     )
 
-                    
-                    # Scale boundaries back to original sample rate
-                    word_boundaries_in_sent = (result['word_boundaries_samples'] / resample_ratio).astype(int)
-                    
+                    # Convert ms boundaries → sample indices in original audio
+                    sr_16k = self.config.audio_target_sr
+                    boundaries_16k = np.array(
+                        [int(word_segs_ms[0][0] * sr_16k / 1000)] +
+                        [int(seg[1] * sr_16k / 1000) for seg in word_segs_ms]
+                    )
+                    word_boundaries_in_sent = (boundaries_16k / resample_ratio).astype(int)
+
                     # Re-extract word segments from original audio (not resampled)
                     word_audio_segments = []
                     for i in range(len(word_boundaries_in_sent) - 1):
@@ -928,6 +934,36 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         data['features'] = normalized_features
         return data
     
+    def run_step5(self, min_frames=4, max_frames=300,
+                  stacking_order=None, stacking_step_size=1,
+                  target_frames=None, collapse_to_phoneme=True):
+        """Run step 5a + 5b + optional 5c in one call.
+
+        Args:
+            min_frames: passed to step5a_filter_by_frame_count.
+            max_frames: passed to step5a_filter_by_frame_count.
+            stacking_order: if set, use step5b_stack_features with this order.
+            stacking_step_size: step size for stacking (used when stacking_order is set).
+            target_frames: if set (and stacking_order is None), use
+                step5b_normalize_feature_lengths with this frame count.
+            collapse_to_phoneme: if True (default), run step5c after stacking.
+        """
+        if stacking_order is not None:
+            self.step5a_filter_by_frame_count(min_frames=min_frames, max_frames=max_frames)
+            # Reset positions so step5b treats each phoneme as its own instance.
+            # This ensures every phoneme (even 1-frame ones) gets its own padded
+            # stacking window instead of being dropped at word-instance edges.
+            for data in [self.train, self.test]:
+                if data:
+                    data['phoneme_positions'] = [0] * len(data['phoneme_positions'])
+            self.step5b_stack_features(model_order=stacking_order, step_size=stacking_step_size)
+            if collapse_to_phoneme:
+                self.step5c_collapse_to_phoneme_level()
+        elif target_frames is not None:
+            self.step5b_normalize_feature_lengths(target_frames=target_frames)
+        else:
+            self.log("WARNING: run_step5 called with no step 5b configured")
+
     def step5a_filter_by_frame_count(self, min_frames=2, max_frames=25):
         """Filter phonemes by HG frame count.
 
@@ -1193,6 +1229,71 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             if has_durations:
                 data['phoneme_durations_samples'] = new_durations
     
+    def step5c_collapse_to_phoneme_level(self):
+        """Collapse per-frame features → one averaged feature vector per phoneme.
+
+        After step5b each sample is a stacked frame; one phoneme spans many
+        consecutive frames all sharing the same label and position.  This step
+        averages those frames so that train/test contain exactly one sample per
+        detected phoneme — the natural unit for phoneme-level analysis and for
+        analyze_consecutive_correct.
+
+        Modifies self.train and self.test in place.
+        """
+        from collections import OrderedDict
+        import numpy as np
+
+        for dataset_name in ('train', 'test'):
+            data = getattr(self, dataset_name, None)
+            if data is None:
+                continue
+
+            pids      = data['phoneme_participant_ids']
+            labels    = data['phoneme_labels']
+            words     = data['phoneme_words']
+            positions = data['phoneme_positions']
+            inst_ids  = data.get('phoneme_instance_ids', [None] * len(labels))
+            features  = data['features']
+
+            groups = OrderedDict()
+            for feat, pid, word, lbl, pos, iid in zip(
+                    features, pids, words, labels, positions, inst_ids):
+                key = (iid, pos)
+                if key not in groups:
+                    groups[key] = dict(pid=pid, word=word, true=lbl,
+                                       iid=iid, pos=pos, feats=[])
+                groups[key]['feats'].append(feat)
+
+            new_features  = []
+            new_labels    = []
+            new_words     = []
+            new_positions = []
+            new_pids      = []
+            new_inst_ids  = []
+
+            for g in groups.values():
+                new_features.append(np.mean(g['feats'], axis=0))
+                new_labels.append(g['true'])
+                new_words.append(g['word'])
+                new_positions.append(g['pos'])
+                new_pids.append(g['pid'])
+                new_inst_ids.append(g['iid'])
+
+            n_in  = len(features)
+            n_out = len(new_features)
+
+            data['features']                  = new_features
+            data['phoneme_labels']            = new_labels
+            data['phoneme_words']             = new_words
+            data['phoneme_positions']         = new_positions
+            data['phoneme_participant_ids']   = new_pids
+            data['phoneme_instance_ids']      = new_inst_ids
+
+            self.log(f"  step5c {dataset_name}: {n_in} frames -> {n_out} phonemes "
+                     f"({n_in / max(n_out, 1):.1f} frames/phoneme avg)")
+
+        self.log("Step 5c complete.")
+
     def checkpoint_after_step5(self, sample_fraction=None, step5b_method=None,
                             model_order=None, step_size=None, target_frames=None):
         """Save checkpoint after step 5 (before stacking/resampling).
@@ -1750,8 +1851,36 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             )
 
         # layout
-        n_cols = 3 if has_viterbi_comparison else 2
-        fig, axes = plt.subplots(2, n_cols, figsize=(8 * n_cols, 12))
+        from matplotlib.gridspec import GridSpec
+        if has_viterbi_comparison:
+            # 2 rows x 4 cols:
+            #   col 0 (full height): Distribution
+            #   row 0, col 1:        Pre-Viterbi bar chart
+            #   row 0, cols 2-3:     Post-Viterbi bar chart (centred above two CMs)
+            #   row 1, col 1:        Pre-Viterbi confusion recall
+            #   row 1, col 2:        Post-Viterbi confusion recall
+            #   row 1, col 3:        Post-Viterbi confusion precision
+            fig = plt.figure(figsize=(32, 16))
+            gs = GridSpec(
+                2, 4, figure=fig,
+                width_ratios=[1, 1, 1, 1],
+                height_ratios=[1, 2],
+                hspace=0.35, wspace=0.3,
+            )
+            ax_dist      = fig.add_subplot(gs[:, 0])
+            ax_pre_bar   = fig.add_subplot(gs[0, 1])
+            ax_post_bar  = fig.add_subplot(gs[0, 2:4])
+            ax_pre_cm    = fig.add_subplot(gs[1, 1])
+            ax_post_cm_r = fig.add_subplot(gs[1, 2])
+            ax_post_cm_p = fig.add_subplot(gs[1, 3])
+        else:
+            # no Viterbi comparison: simple 2x2
+            fig = plt.figure(figsize=(16, 12))
+            gs = GridSpec(2, 2, figure=fig, hspace=0.35, wspace=0.3)
+            ax_dist      = fig.add_subplot(gs[0, 0])
+            ax_post_bar  = fig.add_subplot(gs[0, 1])
+            ax_post_cm_r = fig.add_subplot(gs[1, 0])
+            ax_post_cm_p = fig.add_subplot(gs[1, 1])
 
         acc = self.patient_results[pid]["accuracy"]
         lift = self.patient_results[pid]["lift"]
@@ -1774,7 +1903,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             )
 
         # 1. train/test distribution
-        ax1 = axes[0, 0]
+        ax1 = ax_dist
         x = np.arange(len(all_labels))
         width = 0.35
         ax1.bar(
@@ -1829,16 +1958,16 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         # 2. per-class metrics
         if has_viterbi_comparison:
             draw_metrics(
-                axes[0, 1], phoneme_metrics_pre, test_phonemes, acc_pre,
+                ax_pre_bar, phoneme_metrics_pre, test_phonemes, acc_pre,
                 "Per-Class Metrics (pre-Viterbi)"
             )
             draw_metrics(
-                axes[0, 2], phoneme_metrics_post, test_phonemes, acc,
+                ax_post_bar, phoneme_metrics_post, test_phonemes, acc,
                 "Per-Class Metrics (post-Viterbi)"
             )
         else:
             draw_metrics(
-                axes[0, 1], phoneme_metrics_post, test_phonemes, acc,
+                ax_post_bar, phoneme_metrics_post, test_phonemes, acc,
                 "Per-Class Metrics"
             )
 
@@ -1883,20 +2012,20 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         # 3. confusion matrix recall-normalised pre-viterbi
         if has_viterbi_comparison:
             draw_confusion(
-                axes[1, 0], cm_pre, cm_pre_recall, unique_labels_pre,
+                ax_pre_cm, cm_pre, cm_pre_recall, unique_labels_pre,
                 "Confusion Matrix - Recall normalised (pre-Viterbi)",
                 "Blues", "Recall"
             )
         else:
             draw_confusion(
-                axes[1, 0], cm, cm_recall, unique_labels,
+                ax_post_cm_r, cm, cm_recall, unique_labels,
                 "Confusion Matrix - Recall normalised",
                 "Blues", "Recall"
             )
 
         # 4. confusion matrix recall-normalised post-viterbi
         draw_confusion(
-            axes[1, 1], cm, cm_recall, unique_labels,
+            ax_post_cm_r, cm, cm_recall, unique_labels,
             "Confusion Matrix - Recall normalised (post-Viterbi)"
             if has_viterbi_comparison else "Confusion Matrix - Recall normalised",
             "Blues", "Recall"
@@ -1905,13 +2034,19 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         # 5. confusion matrix precision-normalised post-viterbi
         if has_viterbi_comparison:
             draw_confusion(
-                axes[1, 2], cm, cm_precision, unique_labels,
+                ax_post_cm_p, cm, cm_precision, unique_labels,
                 "Confusion Matrix - Precision normalised (post-Viterbi)",
+                "Greens", "Precision"
+            )
+        else:
+            draw_confusion(
+                ax_post_cm_p, cm, cm_precision, unique_labels,
+                "Confusion Matrix - Precision normalised",
                 "Greens", "Precision"
             )
 
 
-        plt.tight_layout()
+        fig.tight_layout()
         plt.show()
 
         # print table

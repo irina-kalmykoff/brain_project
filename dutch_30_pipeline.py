@@ -1849,38 +1849,52 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             cm_pre_recall = cm_pre.astype("float") / (
                 cm_pre.sum(axis=1, keepdims=True) + 1e-10
             )
+            cm_pre_precision = cm_pre.astype("float") / (
+                cm_pre.sum(axis=0, keepdims=True) + 1e-10
+            )
 
         # layout
         from matplotlib.gridspec import GridSpec
         if has_viterbi_comparison:
-            # 2 rows x 4 cols:
-            #   col 0 (full height): Distribution
-            #   row 0, col 1:        Pre-Viterbi bar chart
-            #   row 0, cols 2-3:     Post-Viterbi bar chart (centred above two CMs)
-            #   row 1, col 1:        Pre-Viterbi confusion recall
-            #   row 1, col 2:        Post-Viterbi confusion recall
-            #   row 1, col 3:        Post-Viterbi confusion precision
-            fig = plt.figure(figsize=(32, 16))
+            # 3 rows x 3 cols:
+            #   row 0, col 0:  Distribution
+            #   row 0, col 1:  Pre-Viterbi bar chart
+            #   row 0, col 2:  Post-Viterbi bar chart
+            #   row 1, col 0:  (empty)
+            #   row 1, col 1:  Pre-Viterbi confusion recall  (blue)
+            #   row 1, col 2:  Post-Viterbi confusion recall (blue)
+            #   row 2, col 0:  (empty)
+            #   row 2, col 1:  Pre-Viterbi confusion precision  (green)
+            #   row 2, col 2:  Post-Viterbi confusion precision (green)
+            fig = plt.figure(figsize=(24, 22))
             gs = GridSpec(
-                2, 4, figure=fig,
-                width_ratios=[1, 1, 1, 1],
-                height_ratios=[1, 2],
-                hspace=0.35, wspace=0.3,
+                3, 3, figure=fig,
+                width_ratios=[1, 1, 1],
+                height_ratios=[1, 2, 2],
+                hspace=0.4, wspace=0.3,
             )
-            ax_dist      = fig.add_subplot(gs[:, 0])
-            ax_pre_bar   = fig.add_subplot(gs[0, 1])
-            ax_post_bar  = fig.add_subplot(gs[0, 2:4])
-            ax_pre_cm    = fig.add_subplot(gs[1, 1])
-            ax_post_cm_r = fig.add_subplot(gs[1, 2])
-            ax_post_cm_p = fig.add_subplot(gs[1, 3])
+            ax_dist       = fig.add_subplot(gs[0, 0])
+            ax_pre_bar    = fig.add_subplot(gs[0, 1])
+            ax_post_bar   = fig.add_subplot(gs[0, 2])
+            ax_pre_cm     = fig.add_subplot(gs[1, 1])
+            ax_post_cm_r  = fig.add_subplot(gs[1, 2])
+            ax_pre_cm_p   = fig.add_subplot(gs[2, 1])
+            ax_post_cm_p  = fig.add_subplot(gs[2, 2])
+            # hide unused corners
+            fig.add_subplot(gs[1, 0]).axis('off')
+            fig.add_subplot(gs[2, 0]).axis('off')
         else:
-            # no Viterbi comparison: simple 2x2
-            fig = plt.figure(figsize=(16, 12))
-            gs = GridSpec(2, 2, figure=fig, hspace=0.35, wspace=0.3)
+            # no Viterbi comparison: 3 rows x 2 cols
+            fig = plt.figure(figsize=(16, 22))
+            gs = GridSpec(
+                3, 2, figure=fig,
+                height_ratios=[1, 2, 2],
+                hspace=0.4, wspace=0.3,
+            )
             ax_dist      = fig.add_subplot(gs[0, 0])
             ax_post_bar  = fig.add_subplot(gs[0, 1])
-            ax_post_cm_r = fig.add_subplot(gs[1, 0])
-            ax_post_cm_p = fig.add_subplot(gs[1, 1])
+            ax_post_cm_r = fig.add_subplot(gs[1, 0:2])
+            ax_post_cm_p = fig.add_subplot(gs[2, 0:2])
 
         acc = self.patient_results[pid]["accuracy"]
         lift = self.patient_results[pid]["lift"]
@@ -2009,11 +2023,16 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             ax.set_title(title)
             plt.colorbar(im, ax=ax, label=cbar_label, fraction=0.046)
 
-        # 3. confusion matrix recall-normalised pre-viterbi
+        # 3. recall matrices (row 1)
         if has_viterbi_comparison:
             draw_confusion(
                 ax_pre_cm, cm_pre, cm_pre_recall, unique_labels_pre,
-                "Confusion Matrix - Recall normalised (pre-Viterbi)",
+                "Confusion Matrix - Recall (pre-Viterbi)",
+                "Blues", "Recall"
+            )
+            draw_confusion(
+                ax_post_cm_r, cm, cm_recall, unique_labels,
+                "Confusion Matrix - Recall (post-Viterbi)",
                 "Blues", "Recall"
             )
         else:
@@ -2023,19 +2042,16 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 "Blues", "Recall"
             )
 
-        # 4. confusion matrix recall-normalised post-viterbi
-        draw_confusion(
-            ax_post_cm_r, cm, cm_recall, unique_labels,
-            "Confusion Matrix - Recall normalised (post-Viterbi)"
-            if has_viterbi_comparison else "Confusion Matrix - Recall normalised",
-            "Blues", "Recall"
-        )
-
-        # 5. confusion matrix precision-normalised post-viterbi
+        # 4. precision matrices (row 2)
         if has_viterbi_comparison:
             draw_confusion(
+                ax_pre_cm_p, cm_pre, cm_pre_precision, unique_labels_pre,
+                "Confusion Matrix - Precision (pre-Viterbi)",
+                "Greens", "Precision"
+            )
+            draw_confusion(
                 ax_post_cm_p, cm, cm_precision, unique_labels,
-                "Confusion Matrix - Precision normalised (post-Viterbi)",
+                "Confusion Matrix - Precision (post-Viterbi)",
                 "Greens", "Precision"
             )
         else:

@@ -128,6 +128,39 @@ There are no tests, no linting config, and no CI. Do not suggest running `pytest
 
 **Output dimensions**: `n_channels × 11` = e.g. `107 × 11 = 1177` features per phoneme sample.
 
+## `word_segments_dict` Structure
+
+Populated by `step2_split_by_instances`. Accessed as:
+`pipeline.split_result['word_segments_dict'][pid]`
+
+**Top-level keys per patient:**
+| Key | Content |
+|-----|---------|
+| `words` | dict keyed by word text → `{'instances': [...]}` |
+| `words_list` | ordered list of all word texts |
+| `sentence_list` | list of full sentence strings |
+| `word_sentence_indices` | per-word mapping to sentence index |
+| `word_sentence_texts` | per-word mapping to sentence text |
+| `eeg_segments` | sentence-level EEG arrays |
+| `audio_segments` | sentence-level audio arrays |
+| `spectrogram_segments` | sentence-level spectrograms |
+| `participant_id` | patient ID string |
+| `baseline` | baseline EEG for this patient |
+
+**Per-word instance keys** (`words[word_text]['instances'][i]`):
+| Key | Content |
+|-----|---------|
+| `eeg_segment` | EEG array for this word `(n_samples, n_channels)` |
+| `audio_segment` | audio array for this word `(n_samples,)` |
+| `spectrogram_segment` | spectrogram for this word |
+| `sentence_idx` | index into `sentence_list` this word belongs to |
+| `sentence_text` | full sentence text |
+| `word_idx` | position of word within sentence (`None` if not set) |
+
+**Important:** To get sentence-level audio (e.g. for boundary detection tests), use
+`word_data['audio_segments'][sentence_idx]`, not word-level `audio_segment`.
+To iterate sentences: use `word_data['sentence_list']` and index into `audio_segments`.
+
 ## Signal Processing Notes
 
 - Bandpass filter: 70–170 Hz (high-gamma), notch at 50 Hz and 150 Hz

@@ -81,7 +81,18 @@ Analysis scripts (run independently):
 
 ## Data Layout
 
-Raw data should be placed under `Dutch_30patients/raw/`:
+Raw data lives under `Dutch_30patients/raw/`. The root data directory is resolved
+automatically by `config.py` based on the folder name:
+- **This machine:** `C:\mozg\code\SingleWordProductionDutch\Dutch_30patients\raw\`
+- **config.py logic:** if folder name contains `step2`, sets `DATA_DIR` to `../SingleWordProductionDutch`
+- **In code:** always use `DUTCH_30_PATH` from `config.py` — never hardcode the path:
+  ```python
+  from config import DUTCH_30_PATH
+  raw_dir = os.path.join(DUTCH_30_PATH, "raw")
+  raw_audio = np.load(os.path.join(raw_dir, f"{pid}_audio.npy"))
+  ```
+
+Expected files per patient:
 ```
 P01_sEEG.npy
 P01_audio.npy

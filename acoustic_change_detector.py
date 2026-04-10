@@ -5,6 +5,7 @@ from scipy.signal import find_peaks, savgol_filter
 from numpy.lib.stride_tricks import sliding_window_view
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
 from scipy.signal import welch
+from scipy.spatial.distance import cosine, euclidean
 import gc
 import os
 import numpy as np

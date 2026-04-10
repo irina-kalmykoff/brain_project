@@ -28,9 +28,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
     
     def __init__(self, dutch30_extractor, config: Dutch30Config = None,
                         decoder=None, feature_extraction_method='high_gamma',
-                        use_phoneme_groups=False, 
+                        use_phoneme_groups=False,
                         debug_mode=False, use_rms_boundaries=True, use_multifeature=False,
-                        use_wav2vec=False, subtract_baseline=True, 
+                        use_wav2vec=False, subtract_baseline=True,
+                        use_whisperx=False,
                         **kwargs):
         
         super().__init__(
@@ -51,6 +52,9 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         self.use_multifeature = use_multifeature
         self.subtract_baseline_flag = subtract_baseline
         self.use_wav2vec = use_wav2vec
+        self.use_whisperx = use_whisperx
+        self.whisperx_model = None     # set externally: pipeline.whisperx_model = model_a
+        self.whisperx_metadata = None  # set externally: pipeline.whisperx_metadata = metadata
         
         # Log config if in debug mode
         self.debug(str(self.config))
@@ -381,12 +385,57 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             # -----------------------------------------------------------
             try:
               
-                if self.use_wav2vec:
+                if self.use_whisperx and self.whisperx_model is not None:
+                    # ── WhisperX forced alignment ────────────────────────────
+                    import whisperx as _whisperx
+                    from scipy.signal import resample_poly as _resample_poly
+
+                    target_sr = 16000
+                    orig_sr   = self.config.audio_sr
+                    audio_sent_16k = _resample_poly(
+                        audio_sent, target_sr, orig_sr
+                    ).astype(np.float32)
+                    if np.max(np.abs(audio_sent_16k)) > 0:
+                        audio_sent_16k /= np.max(np.abs(audio_sent_16k))
+
+                    duration_s = len(audio_sent_16k) / target_sr
+                    wx_segments = [{"text": sentence_text, "start": 0.0, "end": duration_s}]
+
+                    wx_result = _whisperx.align(
+                        wx_segments, self.whisperx_model, self.whisperx_metadata,
+                        audio_sent_16k, device="cpu", return_char_alignments=False,
+                    )
+                    word_segs = wx_result.get("word_segments", [])
+
+                    if len(word_segs) >= len(word_texts):
+                        # Build n_words+1 boundary array from WhisperX timestamps
+                        boundaries = [int(w.get('start', 0.0) * orig_sr)
+                                      for w in word_segs[:len(word_texts)]]
+                        last_end = word_segs[len(word_texts) - 1].get('end', duration_s)
+                        boundaries.append(int(last_end * orig_sr))
+                        word_boundaries_in_sent = np.array(boundaries)
+                    else:
+                        # Fallback: equally spaced
+                        self.debug(
+                            f"WhisperX found {len(word_segs)} / {len(word_texts)} words"
+                            f" in '{sentence_text}' — using equal spacing"
+                        )
+                        word_boundaries_in_sent = np.linspace(
+                            0, len(audio_sent), len(word_texts) + 1
+                        ).astype(int)
+
+                    word_audio_segments = []
+                    for i in range(len(word_boundaries_in_sent) - 1):
+                        start = int(word_boundaries_in_sent[i])
+                        end   = int(word_boundaries_in_sent[i + 1])
+                        word_audio_segments.append(audio_sent[start:end])
+
+                elif self.use_wav2vec:
                     # Slice the pre-resampled audio for this sentence
                     audio_start_16k = int(audio_start_sent * resample_ratio)
                     audio_end_16k = int(audio_end_sent * resample_ratio)
                     audio_sent_16k = audio_resampled_16k[audio_start_16k:audio_end_16k]
-                    
+
                     # Returns list of (start_ms, end_ms) tuples at 16 kHz
                     word_segs_ms = self.detector.segment_sentence_by_wav2vec(
                         audio_signal=audio_sent_16k,
@@ -410,7 +459,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                         start = int(word_boundaries_in_sent[i])
                         end = int(word_boundaries_in_sent[i + 1])
                         word_audio_segments.append(audio_sent[start:end])
-                        
+
                 else:
                     result = self.detector.segment_sentence_by_rms(
                         audio_sentence=audio_sent,

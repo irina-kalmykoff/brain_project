@@ -1307,7 +1307,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             groups = OrderedDict()
             for feat, pid, word, lbl, pos, iid in zip(
                     features, pids, words, labels, positions, inst_ids):
-                key = (iid, pos)
+                key = (pid, iid, pos)
                 if key not in groups:
                     groups[key] = dict(pid=pid, word=word, true=lbl,
                                        iid=iid, pos=pos, feats=[])
@@ -1664,7 +1664,12 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
 
             # Create and train model
             model = model_factory(**model_params)
-            model.train(features=train_feat, phoneme_labels=train_labels)
+
+            # Pass MFA phone sequences for Viterbi transition model if available
+            mfa_seqs = self.train.get('phone_sequences') if use_viterbi else None
+
+            model.train(features=train_feat, phoneme_labels=train_labels,
+                        phone_sequences=mfa_seqs)
 
             has_instance_ids = 'phoneme_instance_ids' in self.test
             preds_no_viterbi = None
@@ -1951,8 +1956,9 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         if has_viterbi_comparison:
             correct_pre = sum(1 for p, t in zip(preds_no_viterbi, test_labels) if p == t)
             acc_pre = correct_pre / len(test_labels)
-            n_classes = len(set(test_labels))
-            chance = 1.0 / n_classes if n_classes > 0 else 0
+            # Use majority-class chance (same as step 9)
+            label_counts_viz = Counter(test_labels)
+            chance = max(label_counts_viz.values()) / len(test_labels) if test_labels else 0
             lift_pre = acc_pre / chance if chance > 0 else 0
             fig.suptitle(
                 f"{pid} - pre-Viterbi: Accuracy={acc_pre:.3f}, Lift={lift_pre:.2f}x"

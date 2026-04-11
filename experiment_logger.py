@@ -59,7 +59,7 @@ class ExperimentLogger:
 
         # Compute group summaries with best/worst detail
         group_summaries = {}
-        for group_name, patients in PATIENT_GROUPS.items():
+        for group_name, patients in self.PATIENT_GROUPS.items():
             group_pats = {pid: patient_metrics[pid] for pid in patients
                          if pid in patient_metrics}
             if not group_pats:
@@ -142,7 +142,7 @@ class ExperimentLogger:
         print(row)
         print("=" * (30 + col_w * len(experiments)))
 
-        for group_name in PATIENT_GROUPS.keys():
+        for group_name in self.PATIENT_GROUPS.keys():
             print(f"\n  {group_name}")
             print(f"  {'-' * (28 + col_w * len(experiments))}")
 

@@ -804,6 +804,180 @@ def analyze_consecutive_predictions(pipeline, run_config,
                 print(f"    {r['len']:>2} correct: [{phones}]  ({words})")
 
 
+def plot_position_accuracy(pipeline, run_config, max_pos=12):
+    """Bar plot of phoneme prediction accuracy by position within word.
+
+    For each patient produces one figure with two subplots:
+      Top:    TRAIN — detection rate per position (how many phonemes were
+              found at each word position out of how many were expected).
+      Bottom: TEST  — prediction accuracy per position (how many phonemes
+              at each position were classified correctly).
+
+    Bars show total count (light) with correct count overlaid (dark).
+    Percentage labels are shown on each bar.
+
+    Args:
+        pipeline: Dutch30Pipeline with train/test populated.
+        run_config: dict with 'patient_range'.
+        max_pos: int, maximum position to show (higher positions are rare
+            and clutter the plot).
+    """
+    import matplotlib.pyplot as plt
+    from itertools import groupby
+    from collections import defaultdict
+
+    pr   = run_config['patient_range']
+    pids = sorted(set(
+        p for p in pipeline.train['phoneme_participant_ids']
+        if p in [f'P{i:02d}' for i in range(pr[0], pr[1] + 1)]
+    ))
+
+    for pid in pids:
+        # ── collect data ────────────────────────��─────────────────────
+        tr_idx = [i for i, p in enumerate(
+            pipeline.train['phoneme_participant_ids']) if p == pid]
+        y_tr = [pipeline.train['phoneme_labels'][i] for i in tr_idx]
+        w_tr = [pipeline.train['phoneme_words'][i]  for i in tr_idx]
+
+        te_idx = [i for i, p in enumerate(
+            pipeline.test['phoneme_participant_ids']) if p == pid]
+        X_tr = np.array([np.array(pipeline.train['features'][i]).flatten()
+                         for i in tr_idx])
+        X_te = np.array([np.array(pipeline.test['features'][i]).flatten()
+                         for i in te_idx])
+        y_te = [pipeline.test['phoneme_labels'][i]  for i in te_idx]
+        w_te = [pipeline.test['phoneme_words'][i]   for i in te_idx]
+
+        if len(X_tr) == 0 or len(X_te) == 0:
+            continue
+
+        # ── TRAIN: detection per position ─────────────────────────────
+        def word_groups_from(word_list):
+            groups = []
+            for word, grp in groupby(
+                    zip(word_list, range(len(word_list))),
+                    key=lambda s: s[0]):
+                grp      = list(grp)
+                detected = len(grp)
+                exp_ph   = pipeline.phonetic_dict.extract_phonemes(word)
+                expected = len(exp_ph) if exp_ph else detected
+                groups.append({'word': word, 'detected': detected,
+                               'expected': expected})
+            return groups
+
+        train_groups = word_groups_from(w_tr)
+
+        tr_pos = defaultdict(lambda: {'detected': 0, 'expected': 0})
+        for wg in train_groups:
+            for pos in range(min(wg['expected'], max_pos)):
+                tr_pos[pos]['expected'] += 1
+                if pos < wg['detected']:
+                    tr_pos[pos]['detected'] += 1
+
+        # ── TEST: classify + accuracy per position ────────────────────
+        from sklearn.preprocessing import StandardScaler, LabelEncoder
+        from sklearn.linear_model import LogisticRegression
+
+        scaler = StandardScaler()
+        X_tr_s = scaler.fit_transform(X_tr)
+        X_te_s = scaler.transform(X_te)
+
+        le     = LabelEncoder()
+        y_tr_e = le.fit_transform(y_tr)
+        known  = [l in le.classes_ for l in y_te]
+
+        X_te_k = X_te_s[[i for i, m in enumerate(known) if m]]
+        y_te_k = le.transform([l for l, m in zip(y_te, known) if m])
+        w_te_k = [w for w, m in zip(w_te, known) if m]
+
+        if len(X_te_k) == 0:
+            continue
+
+        clf = LogisticRegression(max_iter=1000, class_weight='balanced',
+                                 C=1.0, random_state=37)
+        clf.fit(X_tr_s, y_tr_e)
+        y_pred  = clf.predict(X_te_k)
+        correct = (y_pred == y_te_k)
+
+        # group test phonemes by word → assign position
+        test_samples = [
+            {'correct': bool(correct[i]), 'word': w_te_k[i]}
+            for i in range(len(y_te_k))
+        ]
+
+        te_pos = defaultdict(lambda: {'correct': 0, 'total': 0})
+        idx = 0
+        for word, grp in groupby(test_samples, key=lambda s: s['word']):
+            for pos, s in enumerate(grp):
+                if pos >= max_pos:
+                    break
+                te_pos[pos]['total']   += 1
+                te_pos[pos]['correct'] += int(s['correct'])
+            idx += 1
+
+        # ── PLOT ──────────────────────────────────────────────────────
+        positions = sorted(set(list(tr_pos.keys()) + list(te_pos.keys())))
+        positions = [p for p in positions if p < max_pos]
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+        fig.suptitle(f'{pid}  —  Phoneme accuracy by position in word',
+                     fontsize=14, fontweight='bold')
+        bar_w = 0.55
+
+        # ── Top: TRAIN detection ──────────────────────────────────────
+        tr_expected = [tr_pos[p]['expected'] for p in positions]
+        tr_detected = [tr_pos[p]['detected'] for p in positions]
+
+        ax1.bar(positions, tr_expected, width=bar_w,
+                color='#c8daf0', edgecolor='#8fafd0', label='Expected')
+        ax1.bar(positions, tr_detected, width=bar_w,
+                color='#3b7dd8', edgecolor='#2a5a9e', label='Detected')
+
+        for p in positions:
+            exp = tr_pos[p]['expected']
+            det = tr_pos[p]['detected']
+            pct = det / exp * 100 if exp else 0
+            ax1.text(p, max(exp, det) + max(tr_expected) * 0.02,
+                     f'{pct:.0f}%', ha='center', va='bottom', fontsize=8,
+                     fontweight='bold' if pct >= 100 else 'normal',
+                     color='#1a5c1a' if pct >= 100 else '#333')
+
+        ax1.set_ylabel('# phonemes')
+        ax1.set_title('TRAIN — phoneme detection rate per position',
+                       fontsize=11)
+        ax1.legend(loc='upper right', fontsize=9)
+        ax1.set_ylim(0, max(tr_expected) * 1.18)
+
+        # ── Bottom: TEST prediction accuracy ──────────────────────────
+        te_total   = [te_pos[p]['total']   for p in positions]
+        te_correct = [te_pos[p]['correct'] for p in positions]
+
+        ax2.bar(positions, te_total, width=bar_w,
+                color='#f0d4c8', edgecolor='#d0a08f', label='Total test')
+        ax2.bar(positions, te_correct, width=bar_w,
+                color='#d84b3b', edgecolor='#9e3a2a', label='Correct')
+
+        for p in positions:
+            tot = te_pos[p]['total']
+            cor = te_pos[p]['correct']
+            pct = cor / tot * 100 if tot else 0
+            ax2.text(p, max(tot, cor) + max(te_total) * 0.02,
+                     f'{pct:.0f}%', ha='center', va='bottom', fontsize=8,
+                     fontweight='bold' if pct >= 20 else 'normal',
+                     color='#1a5c1a' if pct >= 20 else '#999')
+
+        ax2.set_xlabel('Position within word')
+        ax2.set_ylabel('# phonemes')
+        ax2.set_title(f'TEST — prediction accuracy per position  '
+                       f'(overall {np.mean(correct):.1%})', fontsize=11)
+        ax2.legend(loc='upper right', fontsize=9)
+        ax2.set_xticks(positions)
+        ax2.set_ylim(0, max(te_total) * 1.18)
+
+        plt.tight_layout()
+        plt.show()
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  HYPERPARAMETER SWEEP
 # ═══════════════════════════════════════════════════════════════════════════════

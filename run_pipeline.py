@@ -639,12 +639,25 @@ def run_experiment(pipeline, order=3, class_weight='balanced', use_groups=False,
                  if use_viterbi else preds_nv)
 
         accuracy = sum(p == t for p, t in zip(preds, te_lbl)) / len(te_lbl)
+
+        # Adjusted accuracy: penalize for not predicting all classes
+        # adjusted = accuracy × (n_predicted_classes / n_true_classes)
+        true_classes  = set(te_lbl)
+        pred_classes  = set(preds)
+        class_coverage = len(pred_classes & true_classes) / len(true_classes) if true_classes else 1
+        adj_accuracy   = accuracy * class_coverage
+
         results[pid] = {
             'accuracy': accuracy,
+            'adj_accuracy': adj_accuracy,
+            'class_coverage': class_coverage,
+            'n_classes_true': len(true_classes),
+            'n_classes_pred': len(pred_classes & true_classes),
             'n_test': len(te_lbl),
             'n_train': len(tr_feat),
         }
-        print(f"  {pid}: {accuracy:.3f}  "
+        print(f"  {pid}: acc={accuracy:.3f}  adj={adj_accuracy:.3f}  "
+              f"classes={len(pred_classes & true_classes)}/{len(true_classes)}  "
               f"(train={len(tr_feat)}, test={len(te_lbl)})")
 
     return name, params, results
@@ -976,6 +989,280 @@ def plot_position_accuracy(pipeline, run_config, max_pos=12):
 
         plt.tight_layout()
         plt.show()
+
+
+def _run_crf_experiment(pipeline, run_config):
+    """Run CRF (Conditional Random Fields) per patient.
+
+    CRF is a sequence model: it groups phonemes into word-level sequences
+    and predicts the label sequence jointly, capturing transitions between
+    phonemes within a word.  Features are reduced with PCA first (CRFsuite
+    uses sparse dict features internally, so fewer dense dimensions = faster).
+
+    Returns:
+        dict: {pid: {'accuracy': float, 'n_test': int, 'n_train': int}}
+    """
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+    from itertools import groupby
+    from collections import Counter
+
+    try:
+        from sklearn_crfsuite import CRF
+    except ImportError:
+        print("  >> crf: FAILED — pip install sklearn-crfsuite")
+        return {}
+
+    n_pca = 50  # reduce features for CRF speed
+    min_class = run_config.get('min_class_samples', 5)
+
+    results = {}
+    for pid in sorted(set(pipeline.train['phoneme_participant_ids'])):
+        tr_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+        te_mask = [p == pid for p in pipeline.test['phoneme_participant_ids']]
+
+        tr_feat = [pipeline.train['features'][i]
+                   for i, m in enumerate(tr_mask) if m]
+        tr_lbl  = [pipeline.train['phoneme_labels'][i]
+                   for i, m in enumerate(tr_mask) if m]
+        tr_wrd  = [pipeline.train['phoneme_words'][i]
+                   for i, m in enumerate(tr_mask) if m]
+
+        te_feat = [pipeline.test['features'][i]
+                   for i, m in enumerate(te_mask) if m]
+        te_lbl  = [pipeline.test['phoneme_labels'][i]
+                   for i, m in enumerate(te_mask) if m]
+        te_wrd  = [pipeline.test['phoneme_words'][i]
+                   for i, m in enumerate(te_mask) if m]
+
+        if len(tr_feat) < 10 or len(te_feat) < 5:
+            continue
+
+        # Filter rare classes
+        valid = {c for c, n in Counter(tr_lbl).items() if n >= min_class}
+        keep_tr = [i for i, l in enumerate(tr_lbl) if l in valid]
+        keep_te = [i for i, l in enumerate(te_lbl) if l in valid]
+        tr_feat = [tr_feat[i] for i in keep_tr]
+        tr_lbl  = [tr_lbl[i]  for i in keep_tr]
+        tr_wrd  = [tr_wrd[i]  for i in keep_tr]
+        te_feat = [te_feat[i] for i in keep_te]
+        te_lbl  = [te_lbl[i]  for i in keep_te]
+        te_wrd  = [te_wrd[i]  for i in keep_te]
+
+        if len(tr_feat) < 10 or len(te_feat) < 5:
+            continue
+
+        # Flatten + scale + PCA
+        X_tr = np.array([np.array(f).flatten() for f in tr_feat])
+        X_te = np.array([np.array(f).flatten() for f in te_feat])
+
+        scaler = StandardScaler()
+        X_tr = scaler.fit_transform(X_tr)
+        X_te = scaler.transform(X_te)
+
+        n_comp = min(n_pca, X_tr.shape[1], X_tr.shape[0])
+        pca = PCA(n_components=n_comp)
+        X_tr = pca.fit_transform(X_tr)
+        X_te = pca.transform(X_te)
+
+        # Group into word-level sequences
+        def to_sequences(X, labels, words):
+            seqs, lbl_seqs = [], []
+            cur_x, cur_y = [], []
+            prev_w = None
+            for i, (x, l, w) in enumerate(zip(X, labels, words)):
+                if w != prev_w and prev_w is not None and cur_x:
+                    seqs.append(cur_x)
+                    lbl_seqs.append(cur_y)
+                    cur_x, cur_y = [], []
+                cur_x.append({f'f{j}': float(v) for j, v in enumerate(x)})
+                cur_y.append(l)
+                prev_w = w
+            if cur_x:
+                seqs.append(cur_x)
+                lbl_seqs.append(cur_y)
+            return seqs, lbl_seqs
+
+        X_tr_seq, y_tr_seq = to_sequences(X_tr, tr_lbl, tr_wrd)
+        X_te_seq, y_te_seq = to_sequences(X_te, te_lbl, te_wrd)
+
+        crf = CRF(
+            algorithm='lbfgs',
+            c1=0.1,              # L1 regularization
+            c2=0.1,              # L2 regularization
+            max_iterations=100,
+            all_possible_transitions=True,
+        )
+        crf.fit(X_tr_seq, y_tr_seq)
+
+        y_pred_seq = crf.predict(X_te_seq)
+
+        y_pred = [p for seq in y_pred_seq for p in seq]
+        y_true = [l for seq in y_te_seq  for l in seq]
+
+        accuracy = sum(p == t for p, t in zip(y_pred, y_true)) / len(y_true)
+
+        true_classes  = set(y_true)
+        pred_classes  = set(y_pred)
+        class_coverage = len(pred_classes & true_classes) / len(true_classes) if true_classes else 1
+        adj_accuracy   = accuracy * class_coverage
+
+        results[pid] = {
+            'accuracy': accuracy,
+            'adj_accuracy': adj_accuracy,
+            'class_coverage': class_coverage,
+            'n_classes_true': len(true_classes),
+            'n_classes_pred': len(pred_classes & true_classes),
+            'n_test': len(y_true),
+            'n_train': len(tr_lbl),
+            'predictions': y_pred,
+            'true_labels': y_true,
+        }
+        print(f"  {pid}: acc={accuracy:.3f}  adj={adj_accuracy:.3f}  "
+              f"classes={len(pred_classes & true_classes)}/{len(true_classes)}  "
+              f"(train={len(tr_lbl)}, test={len(te_lbl)})")
+
+    return results
+
+
+def compare_classifiers(pipeline, run_config, classifiers=None):
+    """Test multiple classifiers and return a results dict for heatmap plotting.
+
+    Args:
+        pipeline: Dutch30Pipeline with train/test populated.
+        run_config: base run_config dict.
+        classifiers: list of classifier_type strings. If None, uses a
+            sensible default list.  Include 'crf' for Conditional Random
+            Fields (sequence model, needs sklearn-crfsuite installed).
+
+    Returns:
+        dict: {classifier_type: {pid: accuracy, ...}, ...}
+        Call plot_classifier_heatmap(results) to visualize.
+    """
+    if classifiers is None:
+        classifiers = [
+            'logistic_regression',
+            'random_forest',
+            'extra_trees',
+            'svm_linear',
+            'knn',
+            'lda',
+            'gaussian_nb',
+            'mlp',
+            'crf',
+        ]
+
+    all_results = {}
+
+    for ct in classifiers:
+        print(f"\n{'='*60}")
+        try:
+            if ct == 'crf':
+                # CRF is a sequence model — needs special handling
+                print(f"Running: crf (sequence model, PCA→50d)...")
+                results = _run_crf_experiment(pipeline, run_config)
+            else:
+                rc = dict(run_config)
+                rc['classifier_type'] = ct
+                rc['use_viterbi'] = False
+                name, params, results = run_from_config(pipeline, rc)
+        except Exception as e:
+            print(f"  >> {ct}: FAILED — {e}")
+            continue
+
+        if results:
+            accs = [r['accuracy'] for r in results.values()]
+            adjs = [r['adj_accuracy'] for r in results.values()]
+            covs = [r['class_coverage'] for r in results.values()]
+            print(f"  >> {ct}: acc={np.mean(accs):.3f}  "
+                  f"adj={np.mean(adjs):.3f}  "
+                  f"coverage={np.mean(covs):.1%}")
+            all_results[ct] = {
+                pid: {
+                    'accuracy': r['accuracy'],
+                    'adj_accuracy': r['adj_accuracy'],
+                    'class_coverage': r['class_coverage'],
+                }
+                for pid, r in results.items()
+            }
+
+    return all_results
+
+
+def plot_classifier_heatmap(comparison_results, metric='adj_accuracy'):
+    """Heatmap of classifier × patient accuracy from compare_classifiers().
+
+    Args:
+        comparison_results: dict from compare_classifiers().
+        metric: 'adj_accuracy' (default, penalizes missing classes),
+                'accuracy' (raw), or 'class_coverage'.
+    """
+    import matplotlib.pyplot as plt
+
+    if not comparison_results:
+        print("No results to plot.")
+        return
+
+    metric_labels = {
+        'adj_accuracy':   'Adjusted accuracy (acc × class coverage)',
+        'accuracy':       'Raw accuracy',
+        'class_coverage': 'Class coverage (predicted / true classes)',
+    }
+
+    classifiers = list(comparison_results.keys())
+    all_pids = sorted(set(
+        pid for res in comparison_results.values() for pid in res
+    ))
+
+    # Build matrix: rows = classifiers, cols = patients
+    # Handle both old format (float) and new format (dict with metrics)
+    matrix = []
+    for ct in classifiers:
+        row = []
+        for pid in all_pids:
+            val = comparison_results[ct].get(pid, 0)
+            if isinstance(val, dict):
+                row.append(val.get(metric, val.get('accuracy', 0)))
+            else:
+                row.append(val)  # backward compat: plain float = accuracy
+        matrix.append(row)
+    matrix = np.array(matrix)
+
+    # Compute means for sorting and display
+    row_means = matrix.mean(axis=1)
+    sort_idx = np.argsort(row_means)[::-1]
+    matrix = matrix[sort_idx]
+    classifiers = [classifiers[i] for i in sort_idx]
+    row_means = row_means[sort_idx]
+
+    fig, ax = plt.subplots(figsize=(max(10, len(all_pids) * 1.1),
+                                     max(5, len(classifiers) * 0.6)))
+
+    vmax = max(0.3, matrix.max())
+    im = ax.imshow(matrix, cmap='RdYlGn', aspect='auto',
+                   vmin=0, vmax=vmax)
+
+    # Labels
+    ax.set_xticks(range(len(all_pids)))
+    ax.set_xticklabels(all_pids, rotation=45, ha='right')
+    ax.set_yticks(range(len(classifiers)))
+    ax.set_yticklabels([f'{ct}  ({row_means[i]:.1%})'
+                        for i, ct in enumerate(classifiers)])
+
+    # Annotate cells
+    for i in range(len(classifiers)):
+        for j in range(len(all_pids)):
+            val = matrix[i, j]
+            color = 'white' if val < vmax * 0.35 else 'black'
+            ax.text(j, i, f'{val:.1%}', ha='center', va='center',
+                    fontsize=9, color=color, fontweight='bold')
+
+    ax.set_title(metric_labels.get(metric, metric),
+                 fontsize=13, fontweight='bold', pad=12)
+
+    plt.colorbar(im, ax=ax, label=metric, shrink=0.8)
+    plt.tight_layout()
+    plt.show()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

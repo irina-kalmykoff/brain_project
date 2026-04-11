@@ -140,8 +140,14 @@ class MarkovPhonemeModel(DebugMixin):
             - 'extra_trees': ExtraTreesClassifier
             - 'gradient_boosting': GradientBoostingClassifier
             - 'logistic_regression': LogisticRegression
+            - 'svm_linear': LinearSVC + CalibratedClassifierCV (fast)
+            - 'svm_rbf': SVC with RBF kernel (slower, often better)
             - 'knn': KNeighborsClassifier
             - 'gaussian_nb': GaussianNB
+            - 'mlp': MLPClassifier (sklearn, 2 hidden layers)
+            - 'lda': LinearDiscriminantAnalysis
+            - 'nn_relu': PyTorch MLP with ReLU
+            - 'nn_snake': PyTorch MLP with Snake activation
         """
         super().__init__(class_name="MarkovPhonemeModel", debug_mode=debug_mode)
         if debug_mode is not None:
@@ -383,6 +389,69 @@ class MarkovPhonemeModel(DebugMixin):
                     class_weight=self.class_weight,
                     random_state=37,
                     n_jobs=-1
+                )
+            elif self.classifier_type == 'gradient_boosting':
+                from sklearn.ensemble import GradientBoostingClassifier
+                self.neural_classifier = GradientBoostingClassifier(
+                    n_estimators=200,
+                    max_depth=5,
+                    learning_rate=0.1,
+                    subsample=0.8,
+                    random_state=37,
+                )
+            elif self.classifier_type == 'svm_linear':
+                from sklearn.svm import LinearSVC
+                from sklearn.calibration import CalibratedClassifierCV
+                base = LinearSVC(
+                    C=0.1,
+                    max_iter=2000,
+                    class_weight=self.class_weight,
+                    random_state=37,
+                    dual='auto',
+                )
+                # Wrap in CalibratedClassifierCV so predict_proba works
+                # Use cv=2 + ensemble=False to handle rare classes
+                self.neural_classifier = CalibratedClassifierCV(
+                    base, cv=2, method='sigmoid', ensemble=False)
+            elif self.classifier_type == 'svm_rbf':
+                from sklearn.svm import SVC
+                self.neural_classifier = SVC(
+                    C=1.0,
+                    kernel='rbf',
+                    gamma='scale',
+                    class_weight=self.class_weight,
+                    probability=True,
+                    random_state=37,
+                )
+            elif self.classifier_type == 'knn':
+                from sklearn.neighbors import KNeighborsClassifier
+                self.neural_classifier = KNeighborsClassifier(
+                    n_neighbors=7,
+                    weights='distance',
+                    metric='euclidean',
+                    n_jobs=-1,
+                )
+            elif self.classifier_type == 'gaussian_nb':
+                from sklearn.naive_bayes import GaussianNB
+                self.neural_classifier = GaussianNB()
+            elif self.classifier_type == 'mlp':
+                from sklearn.neural_network import MLPClassifier
+                self.neural_classifier = MLPClassifier(
+                    hidden_layer_sizes=(256, 128),
+                    activation='relu',
+                    solver='adam',
+                    alpha=1e-3,
+                    batch_size=64,
+                    learning_rate='adaptive',
+                    max_iter=300,
+                    early_stopping=True,
+                    validation_fraction=0.1,
+                    random_state=37,
+                )
+            elif self.classifier_type == 'lda':
+                from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+                self.neural_classifier = LinearDiscriminantAnalysis(
+                    solver='svd',
                 )
             elif self.classifier_type in ('nn_relu', 'nn_snake'):
                 activation = 'snake' if self.classifier_type == 'nn_snake' else 'relu'

@@ -1751,9 +1751,9 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             )
             accuracy = correct / len(test_labels)
 
-            # Chance level for this patient
-            label_counts = Counter(test_labels)
-            chance = max(label_counts.values()) / len(test_labels)
+            # Chance level: uniform across all classes (1/n_classes)
+            n_classes = len(set(test_labels))
+            chance = 1.0 / n_classes if n_classes > 0 else 0
             lift = accuracy / chance if chance > 0 else 0
 
             self.patient_results[pid] = {
@@ -1956,9 +1956,9 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         if has_viterbi_comparison:
             correct_pre = sum(1 for p, t in zip(preds_no_viterbi, test_labels) if p == t)
             acc_pre = correct_pre / len(test_labels)
-            # Use majority-class chance (same as step 9)
-            label_counts_viz = Counter(test_labels)
-            chance = max(label_counts_viz.values()) / len(test_labels) if test_labels else 0
+            # Uniform chance (1/n_classes) — same as step 9
+            n_classes_viz = len(set(test_labels))
+            chance = 1.0 / n_classes_viz if n_classes_viz > 0 else 0
             lift_pre = acc_pre / chance if chance > 0 else 0
             fig.suptitle(
                 f"{pid} - pre-Viterbi: Accuracy={acc_pre:.3f}, Lift={lift_pre:.2f}x"

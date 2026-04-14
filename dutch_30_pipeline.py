@@ -1998,6 +1998,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         ax1.set_ylabel("Count")
         ax1.legend()
 
+        # Uniform chance level for reference lines
+        n_classes_chance = len(set(test_labels))
+        uniform_chance = 1.0 / n_classes_chance if n_classes_chance > 0 else 0
+
         def draw_metrics(ax, metrics, phonemes, overall_acc, title):
             """Draw per-phoneme precision/recall bar chart.
 
@@ -2019,7 +2023,12 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             ax.set_title(title)
             ax.set_ylim([0, 1])
             ax.axhline(
-                overall_acc, color="red", linestyle="--", alpha=0.5, label="Overall Acc"
+                uniform_chance, color="red", linestyle=":", linewidth=1.5,
+                label=f"Uniform chance (1/{n_classes_chance} = {uniform_chance:.3f})"
+            )
+            ax.axhline(
+                overall_acc, color="green", linestyle=":", linewidth=1.5,
+                alpha=0.7, label=f"Overall Acc ({overall_acc:.3f})"
             )
             ax.legend(loc="upper right", fontsize=8)
             ax.set_ylabel("Score")

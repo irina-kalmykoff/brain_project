@@ -37,6 +37,9 @@ RESULTS_30 = os.path.join(RESULTS_PATH, "dutch30")
 FEATURES_DIR = OUTPUT_PATH
 RESULTS_DIR = RESULTS_PATH
 
+# MFA output lives in the code directory (checked into git), not the data directory
+MFA_OUTPUT_PATH = os.path.join(CURRENT_DIR, 'mfa_output')
+
 # Helper function to get paths for specific dataset
 def get_dataset_paths(dataset='dutch10'):
     """

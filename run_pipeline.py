@@ -55,6 +55,7 @@ from markov_phoneme_model import MarkovPhonemeModel
 from config import (
     BIDS_PATH, OUTPUT_PATH, RESULTS_PATH,
     DUTCH_30_PATH, DUTCH_10_PATH, get_dataset_paths,
+    MFA_OUTPUT_PATH,
 )
 from dutch_30_pipeline import Dutch30Pipeline
 from dutch_30_feature_extractor import Dutch30FeatureExtractor
@@ -203,7 +204,7 @@ def load_mfa_alignments(pid, mfa_output_dir=None):
     import tgt
 
     if mfa_output_dir is None:
-        mfa_output_dir = os.path.join(DUTCH_30_PATH, 'mfa_output')
+        mfa_output_dir = MFA_OUTPUT_PATH
 
     pid_dir = os.path.join(mfa_output_dir, pid)
     if not os.path.isdir(pid_dir):
@@ -271,7 +272,7 @@ def build_mfa_features(pipeline, run_config):
     eeg_sr     = config.eeg_sr
     win_len    = config.window_length
     frameshift = config.frameshift
-    mfa_output = os.path.join(DUTCH_30_PATH, 'mfa_output')
+    mfa_output = MFA_OUTPUT_PATH
     min_samples = int(win_len * eeg_sr) + 1     # 31 samples ~ 30 ms
 
     accum = {
@@ -432,7 +433,7 @@ def diagnose_mfa_loss(pipeline, run_config):
     eeg_sr      = config.eeg_sr
     win_len     = config.window_length
     min_samples = int(win_len * eeg_sr) + 1
-    mfa_output  = os.path.join(DUTCH_30_PATH, 'mfa_output')
+    mfa_output  = MFA_OUTPUT_PATH
 
     pr       = run_config['patient_range']
     patients = [f'P{i:02d}' for i in range(pr[0], pr[1] + 1)]
@@ -508,7 +509,7 @@ def mfa_coverage_summary(run_config):
     """Print per-patient MFA alignment coverage and phone counts."""
     import tgt
 
-    mfa_output = os.path.join(DUTCH_30_PATH, 'mfa_output')
+    mfa_output = MFA_OUTPUT_PATH
     mfa_input  = os.path.join(DUTCH_30_PATH, 'mfa_input')
     pr = run_config['patient_range']
 
@@ -1599,7 +1600,7 @@ def main():
         print("# mfa model download acoustic dutch_cv")
         print("# mfa model download dictionary dutch_cv")
         inp = os.path.join(DUTCH_30_PATH, 'mfa_input').replace('/', '\\')
-        out = os.path.join(DUTCH_30_PATH, 'mfa_output').replace('/', '\\')
+        out = MFA_OUTPUT_PATH.replace('/', '\\')
         print(f"# mfa validate {inp} dutch_cv dutch_cv")
         print(f"# mfa align {inp} dutch_cv dutch_cv {out} --clean")
         return

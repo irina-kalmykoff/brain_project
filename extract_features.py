@@ -15,10 +15,28 @@ import MelFilterBank as mel
 #Small helper function to speed up the hilbert transform by extending the length of data to the next power of 2
 hilbert3 = lambda x: scipy.signal.hilbert(x, scipy.fftpack.next_fast_len(len(x)),axis=0)[:len(x)]
 
-def extractHG(data, sr, windowLength=0.05, frameshift=0.01, debug = False):
+def extractHG(data, sr, windowLength=0.015, frameshift=0.005, debug=False,
+              smoothing_hz=10.0):
     """
-    Window data and extract frequency-band envelope using the hilbert transform
-    
+    Window data and extract high-gamma envelope via squared signal + low-pass.
+
+    NEW BASELINE — replaces Hilbert+window. Justification:
+      * envelope_variants_test.py — pwr_lpf_10 beats Hilbert (5.24x vs 4.71x)
+      * window_frameshift_sweep.py — w=15ms / s=5ms / stk=20 is the sweet spot
+      * envelope_explainer.py — visual breakdown of why this works
+
+    Pipeline:
+      detrend → 70–170 Hz bandpass → 100/150 Hz notches
+        → x² (instantaneous power)
+        → smoothing_hz Butterworth LPF (replaces Hilbert envelope)
+        → window-average → sqrt   (back to amplitude-like units)
+
+    The 10 Hz LPF has a clean −24 dB/oct rolloff matched to the phoneme rate
+    (5–10 Hz). A 50 ms boxcar (the old Hilbert path) leaks envelope noise to
+    50+ Hz; this filter cuts it cleanly. The window has been shrunk from 50 ms
+    to 15 ms because once the LPF does the smoothing, the window's only job
+    is to sample, and shorter sampling → sharper feature transitions.
+
     Parameters
     ----------
     data: array (samples, channels)
@@ -26,61 +44,69 @@ def extractHG(data, sr, windowLength=0.05, frameshift=0.01, debug = False):
     sr: int
         Sampling rate of the data
     windowLength: float
-        Length of window (in seconds) in which spectrogram will be calculated
+        Length of window (seconds). Default 0.015.
     frameshift: float
-        Shift (in seconds) after which next window will be extracted
+        Shift (seconds) between windows. Default 0.005 → 200 fps.
+    smoothing_hz: float
+        Low-pass cutoff (Hz). Default 10.0 — matched to phoneme rate.
+    debug: bool
+        Print intermediate shape/processing info.
+
     Returns
-    ----------
+    -------
     feat: array (windows, channels)
-        Frequency-band feature matrix
+        High-gamma envelope feature in amplitude units.
     """
-    
+
     if debug:
-        print(f"extractHG: Input shape {eeg.shape}, SR={eeg_sr}")
-        # Analyze spectrum before filtering
-        from scipy.signal import welch
-        freqs, psd = welch(eeg[:min(10000, eeg.shape[0]), 0], fs=eeg_sr, nperseg=min(1024, eeg.shape[0]//4))
-        print(f"Before filtering - checking for peaks/dips...")
-        
-    #Linear detrend
-    data = scipy.signal.detrend(data,axis=0)
-    #Number of windows
-    numWindows = int(np.floor((data.shape[0]-windowLength*sr)/(frameshift*sr)))
-    #Filter High-Gamma Band
-    sos = scipy.signal.iirfilter(4, [70/(sr/2),170/(sr/2)],btype='bandpass',output='sos')
-    data = scipy.signal.sosfiltfilt(sos,data,axis=0)
-    
+        print(f"extractHG (pwr_lpf): Input shape {data.shape}, SR={sr}")
+
+    # Linear detrend
+    data = scipy.signal.detrend(data, axis=0)
+
+    # Filter High-Gamma Band 70-170 Hz
+    sos = scipy.signal.iirfilter(4, [70/(sr/2), 170/(sr/2)],
+                                 btype='bandpass', output='sos')
+    data = scipy.signal.sosfiltfilt(sos, data, axis=0)
     if debug:
-        print("After 70-170 Hz bandpass applied")
-        
-    #Attenuate first harmonic of line noise
-    sos = scipy.signal.iirfilter(4, [98/(sr/2),102/(sr/2)],btype='bandstop',output='sos')
-    data = scipy.signal.sosfiltfilt(sos,data,axis=0)
-    
+        print("  After 70-170 Hz bandpass applied")
+
+    # Attenuate first harmonic of line noise (100 Hz)
+    sos = scipy.signal.iirfilter(4, [98/(sr/2), 102/(sr/2)],
+                                 btype='bandstop', output='sos')
+    data = scipy.signal.sosfiltfilt(sos, data, axis=0)
     if debug:
-        print("After 100 Hz notch applied")
-    #Attenuate second harmonic of line noise
-    sos = scipy.signal.iirfilter(4, [148/(sr/2),152/(sr/2)],btype='bandstop',output='sos')
-    data = scipy.signal.sosfiltfilt(sos,data,axis=0)
-    
+        print("  After 100 Hz notch applied")
+
+    # Attenuate second harmonic of line noise (150 Hz)
+    sos = scipy.signal.iirfilter(4, [148/(sr/2), 152/(sr/2)],
+                                 btype='bandstop', output='sos')
+    data = scipy.signal.sosfiltfilt(sos, data, axis=0)
     if debug:
-        print("After 150 Hz notch applied")
-        # Check spectrum after filtering
-        freqs, psd = welch(data[:min(10000, data.shape[0]), 0], fs=eeg_sr, nperseg=min(1024, data.shape[0]//4))
-        # Find dips (local minima)
-        from scipy.signal import find_peaks
-        inverted_psd = -psd
-        dips, _ = find_peaks(inverted_psd)
-        print(f"Potential dips at frequencies: {freqs[dips][:20]} Hz")
-        
-    #Create feature space
-    data = np.abs(hilbert3(data))
-    feat = np.zeros((numWindows,data.shape[1]))
+        print("  After 150 Hz notch applied")
+
+    # Instantaneous power
+    data = data ** 2
+
+    # Low-pass smoothing at smoothing_hz (replaces Hilbert envelope)
+    sos_lp = scipy.signal.iirfilter(4, smoothing_hz / (sr / 2),
+                                    btype='lowpass', output='sos')
+    data = scipy.signal.sosfiltfilt(sos_lp, data, axis=0)
+    # Zero-phase filtering can leave tiny negatives from numerical roundoff
+    data = np.abs(data)
+    if debug:
+        print(f"  After {smoothing_hz} Hz low-pass smoothing")
+
+    # Window-average — samples the now-smooth envelope at frameshift rate
+    numWindows = int(np.floor((data.shape[0] - windowLength*sr) / (frameshift*sr)))
+    feat = np.zeros((numWindows, data.shape[1]))
     for win in range(numWindows):
-        start= int(np.floor((win*frameshift)*sr))
-        stop = int(np.floor(start+windowLength*sr))
-        feat[win,:] = np.mean(data[start:stop,:],axis=0)
-    return feat
+        start = int(np.floor((win * frameshift) * sr))
+        stop  = int(np.floor(start + windowLength * sr))
+        feat[win, :] = np.mean(data[start:stop, :], axis=0)
+
+    # sqrt back to amplitude-like units (composes correctly with downstream)
+    return np.sqrt(feat)
 
 def stackFeatures(features, modelOrder=4, stepSize=5):
     """

@@ -40,8 +40,8 @@ class Dutch30Config:
     # From predecessors' preprocessing pipeline
     # ============================================================
     
-    window_length: float = 0.030    # 30ms window for features
-    frameshift: float = 0.006       # 5ms frameshift between windows
+    window_length: float = 0.015    # 15ms window for features (pwr_lpf baseline)
+    frameshift: float = 0.005       # 5ms frameshift → 200 fps (pwr_lpf baseline)
     mel_num_filters: int = 23      # Mel filterbank filters
     # Fixed window for feature extraction (normalizes segment lengths)
     fixed_feature_window_ms = 100  # 100ms window

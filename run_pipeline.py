@@ -80,8 +80,9 @@ DEFAULT_RUN_CONFIG = {
     'min_frames':                0,
     'max_frames':                300,
     # Step 5b: stacking (set stacking_order=None to skip)
-    'stacking_order':            7,
-    'stacking_step_size':        2,
+    # pwr_lpf baseline: 20 * 5ms * 1 = ±100 ms context (phoneme-scale)
+    'stacking_order':            20,
+    'stacking_step_size':        1,
     'target_frames':             None,   # alternative: resampling
     # Classifier
     'classifier_type':           'logistic_regression',

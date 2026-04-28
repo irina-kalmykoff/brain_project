@@ -11,11 +11,11 @@ import os
 import numpy as np
 import torch
 from transformers import Wav2Vec2Model, Wav2Vec2Processor
-import librosa
+# librosa removed — see _compute_rms_manually below
+# (avoids numba/numpy version conflicts)
 from collections import Counter, defaultdict
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.decomposition import PCA
 from extract_features import extractHG
 from debugger import DebugMixin
 from phonetic_dictionary import PhoneticDictionary
@@ -701,12 +701,15 @@ class AcousticChangeDetector(DebugMixin):
         # Compute RMS in frames
         hop_length = int(0.010 * audio_sr)  # 10ms hop
         frame_length = int(0.025 * audio_sr)  # 25ms frame
-        
-        rms = librosa.feature.rms(
-            y=audio_segment,
-            frame_length=frame_length,
-            hop_length=hop_length
-        )[0]
+
+        # Manual RMS (replaces librosa.feature.rms)
+        from numpy.lib.stride_tricks import sliding_window_view
+        audio_float = audio_segment.astype(np.float32)
+        if len(audio_float) >= frame_length:
+            frames = sliding_window_view(audio_float, frame_length)[::hop_length]
+            rms = np.sqrt(np.mean(frames ** 2, axis=1))
+        else:
+            rms = np.array([np.sqrt(np.mean(audio_float ** 2))])
         
         # Compute RMS change (derivative)
         rms_change = np.abs(np.gradient(rms))
@@ -1673,11 +1676,14 @@ class AcousticChangeDetector(DebugMixin):
         hop_length = int(self.config.rms_hop_ms / 1000.0 * audio_sr)
         frame_length = int(self.config.rms_frame_ms / 1000.0 * audio_sr)
 
-        rms = librosa.feature.rms(
-            y=audio_sentence,
-            frame_length=frame_length,
-            hop_length=hop_length
-        )[0]
+        # Manual RMS (replaces librosa.feature.rms)
+        from numpy.lib.stride_tricks import sliding_window_view
+        audio_float = audio_sentence.astype(np.float32)
+        if len(audio_float) >= frame_length:
+            frames = sliding_window_view(audio_float, frame_length)[::hop_length]
+            rms = np.sqrt(np.mean(frames ** 2, axis=1))
+        else:
+            rms = np.array([np.sqrt(np.mean(audio_float ** 2))])
 
         from scipy.ndimage import gaussian_filter1d
         rms_smoothed = gaussian_filter1d(rms, sigma=self.config.rms_smoothing_sigma)

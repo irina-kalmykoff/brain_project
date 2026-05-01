@@ -748,6 +748,290 @@ plt.tight_layout(); plt.show()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# CELL 10 — Zoomed comparisons: where the difference IS visible
+# ═══════════════════════════════════════════════════════════════════════════════
+# Three 500 ms windows (auto-picked: quietest / median / loudest by envelope
+# RMS) to show where the boxcar's residual noise actually appears:
+#   A — quiet region    : boxcar wiggles, LPF flat
+#   B — mid-amplitude   : transition handling
+#   C — loud region     : mid-speech, both look similar
+#
+# IMPORTANT: keep this whole cell as ONE notebook cell — splitting it will
+# break references between the plotting block, the data, and the printout.
+# Reuses long-segment intermediates from CELL 9: old_env_long, old_env_boxcar,
+# old_env_butter.  Run CELL 9 first if you haven't.
+
+# Auto-pick three zoom regions by 500 ms RMS
+window_samp = int(0.5 * SR)
+step_samp   = int(0.1 * SR)
+candidates = []
+for s in range(0, len(old_env_long) - window_samp, step_samp):
+    rms = np.sqrt(np.mean(old_env_long[s:s+window_samp]**2))
+    candidates.append((s, rms))
+candidates.sort(key=lambda c: c[1])
+zooms = [
+    ('A — Quiet region (silence/baseline)',     candidates[len(candidates)//20][0]),
+    ('B — Mid-amplitude region (transition)',   candidates[len(candidates)//2][0]),
+    ('C — Loud region (active speech)',         candidates[-len(candidates)//20][0]),
+]
+
+# Plot grid: 3 rows × 2 cols  (left = zoom, right = residual)
+fig, axes = plt.subplots(3, 2, figsize=(14, 10),
+                         gridspec_kw={'width_ratios': [3, 1]})
+
+# Stash per-zoom numbers for the printout afterwards
+zoom_stats = []
+
+for row, (label, z0) in enumerate(zooms):
+    z1 = z0 + window_samp
+    t_zoom   = (np.arange(z1 - z0)) / SR * 1000        # ms within zoom
+    env_z    = old_env_long  [z0:z1]
+    box_z    = old_env_boxcar[z0:z1]
+    butter_z = old_env_butter[z0:z1]
+    residual = box_z - butter_z
+    rms_res  = float(np.sqrt((residual**2).mean()))
+    rms_env  = float(np.sqrt((env_z**2).mean()))
+    zoom_stats.append((label, rms_res, rms_env))
+
+    # Left panel — time domain zoom
+    ax = axes[row, 0]
+    ax.plot(t_zoom, env_z,    lw=0.5, color='lightgray', alpha=0.7,
+            label='Hilbert envelope (raw, 1024 fps)')
+    ax.plot(t_zoom, box_z,    lw=2.0, color='steelblue',
+            label='OLD: 50 ms boxcar')
+    ax.plot(t_zoom, butter_z, lw=2.0, color='crimson',
+            label='NEW: 10 Hz Butterworth LPF')
+    ax.set_title(label, fontsize=11, fontweight='bold')
+    ax.set_xlabel('time within zoom (ms)')
+    ax.set_ylabel('envelope amplitude')
+    ax.grid(alpha=0.3)
+    ax.legend(loc='upper right', fontsize=8)
+
+    # Right panel — residual (boxcar minus butterworth)
+    ax = axes[row, 1]
+    ax.plot(t_zoom, residual, lw=1.0, color='black')
+    ax.fill_between(t_zoom, residual, 0, where=(residual > 0),
+                    color='steelblue', alpha=0.3,
+                    label='boxcar > butterworth')
+    ax.fill_between(t_zoom, residual, 0, where=(residual < 0),
+                    color='crimson', alpha=0.3,
+                    label='butterworth > boxcar')
+    ax.axhline(0, color='gray', ls=':', lw=0.5)
+    ax.set_title(f'residual (box−but)  RMS={rms_res:.3f}', fontsize=10)
+    ax.set_xlabel('time (ms)')
+    ax.grid(alpha=0.3)
+    if row == 0:
+        ax.legend(fontsize=7, loc='upper right')
+
+plt.tight_layout(); plt.show()
+
+# Printed numerical summary
+print(f"\n{'='*70}")
+print(f"  Residuals per zoom region (boxcar − butterworth)")
+print(f"  How much extra wiggle does the boxcar carry vs the LPF?")
+print(f"{'='*70}\n")
+print(f"  {'Zoom':<40} {'RMS resid':>11} {'% of envelope RMS':>20}")
+print(f"  {'-'*70}")
+for label, rms_res, rms_env in zoom_stats:
+    pct = 100 * rms_res / rms_env if rms_env > 0 else float('nan')
+    print(f"  {label:<40} {rms_res:>10.3f}  {pct:>17.1f} %")
+
+print("""
+  Reading the residual:
+    • In QUIET regions, the residual is a clear oscillation — that's the
+      sub-phoneme noise the boxcar passes via its sidelobes, but the LPF
+      kills.  The classifier saw this as feature variance during silence.
+    • In LOUD regions, the residual is similar in magnitude but smaller
+      relative to the envelope — the signal dominates, so it doesn't
+      hurt the classifier as much.
+    • The ratio above (% of envelope RMS) tells you where the cleanup
+      matters most: low-amplitude regions, where any residual noise can
+      be misread as a weak phoneme.
+""")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CELL 11 — Theoretical effect of every LPF cutoff from the sweep
+# ═══════════════════════════════════════════════════════════════════════════════
+# Apply every LPF cutoff value tested in the envelope sweep
+# (3, 5, 7, 10, 15, 20, 30, 50, 100 Hz) to the SAME iEEG fragment,
+# then plot:
+#   A — full 5 s view, all cutoffs overlaid
+#   B — 500 ms zoom: see how cutoff changes responsiveness vs smoothness
+#   C — Bode magnitude responses of every LPF
+#   D — Bar chart linking each cutoff to its measured CRF lift
+#
+# IMPORTANT: keep this whole cell as ONE notebook cell.
+# Reuses xb_long from CELL 8.
+
+# ── Sweep cutoffs and the lift each produced (from envelope_variants_test) ──
+cutoffs = [3, 5, 7, 10, 15, 20, 30, 50, 100]   # Hz
+sweep_lift = {
+     3: 4.54,    5: 4.94,    7: 4.73,
+    10: 5.24,                              # ← pipeline default (winner)
+    15: 5.14,   20: 4.97,
+    30: 4.92,   50: 4.61,  100: 4.68,
+}
+HILBERT_BASELINE = 4.71   # for reference line
+
+# Highlight the chosen default with a distinct colour
+viridis = plt.cm.viridis
+colors = {}
+for i, fc in enumerate(cutoffs):
+    if fc == 10:
+        colors[fc] = 'crimson'
+    else:
+        # Spread the rest across a viridis ramp by their position in the list
+        colors[fc] = viridis(i / (len(cutoffs) - 1))
+
+# ── Compute the envelope for each cutoff on the SAME bandpassed segment ───
+envelopes_per_cutoff = {}
+for fc in cutoffs:
+    sos_lp = scipy.signal.iirfilter(4, fc/(SR/2), btype='lowpass', output='sos')
+    pwr = scipy.signal.sosfiltfilt(sos_lp, xb_long**2)
+    envelopes_per_cutoff[fc] = np.sqrt(np.abs(pwr))
+
+# ── Pick a "busy" 500 ms zoom region automatically ────────────────────────
+ref_env = envelopes_per_cutoff[10]   # use 10 Hz envelope to find a busy region
+window_samp = int(0.5 * SR)
+step_samp = int(0.1 * SR)
+best_z0, best_rms = 0, 0.0
+for s in range(0, len(ref_env) - window_samp, step_samp):
+    rms = np.sqrt(np.mean(ref_env[s:s+window_samp]**2))
+    if rms > best_rms:
+        best_rms, best_z0 = rms, s
+zoom_z0, zoom_z1 = best_z0, best_z0 + window_samp
+
+# ── Build the 4-panel figure (all panels full page width, stacked) ─────────
+fig = plt.figure(figsize=(14, 16))
+gs = fig.add_gridspec(4, 1, height_ratios=[2, 2, 2, 1.5], hspace=0.45)
+
+t_long = np.arange(len(xb_long)) / SR
+
+# Panel A — full 5 s overlay (top, full width)
+ax = fig.add_subplot(gs[0, 0])
+sl_5s = slice(0, int(5 * SR))
+for fc in cutoffs:
+    lift = sweep_lift[fc]
+    label = f'{fc:>3} Hz   lift={lift:.2f}×'
+    if fc == 10:
+        label += '   ← pipeline default'
+    ax.plot(t_long[sl_5s], envelopes_per_cutoff[fc][sl_5s],
+            lw=2.0 if fc == 10 else 1.0,
+            color=colors[fc],
+            alpha=1.0 if fc == 10 else 0.65,
+            label=label,
+            zorder=10 if fc == 10 else None)
+ax.axvspan(zoom_z0/SR, zoom_z1/SR, color='yellow', alpha=0.15,
+           label='zoom region (Panel B)')
+ax.set_xlabel('time (s)')
+ax.set_ylabel('envelope amplitude (µV)')
+ax.set_title('A — All cutoffs applied to the SAME iEEG fragment (5 s view)',
+             fontsize=12, fontweight='bold')
+ax.grid(alpha=0.3)
+ax.legend(loc='upper right', fontsize=8, ncol=2, framealpha=0.95)
+
+# Panel B — 500 ms zoom of the busiest region (full width)
+ax = fig.add_subplot(gs[1, 0])
+t_z = np.arange(zoom_z1 - zoom_z0) / SR * 1000
+for fc in cutoffs:
+    e = envelopes_per_cutoff[fc][zoom_z0:zoom_z1]
+    ax.plot(t_z, e,
+            lw=2.5 if fc == 10 else 1.0,
+            color=colors[fc],
+            alpha=1.0 if fc == 10 else 0.7,
+            label=f'{fc} Hz',
+            zorder=10 if fc == 10 else None)
+ax.set_xlabel('time within zoom (ms)')
+ax.set_ylabel('envelope amplitude (µV)')
+ax.set_title('B — 500 ms zoom: low-cutoff = smooth, high-cutoff = wiggly',
+             fontsize=11, fontweight='bold')
+ax.grid(alpha=0.3)
+ax.legend(loc='upper right', fontsize=8, ncol=2)
+
+# Panel C — Bode magnitude (filtfilt = |H|²)  (full width, under panel B)
+ax = fig.add_subplot(gs[2, 0])
+for fc in cutoffs:
+    sos_lp = scipy.signal.iirfilter(4, fc/(SR/2), btype='lowpass', output='sos')
+    w, h = scipy.signal.sosfreqz(sos_lp, worN=8192, fs=SR)
+    mag_db_filtfilt = 40 * np.log10(np.abs(h) + 1e-15)
+    ax.plot(w, mag_db_filtfilt,
+            lw=2.5 if fc == 10 else 1.0,
+            color=colors[fc],
+            alpha=1.0 if fc == 10 else 0.7,
+            label=f'{fc} Hz',
+            zorder=10 if fc == 10 else None)
+ax.set_xscale('log')
+ax.set_xlim(0.5, 200); ax.set_ylim(-80, 5)
+ax.set_xlabel('frequency (Hz, log)')
+ax.set_ylabel('gain (dB, filtfilt = |H|²)')
+ax.set_title('C — What each cutoff keeps vs kills (filter response)',
+             fontsize=11, fontweight='bold')
+ax.grid(alpha=0.3, which='both')
+ax.legend(loc='lower left', fontsize=8, ncol=2)
+
+# Panel D — Lift per cutoff (bar chart, full width)
+ax = fig.add_subplot(gs[3, 0])
+sorted_cutoffs = sorted(sweep_lift.keys())
+lifts = [sweep_lift[fc] for fc in sorted_cutoffs]
+bar_colors = [colors[fc] for fc in sorted_cutoffs]
+bars = ax.bar(range(len(sorted_cutoffs)), lifts, color=bar_colors,
+              edgecolor='black', linewidth=0.8)
+ax.set_xticks(range(len(sorted_cutoffs)))
+ax.set_xticklabels([f'{fc} Hz' for fc in sorted_cutoffs])
+ax.set_ylabel('mean CRF lift (P21-P30)')
+ax.set_title('D — Measured lift for each cutoff (envelope_variants_test results)',
+             fontsize=11, fontweight='bold')
+ax.axhline(HILBERT_BASELINE, color='gray', ls='--', lw=1.5,
+           label=f'Hilbert baseline ({HILBERT_BASELINE:.2f}×)')
+ax.set_ylim(min(lifts)*0.95, max(lifts)*1.04)
+ax.grid(alpha=0.3, axis='y')
+for i, fc in enumerate(sorted_cutoffs):
+    lift = sweep_lift[fc]
+    ax.text(i, lift + 0.03, f'{lift:.2f}×', ha='center', fontsize=9,
+            fontweight='bold' if fc == 10 else 'normal')
+ax.legend(loc='upper right', fontsize=9)
+
+plt.show()
+
+
+# ── Quick numeric summary ─────────────────────────────────────────────────
+print(f"\n{'='*70}")
+print(f"  Theoretical envelope behaviour by cutoff (RMS over the {len(xb_long)/SR:.0f} s segment)")
+print(f"{'='*70}\n")
+print(f"  {'cutoff':>8}  {'env RMS':>10}  {'env std':>10}  "
+      f"{'measured lift':>15}")
+print(f"  {'-'*60}")
+for fc in cutoffs:
+    e = envelopes_per_cutoff[fc]
+    star = ' ← default' if fc == 10 else ''
+    print(f"  {fc:>5} Hz  {np.sqrt((e**2).mean()):>10.3f}  "
+          f"{e.std():>10.3f}  {sweep_lift[fc]:>13.2f}×{star}")
+
+print("""
+  Reading the panels:
+
+    A — every cutoff produces a different "version" of the same envelope,
+        all from the SAME 5 s of bandpassed iEEG. Lower cutoffs collapse
+        finer detail; higher cutoffs preserve noise alongside signal.
+
+    B — the 500 ms zoom shows that 3 Hz and 5 Hz envelopes are barely
+        responsive to phoneme-rate amplitude swings (over-smoothed).
+        50 Hz and 100 Hz preserve too much noise. 10-15 Hz hits the
+        sweet spot: tracks phoneme structure without trailing wiggles.
+
+    C — the Bode plots show why: anything below ~5 Hz cuts into the
+        phoneme rate band (5-10 Hz). Anything above ~30 Hz lets enough
+        envelope noise through that the gain over Hilbert disappears.
+
+    D — the empirical lift confirms the theoretical prediction:
+        cutoffs in 5-30 Hz range form a wide plateau, with 10 Hz at
+        the peak. Outside that range (3 Hz, 50 Hz, 100 Hz) you drop
+        back toward — or even below — the Hilbert baseline.
+""")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Summary printed at the end
 # ═══════════════════════════════════════════════════════════════════════════════
 

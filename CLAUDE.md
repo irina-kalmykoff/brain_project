@@ -113,6 +113,37 @@ P01_electrode_locations.csv
 - `channel_kurtosis_threshold`: kurtosis > median × 5.0
 - `min_channels_to_keep`: 20
 
+## Test Data Leakage — Sacred Rules
+
+Test-data leakage silently inflates reported accuracy. A model that "looks great" because the training pipeline peeked at test statistics will not generalize, and the lift will evaporate the moment it sees genuinely held-out data. Treat the rules below as inviolable. Any change that could let test-side information influence training requires explicit review.
+
+**The discipline:** every statistic, threshold, transform, baseline, or hyperparameter that the model depends on must be derived from training data only. The test set is touched **once**, at evaluation time, and never feeds back into a fit/transform call.
+
+**Spots to keep sacred (verified clean as of 2026-05-01 — do not regress):**
+
+1. **Train/test split (`dutch_30_pipeline.py:step2_split_by_instances`)** — split is per-patient, instance-level (or sentence-presentation-level for P21–P30), seeded deterministically. Do not introduce cross-instance shuffling that mixes train and test.
+2. **Baseline subtraction (`_compute_train_baseline` → `_extract_baseline_from_silence`)** — silence baseline must be computed from train sentences only. The helper `_compute_train_baseline` enforces this: it concatenates audio/EEG slices for sentences whose word instances are in `split_result['train'][pid]`, then runs silence detection on that subset. **Never** call `_extract_baseline_from_silence(audio, eeg)` directly on the full patient recording. The threshold inside (`sqrt(mean(audio**2)) * 0.1`) is computed from whatever audio you pass, so leak-safety is the caller's responsibility.
+3. **Audio max normalization** — there is no global per-recording max normalization left in the active code path. The remaining audio normalizations in `_segment_by_word_markers` are **per-segment** (one sentence or one word at a time) — these are local statistics and do not leak. If you ever introduce a session-wide max scale, derive it from train segments only and apply it uniformly to train and test.
+4. **`StandardScaler` / `PCA`** — fit on train, transform on test (`run_pipeline.py` classifier and CRF paths). Never `fit_transform` a combined train+test array.
+5. **Feature stacking (`step5b_stack_features`)** — stacking iterates train and test separately, with instance boundaries detected via `positions[i] == 0` / word/pid changes. Each instance is fully on one side of the split, so temporal context never crosses train↔test. Don't stack across the concatenated dataset.
+6. **Class filtering** — when filtering rare classes, count occurrences in train and use that set to filter test. Never count classes in train+test combined.
+7. **Hyperparameter sweeps (k-factor, prominence, frameshift, etc.)** — pick best params from a held-out validation split, never from the test set. The 24/3/3 split in `dutch30_patient_split.json` exists for exactly this reason: validate on the 3-patient val set, evaluate once on the 3-patient test set.
+8. **Channel exclusions (`channel_exclusions.json`)** — pre-defined and loaded as-is; do not regenerate them with statistics that include test-side data.
+
+**Acceptable but worth flagging in writing:**
+
+- Acausal filtering (`scipy.signal.sosfiltfilt`, `scipy.signal.detrend`, Hilbert) is applied to the full continuous EEG before splitting. This is standard offline-iEEG practice and the per-sample leakage at the split boundary is small, but document it in the methods section.
+
+**Checklist before merging any change that touches features, normalization, or splits:**
+
+- [ ] Does any `.fit(...)` / `.fit_transform(...)` / `np.mean(...)` / `np.std(...)` / `np.max(...)` / `np.min(...)` see test-side rows?
+- [ ] Is any threshold or sweep best-value chosen using test-set evaluation results?
+- [ ] Does any temporal context window (stacking, smoothing, filter) cross the train/test boundary?
+- [ ] Was an "obvious global preprocessing step" added before the split? If so, can it be moved to after?
+- [ ] If a function takes audio/EEG directly, does its docstring make clear who is responsible for passing leak-safe data?
+
+When in doubt, recompute on train-only data and check whether the headline metric moves. If it doesn't, you've simply confirmed clean separation. If it does, the previous version was leaking.
+
 ## Dependencies
 
 No `requirements.txt` exists — install manually. **Version pins matter:**

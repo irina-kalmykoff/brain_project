@@ -152,16 +152,12 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             np.random.seed(patient_seed)
             try:
               
-                # Load raw data to extract baseline
+                # Load raw data
                 raw_data = self.dutch30_extractor.load_patient_raw_data(pid)
                 eeg = raw_data['eeg']
                 audio = raw_data['audio']
-                
-                # Extract baseline from silence
-                baseline = self._extract_baseline_from_silence(audio, eeg)
-                self.patient_baselines[pid] = baseline
-                
-                # Segment words
+
+                # Segment words (baseline computed AFTER the split, train-only)
                 word_segments = self.segment_data_by_words(pid)
                 self.split_result['word_segments_dict'][pid] = word_segments
                 
@@ -243,10 +239,17 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                         self.split_result['train'][pid][word] = indices[:n_train].tolist()
                         self.split_result['test'][pid][word] = indices[n_train:].tolist()
             
+            # Compute baseline from train-side sentences only — no test leakage.
+            baseline = self._compute_train_baseline(
+                word_segments, self.split_result['train'][pid], audio, eeg
+            )
+            self.patient_baselines[pid] = baseline
+
             train_total = sum(len(v) for v in self.split_result['train'][pid].values())
             test_total = sum(len(v) for v in self.split_result['test'][pid].values())
 
-            self.log(f"{pid}: {train_total} train, {test_total} test, baseline: {baseline.shape}")
+            baseline_shape = baseline.shape if baseline is not None else 'none'
+            self.log(f"{pid}: {train_total} train, {test_total} test, baseline: {baseline_shape}")
 
             del raw_data, eeg, audio
             gc.collect()
@@ -265,17 +268,12 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         stimuli = raw_data['stimuli']
         audio = raw_data['audio']
         eeg_sr = raw_data['eeg_sr']
-        
-        # Extract baseline from silence
-        baseline = self._extract_baseline_from_silence(audio, eeg)
-    
-        # Find word boundaries in stimuli
+
+        # Find word boundaries in stimuli. Baseline is intentionally not
+        # computed here — it must be derived from train-side data only,
+        # so step2 owns that responsibility after the split is known.
         word_segments = self._segment_by_word_markers(eeg, stimuli, audio, eeg_sr, participant_id)
-        
-        # Add baseline to result
-        word_segments['baseline'] = baseline
-        
-        
+
         return word_segments
     
     def _segment_by_word_markers(self, eeg: np.ndarray, stimuli: np.ndarray, audio: np.ndarray, 
@@ -2811,103 +2809,6 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             'metadata': data.get('metadata', {})
         }
         
-    def _extract_baseline_from_silence(self, audio, eeg):
-        """
-        Extract baseline from silence periods using audio energy threshold.
-        """
-        
-        # Process audio
-        audio_down  = decimate(audio, int(self.config.audio_sr / self.config.audio_target_sr))
-        scaled      = np.int16(audio_down / np.max(np.abs(audio_down)) * self.config.int16_max)
-        
-        window_length   = self.config.window_length
-        frameshift      = self.config.frameshift
-        eeg_sr          = self.config.eeg_sr
-        
-        # Extract mel spectrogram
-        melspec = extractMelSpecs(
-            scaled, 
-            self.config.audio_target_sr,
-            windowLength=window_length,
-            frameshift=frameshift,
-            numFilter=self.config.mel_num_filters
-        )
-        
-        # Detect silence
-        spec_avg = np.mean(melspec, axis=1)
-        threshold = (np.max(spec_avg) + np.min(spec_avg)) * self.config.silence_threshold_factor
-        is_silence = spec_avg < threshold
-        
-        # Find CONTINUOUS silence blocks (not individual frames)
-        silence_blocks = []
-        in_silence = False
-        block_start = None
-        
-        for i, silent in enumerate(is_silence):
-            if silent and not in_silence:
-                # Start of silence block
-                block_start = i
-                in_silence = True
-            elif not silent and in_silence:
-                # End of silence block
-                block_end = i
-                silence_blocks.append((block_start, block_end))
-                in_silence = False
-        
-        # Handle case where recording ends in silence
-        if in_silence:
-            silence_blocks.append((block_start, len(is_silence)))
-        
-        self.debug(f"Found {len(silence_blocks)} silence blocks")
-        
-        # Extract EEG from silence blocks (only if long enough)
-        baseline_features = []
-        min_silence_duration = self.config.min_silence_duration
-        
-        for block_start, block_end in silence_blocks:
-            # Duration in seconds
-            block_duration = (block_end - block_start) * frameshift  # 10ms frameshift
-            
-            if block_duration < min_silence_duration:
-                continue  # Skip short silence blocks
-            
-            # Convert to EEG samples
-            eeg_start = int(block_start * frameshift * eeg_sr)
-            eeg_end = int(block_end * frameshift * eeg_sr)
-            
-            if eeg_end <= len(eeg):
-                silence_eeg = eeg[eeg_start:eeg_end]
-                
-                # Check if segment is long enough for extractHG
-                min_samples = int((window_length + frameshift) * eeg_sr)  # windowLength + frameshift
-                if len(silence_eeg) < min_samples:
-                    continue
-                
-                try:
-                    # Extract high-gamma features from silence
-                    silence_feat = extractHG(
-                        silence_eeg, 
-                        eeg_sr,
-                        windowLength = window_length,
-                        frameshift = frameshift
-                    )
-                    
-                    if silence_feat.shape[0] > 0:
-                        baseline_features.append(silence_feat)
-                except Exception as e:
-                    self.debug(f"Error extracting features from silence block: {e}")
-                    continue
-        
-        # Average all silence
-        if len(baseline_features) > 0:
-            all_silence = np.vstack(baseline_features)
-            baseline = np.mean(all_silence, axis=0)
-            self.debug(f"Baseline: {len(baseline_features)} blocks, {all_silence.shape[0]} frames total")
-            return baseline
-        else:
-            self.debug("Warning: No usable silence blocks found!")
-            return None
-            
     def subtract_baseline(self, data, dataset_name, baseline_dict):
         """
         Subtract per-patient baseline from features.
@@ -2979,11 +2880,64 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             self.log(f"  {split_type}: {n_sample}/{n_total} patients")
         
         return sampled_split
-        
+
+    def _compute_train_baseline(self, word_segments, train_split, audio, eeg):
+        """Compute the silence baseline using train-side sentences only.
+
+        Concatenates audio + EEG slices for sentences whose word instances
+        landed in `train_split`, then runs the standard silence extraction
+        on that subset. The baseline returned is then subtracted from both
+        train and test features without leaking test-side statistics.
+
+        Returns None if no train sentence ranges are available; callers
+        already handle a None baseline (no subtraction).
+        """
+        train_sentence_idxs = set()
+        words_dict = word_segments.get('words', {})
+        for word, inst_indices in train_split.items():
+            instances = words_dict.get(word, {}).get('instances', [])
+            for inst_idx in inst_indices:
+                if 0 <= inst_idx < len(instances):
+                    sent_idx = instances[inst_idx].get('sentence_idx')
+                    if sent_idx is not None:
+                        train_sentence_idxs.add(sent_idx)
+
+        sentence_list = word_segments.get('sentence_list', [])
+        audio_parts, eeg_parts = [], []
+        n_audio, n_eeg = len(audio), len(eeg)
+        for sent_idx in sorted(train_sentence_idxs):
+            if sent_idx >= len(sentence_list):
+                continue
+            sent_info = sentence_list[sent_idx]
+            if not isinstance(sent_info, dict):
+                continue
+            s_eeg = sent_info.get('stim_start_idx')
+            e_eeg = sent_info.get('stim_end_idx')
+            if s_eeg is None or e_eeg is None:
+                continue
+            # Same EEG-sample → audio-sample mapping used during sentence extraction.
+            s_aud = int(s_eeg * n_audio / n_eeg)
+            e_aud = int(e_eeg * n_audio / n_eeg)
+            if e_eeg > s_eeg and e_aud > s_aud:
+                audio_parts.append(audio[s_aud:e_aud])
+                eeg_parts.append(eeg[s_eeg:e_eeg])
+
+        if not audio_parts:
+            self.debug("  No train sentences available; baseline=None")
+            return None
+
+        train_audio = np.concatenate(audio_parts)
+        train_eeg = np.concatenate(eeg_parts, axis=0)
+        return self._extract_baseline_from_silence(train_audio, train_eeg)
+
     def _extract_baseline_from_silence(self, audio, eeg):
         """
         Extract baseline EEG from silence periods in audio.
         Uses the same feature extraction method as the main pipeline.
+
+        Note: this function trusts its caller to pass leak-safe audio/EEG.
+        For training/test pipelines, always pass train-side data only — see
+        `_compute_train_baseline`.
         """
         window_size = int(0.5 * self.config.audio_sr)  # 500ms
         silence_threshold = np.sqrt(np.mean(audio**2)) * 0.1

@@ -1796,19 +1796,18 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
 
         return self.patient_results
 
-    def step10_visualize_patient(self, pid, show_table=True, show_predictions=False, preds_no_viterbi=None, min_class_samples=5):
+    def step10_visualize_patient(self, pid, show_table=True, show_predictions=False, min_class_samples=5):
         """Visualize per-patient classification results.
 
         Produces a figure with train/test distribution, per-phoneme
-        precision/recall, and confusion matrices. When preds_no_viterbi
-        is provided, adds pre/post Viterbi comparison panels.
+        precision/recall, run-length distribution, and confusion matrices.
 
         Args:
             pid: str, patient ID to visualize.
             show_table: bool, print per-phoneme metrics table.
             show_predictions: bool, print word-level prediction comparison.
-            preds_no_viterbi: list or None, predictions before Viterbi
-                decoding. When provided, shows pre/post comparison.
+            min_class_samples: int, minimum class size threshold to mark
+                on the distribution chart.
 
         Requires step 9 to have been run first.
         """
@@ -1831,12 +1830,7 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         preds = self.patient_results[pid]["predictions"]
         test_labels = self.patient_results[pid]["true_labels"]
 
-        if preds_no_viterbi is None and "predictions_no_viterbi" in self.patient_results[pid]:
-            preds_no_viterbi = self.patient_results[pid]["predictions_no_viterbi"]
-
-        has_viterbi_comparison = preds_no_viterbi is not None
-
-        # build confusion data from post-viterbi predictions
+        # build confusion data from predictions
         confusion_data = {}
         for true_label, pred_label in zip(test_labels, preds):
             if true_label not in confusion_data:
@@ -1880,94 +1874,141 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 }
             return metrics
 
+        def edit_distance(s1, s2):
+            """Levenshtein (minimum) edit distance between two sequences.
+
+            Counts the minimum number of single-element insertions, deletions,
+            and substitutions needed to transform s1 into s2.
+            """
+            if len(s1) < len(s2):
+                return edit_distance(s2, s1)
+            if not s2:
+                return len(s1)
+            prev = list(range(len(s2) + 1))
+            for i, c1 in enumerate(s1):
+                curr = [i + 1]
+                for j, c2 in enumerate(s2):
+                    curr.append(min(
+                        prev[j + 1] + 1,        # deletion
+                        curr[j] + 1,            # insertion
+                        prev[j] + (c1 != c2),   # substitution
+                    ))
+                prev = curr
+            return prev[-1]
+
+        def correct_run_lengths(true_seq, pred_seq):
+            """Lengths of maximal exact-position correct runs.
+
+            A run is a maximal stretch of positions i..i+L-1 where
+            true_seq[i+k] == pred_seq[i+k] for all k in [0, L).
+            Pure-deterministic: walks the input left-to-right.
+            Same algorithm as `show_longest_correct_sequences` — given the
+            same predictions, both functions produce identical run counts.
+            """
+            runs = []
+            cur = 0
+            for t, p in zip(true_seq, pred_seq):
+                if t == p:
+                    cur += 1
+                else:
+                    if cur > 0:
+                        runs.append(cur)
+                    cur = 0
+            if cur > 0:
+                runs.append(cur)
+            return runs
+
+        def shift_tolerant_run_lengths(true_seq, pred_seq,
+                                       max_shift=5, max_length=15):
+            """Lengths of maximal SHIFT-tolerant correct runs.
+
+            For each starting position s in true_seq (left-to-right), find
+            the longest L such that true_seq[s:s+L] == pred_seq[s+k:s+k+L]
+            for some integer k with |k| <= max_shift. Once a run of length
+            L is accepted starting at s, positions s..s+L-1 are marked used
+            and skipped for subsequent starts (non-overlapping greedy).
+
+            This is a strict superset of correct_run_lengths: shift=0 is one
+            of the allowed shifts, so any exact-position run is also a
+            shift-tolerant run. Counts will be >= exact counts at every
+            length bucket.
+
+            Pure-deterministic: greedy left-to-right with longest-match-first.
+            No random ordering, no tie-breaking ambiguity.
+            """
+            n_t, n_p = len(true_seq), len(pred_seq)
+            true_seq, pred_seq = list(true_seq), list(pred_seq)
+            used = [False] * n_t
+            run_lengths = []
+
+            for start in range(n_t):
+                if used[start]:
+                    continue
+                best_L = 0
+                # Try lengths from longest to shortest (greedy)
+                upper = min(max_length, n_t - start)
+                for length in range(upper, 0, -1):
+                    seq = true_seq[start:start + length]
+                    matched = False
+                    # Try shifts from 0 outwards (so shift=0 wins ties)
+                    shift_order = [0] + [s for k in range(1, max_shift + 1)
+                                          for s in (-k, +k)]
+                    for shift in shift_order:
+                        target = start + shift
+                        if target < 0 or target + length > n_p:
+                            continue
+                        if pred_seq[target:target + length] == seq:
+                            matched = True
+                            break
+                    if matched:
+                        best_L = length
+                        break
+                if best_L > 0:
+                    run_lengths.append(best_L)
+                    for k in range(best_L):
+                        used[start + k] = True
+            return run_lengths
+
         phoneme_metrics_post = compute_metrics(preds, test_phonemes, test_labels)
 
-        if has_viterbi_comparison:
-            phoneme_metrics_pre = compute_metrics(
-                preds_no_viterbi, test_phonemes, test_labels
-            )
-
-        # confusion matrices post-viterbi
+        # confusion matrices
         cm = confusion_matrix(test_labels, preds, labels=unique_labels)
         cm_recall = cm.astype("float") / (cm.sum(axis=1, keepdims=True) + 1e-10)
         cm_precision = cm.astype("float") / (cm.sum(axis=0, keepdims=True) + 1e-10)
 
-        # confusion matrix pre-viterbi
-        if has_viterbi_comparison:
-            unique_labels_pre = sorted(set(list(test_labels) + list(preds_no_viterbi)))
-            cm_pre = confusion_matrix(
-                test_labels, preds_no_viterbi, labels=unique_labels_pre
-            )
-            cm_pre_recall = cm_pre.astype("float") / (
-                cm_pre.sum(axis=1, keepdims=True) + 1e-10
-            )
-            cm_pre_precision = cm_pre.astype("float") / (
-                cm_pre.sum(axis=0, keepdims=True) + 1e-10
-            )
-
-        # layout
+        # layout: 2 rows x 6 cols
+        #   row 0: Distribution(0:2) | Per-class(2:4) | Run-length combined(4:6)
+        #   row 1: CM-recall(0:3)    | CM-precision(3:6)
         from matplotlib.gridspec import GridSpec
-        if has_viterbi_comparison:
-            # 3 rows x 3 cols:
-            #   row 0, col 0:  Distribution
-            #   row 0, col 1:  Pre-Viterbi bar chart
-            #   row 0, col 2:  Post-Viterbi bar chart
-            #   row 1, col 0:  (empty)
-            #   row 1, col 1:  Pre-Viterbi confusion recall  (blue)
-            #   row 1, col 2:  Post-Viterbi confusion recall (blue)
-            #   row 2, col 0:  (empty)
-            #   row 2, col 1:  Pre-Viterbi confusion precision  (green)
-            #   row 2, col 2:  Post-Viterbi confusion precision (green)
-            fig = plt.figure(figsize=(24, 22))
-            gs = GridSpec(
-                3, 3, figure=fig,
-                width_ratios=[1, 1, 1],
-                height_ratios=[1, 2, 2],
-                hspace=0.15, wspace=0.3,
-            )
-            ax_dist       = fig.add_subplot(gs[0, 0])
-            ax_pre_bar    = fig.add_subplot(gs[0, 1])
-            ax_post_bar   = fig.add_subplot(gs[0, 2])
-            ax_pre_cm     = fig.add_subplot(gs[1, 1])
-            ax_post_cm_r  = fig.add_subplot(gs[1, 2])
-            ax_pre_cm_p   = fig.add_subplot(gs[2, 1])
-            ax_post_cm_p  = fig.add_subplot(gs[2, 2])
-            # hide unused corners
-            fig.add_subplot(gs[1, 0]).axis('off')
-            fig.add_subplot(gs[2, 0]).axis('off')
-        else:
-            # no Viterbi comparison: 3 rows x 2 cols
-            fig = plt.figure(figsize=(16, 22))
-            gs = GridSpec(
-                3, 2, figure=fig,
-                height_ratios=[1, 2, 2],
-                hspace=0.15, wspace=0.3,
-            )
-            ax_dist      = fig.add_subplot(gs[0, 0])
-            ax_post_bar  = fig.add_subplot(gs[0, 1])
-            ax_post_cm_r = fig.add_subplot(gs[1, 0:2])
-            ax_post_cm_p = fig.add_subplot(gs[2, 0:2])
+        fig = plt.figure(figsize=(28, 14))
+        gs = GridSpec(
+            2, 6, figure=fig,
+            height_ratios=[1, 2],
+            hspace=0.22, wspace=0.4,
+        )
+        ax_dist      = fig.add_subplot(gs[0, 0:2])
+        ax_post_bar  = fig.add_subplot(gs[0, 2:4])
+        ax_runs      = fig.add_subplot(gs[0, 4:6])
+        ax_post_cm_r = fig.add_subplot(gs[1, 0:3])
+        ax_post_cm_p = fig.add_subplot(gs[1, 3:6])
 
         acc = self.patient_results[pid]["accuracy"]
         lift = self.patient_results[pid]["lift"]
 
-        if has_viterbi_comparison:
-            correct_pre = sum(1 for p, t in zip(preds_no_viterbi, test_labels) if p == t)
-            acc_pre = correct_pre / len(test_labels)
-            # Uniform chance (1/n_classes) — same as step 9
-            n_classes_viz = len(set(test_labels))
-            chance = 1.0 / n_classes_viz if n_classes_viz > 0 else 0
-            lift_pre = acc_pre / chance if chance > 0 else 0
-            fig.suptitle(
-                f"{pid} - pre-Viterbi: Accuracy={acc_pre:.3f}, Lift={lift_pre:.2f}x"
-                f"   |   post-Viterbi: Accuracy={acc:.3f}, Lift={lift:.2f}x",
-                fontsize=13, fontweight="bold",
-            )
-        else:
-            fig.suptitle(
-                f"{pid} - Accuracy: {acc:.3f}, Lift: {lift:.2f}x",
-                fontsize=14, fontweight="bold",
-            )
+        # Compute sequence-level metrics (deterministic, pure functions of
+        # the saved predictions/true_labels in pipeline.patient_results)
+        ed       = edit_distance(test_labels, preds)
+        per      = ed / len(test_labels) if test_labels else float("nan")
+        runs_exact = correct_run_lengths(test_labels, preds)
+        runs_shift = shift_tolerant_run_lengths(test_labels, preds, max_shift=5)
+        longest_exact = max(runs_exact) if runs_exact else 0
+        longest_shift = max(runs_shift) if runs_shift else 0
+
+        fig.suptitle(
+            f"{pid}  |  Accuracy: {acc:.3f}  |  Lift: {lift:.2f}x  |  "
+            f"Edit distance: {ed}  |  PER: {per:.2%}",
+            fontsize=14, fontweight="bold",
+        )
 
         # 1. train/test distribution
         ax1 = ax_dist
@@ -2032,20 +2073,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             ax.set_ylabel("Score")
 
         # 2. per-class metrics
-        if has_viterbi_comparison:
-            draw_metrics(
-                ax_pre_bar, phoneme_metrics_pre, test_phonemes, acc_pre,
-                "Per-Class Metrics (pre-Viterbi)"
-            )
-            draw_metrics(
-                ax_post_bar, phoneme_metrics_post, test_phonemes, acc,
-                "Per-Class Metrics (post-Viterbi)"
-            )
-        else:
-            draw_metrics(
-                ax_post_bar, phoneme_metrics_post, test_phonemes, acc,
-                "Per-Class Metrics"
-            )
+        draw_metrics(
+            ax_post_bar, phoneme_metrics_post, test_phonemes, acc,
+            "Per-Class Metrics"
+        )
 
         def draw_confusion(ax, matrix, matrix_norm, labels, title, cmap, cbar_label):
             """Draw a normalised confusion matrix.
@@ -2085,44 +2116,78 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             ax.set_title(title)
             plt.colorbar(im, ax=ax, label=cbar_label, fraction=0.046)
 
-        # 3. recall matrices (row 1)
-        if has_viterbi_comparison:
-            draw_confusion(
-                ax_pre_cm, cm_pre, cm_pre_recall, unique_labels_pre,
-                "Confusion Matrix - Recall (pre-Viterbi)",
-                "Blues", "Recall"
-            )
-            draw_confusion(
-                ax_post_cm_r, cm, cm_recall, unique_labels,
-                "Confusion Matrix - Recall (post-Viterbi)",
-                "Blues", "Recall"
-            )
-        else:
-            draw_confusion(
-                ax_post_cm_r, cm, cm_recall, unique_labels,
-                "Confusion Matrix - Recall normalised",
-                "Blues", "Recall"
-            )
+        # 3. recall matrix (row 1, left)
+        draw_confusion(
+            ax_post_cm_r, cm, cm_recall, unique_labels,
+            "Confusion Matrix - Recall normalised",
+            "Blues", "Recall"
+        )
 
-        # 4. precision matrices (row 2)
-        if has_viterbi_comparison:
-            draw_confusion(
-                ax_pre_cm_p, cm_pre, cm_pre_precision, unique_labels_pre,
-                "Confusion Matrix - Precision (pre-Viterbi)",
-                "Greens", "Precision"
-            )
-            draw_confusion(
-                ax_post_cm_p, cm, cm_precision, unique_labels,
-                "Confusion Matrix - Precision (post-Viterbi)",
-                "Greens", "Precision"
-            )
-        else:
-            draw_confusion(
-                ax_post_cm_p, cm, cm_precision, unique_labels,
-                "Confusion Matrix - Precision normalised",
-                "Greens", "Precision"
-            )
+        # 4. precision matrix (row 1, right)
+        draw_confusion(
+            ax_post_cm_p, cm, cm_precision, unique_labels,
+            "Confusion Matrix - Precision normalised",
+            "Greens", "Precision"
+        )
 
+
+        # ── Combined run-length bar chart (grouped bars) ─────────────────────
+        # One chart with two bars per length bucket: exact-position (blue)
+        # next to shift-tolerant (red). Shows length 3, 4, 5+ only — length 1
+        # is mostly chance hits and length 2 is frequent in any alignment, so
+        # they are excluded to highlight the more informative longer runs.
+        run_counts_exact = Counter(runs_exact)
+        run_counts_shift = Counter(runs_shift)
+
+        def _bin(rc):
+            return [
+                rc.get(3, 0),
+                rc.get(4, 0),
+                sum(c for L, c in rc.items() if L >= 5),
+            ]
+
+        bin_labels = ['3', '4', '5+']
+        counts_exact = _bin(run_counts_exact)
+        counts_shift = _bin(run_counts_shift)
+
+        x = np.arange(len(bin_labels))
+        width = 0.38
+
+        bars_exact = ax_runs.bar(
+            x - width / 2, counts_exact, width,
+            label='Exact-position',
+            color='steelblue', edgecolor='black', linewidth=0.8,
+        )
+        bars_shift = ax_runs.bar(
+            x + width / 2, counts_shift, width,
+            label='Shift-tolerant (±5)',
+            color='crimson', edgecolor='black', linewidth=0.8,
+        )
+
+        # Annotate count above each non-zero bar
+        for bars, counts in ((bars_exact, counts_exact),
+                             (bars_shift, counts_shift)):
+            for bar, count in zip(bars, counts):
+                if count > 0:
+                    ax_runs.text(
+                        bar.get_x() + bar.get_width() / 2,
+                        bar.get_height(),
+                        str(count),
+                        ha='center', va='bottom',
+                        fontweight='bold', fontsize=10,
+                    )
+
+        ax_runs.set_xticks(x)
+        ax_runs.set_xticklabels(bin_labels)
+        ax_runs.set_xlabel('Run length (consecutive correct phonemes)')
+        ax_runs.set_ylabel('# maximal correct runs')
+        ax_runs.set_title(
+            f'Run-length distribution  '
+            f'(longest exact={longest_exact}, longest ±5={longest_shift})',
+            fontsize=10, fontweight='bold',
+        )
+        ax_runs.legend(loc='upper right', fontsize=9)
+        ax_runs.grid(alpha=0.3, axis='y')
 
         import warnings
         with warnings.catch_warnings():
@@ -2130,31 +2195,11 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             fig.tight_layout()
         plt.show()
 
-        # print table
-        if show_table:
-            self.log(f"{pid} - per-class metrics (post-Viterbi)")
-            self.log(
-                f"{'label':<12} {'recall':<8} {'prec':<8} "
-                f"{'count':<8} {'top 3 confusions'}"
-            )
-            for p in test_phonemes:
-                m = phoneme_metrics_post[p]
-                if p in confusion_data:
-                    confusions = confusion_data[p].copy()
-                    confusions.pop(p, None)
-                    top = confusions.most_common(3)
-                    conf_str = ", ".join(
-                        [f"{pred}({cnt})" for pred, cnt in top]
-                    ) if top else "-"
-                else:
-                    conf_str = "-"
-                self.log(
-                    f"{p:<12} {m['recall']:>6.2f}  {m['precision']:>6.2f}  "
-                    f"{m['support']:>6}  {conf_str}"
-                )
-            mean_recall = np.mean([m["recall"] for m in phoneme_metrics_post.values()])
-            mean_precision = np.mean([m["precision"] for m in phoneme_metrics_post.values()])
-            self.log(f"{'macro':<12} {mean_recall:>6.2f}  {mean_precision:>6.2f}")
+        # NOTE: per-class metrics text table is no longer printed; everything
+        # is shown in the figure (Per-Class Metrics bar chart, run-length
+        # bars, confusion matrices). The `show_table` parameter is kept for
+        # backwards compatibility with existing callers but has no effect.
+        del show_table  # silences unused-variable lint, makes the no-op explicit
 
         if show_predictions:
             self.log(f"{pid} - predictions vs true labels")

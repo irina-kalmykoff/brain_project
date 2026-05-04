@@ -1602,6 +1602,8 @@ DEFAULT_WEAK_EQUIVALENCE = [
     {'e', 'ɛ'}, {'o', 'ɔ'}, {'i', 'ɪ'}, {'u', 'ʊ'},
     {'eː', 'ɛ'}, {'oː', 'ɔ'},
     {'ɪ', 'ɛ'},      # high-lax vs mid-lax front vowels (neighbors on vowel chart)
+    {'aː', 'eː'},    # long low central vs long mid front (looser pair, but
+                      # the model in this dataset frequently confuses them)
     # Voicing pairs (stops + fricatives)
     {'t', 'd'}, {'p', 'b'},
     {'k', 'ɡ', 'g'},                    # IPA ɡ (U+0261) and ASCII g often interchangeable
@@ -1840,7 +1842,76 @@ def find_color_matches(true_seq, pred_seq,
     else:
         _match_one_slice(true_seq, pred_seq, 0, 0)
 
+    # Post-process: merge adjacent same-shift matches with small intron gaps
+    matches = _merge_adjacent_with_introns(matches, true_seq, pred_seq, weak_map)
+
     return matches
+
+
+# Maximum gap (in cells) between two adjacent matches that we'll merge with
+# an intron. Symmetric: applies to both true side and pred side. Set to 0
+# to disable intron-based merging.
+INTRON_MAX_GAP = 2
+
+
+def _merge_adjacent_with_introns(matches, true_seq, pred_seq, weak_map,
+                                   max_gap=None):
+    """Post-process step. If two matches share the same shift and have a
+    small symmetric gap between them on both sides, merge them into one
+    longer match. Cells in the gap that happen to align at the shared
+    shift get classified normally (exact or weak); those that don't get
+    tagged as 'intron' (rendered with a slim dotted border + faint fill).
+
+    Concretely, for adjacent matches A=(ts_a, ps_a, L_a, ...) and
+    B=(ts_b, ps_b, L_b, ...) at the same shift:
+        true_gap = ts_b - (ts_a + L_a)
+        pred_gap = ps_b - (ps_a + L_a)
+    They merge if true_gap == pred_gap and 0 < true_gap <= max_gap.
+    """
+    if max_gap is None:
+        max_gap = INTRON_MAX_GAP
+    if max_gap <= 0 or not matches:
+        return matches
+
+    def cell_kind_local(a, b):
+        if a == b: return 'exact'
+        if b in weak_map.get(a, ()): return 'weak'
+        return None
+
+    # Sort by true position
+    sorted_m = sorted(matches, key=lambda m: m[0])
+    out = []
+    cur = sorted_m[0]
+    for nxt in sorted_m[1:]:
+        cur_ts, cur_ps, cur_L, cur_c, cur_types = cur
+        n_ts, n_ps, n_L, n_c, n_types = nxt
+
+        if (n_ps - n_ts) == (cur_ps - cur_ts):
+            true_gap = n_ts - (cur_ts + cur_L)
+            pred_gap = n_ps - (cur_ps + cur_L)
+            if (true_gap == pred_gap
+                    and 0 < true_gap <= max_gap):
+                # Merge: extend cur to absorb the gap + nxt, classify each
+                # gap cell as exact / weak / intron.
+                gap_types = []
+                for k in range(true_gap):
+                    t_idx = cur_ts + cur_L + k
+                    p_idx = cur_ps + cur_L + k
+                    if t_idx >= len(true_seq) or p_idx >= len(pred_seq):
+                        gap_types.append('intron')
+                        continue
+                    kind = cell_kind_local(true_seq[t_idx], pred_seq[p_idx])
+                    gap_types.append(kind if kind is not None else 'intron')
+
+                merged_types = tuple(cur_types) + tuple(gap_types) + tuple(n_types)
+                cur = (cur_ts, cur_ps, cur_L + true_gap + n_L,
+                       cur_c, merged_types)
+                continue
+
+        out.append(cur)
+        cur = nxt
+    out.append(cur)
+    return out
 
 
 def _cell_html(content, color=None, is_pos=False, is_label=False,
@@ -1862,6 +1933,15 @@ def _cell_html(content, color=None, is_pos=False, is_label=False,
                     f'border:2px dashed {color}; '
                     f'background:{color}30; '            # 30 = ~19% opacity
                     f'font-family:monospace; font-style:italic;">{content}</td>')
+        if cell_kind == 'intron':
+            # Slim dotted border in match color, very faint fill, gray italic.
+            # Says "this cell is part of the match group but didn't directly
+            # align — it's a skipped/intronic cell."
+            return (f'<td style="text-align:center; padding:3px 8px; '
+                    f'border:1px dotted {color}; '
+                    f'background:{color}15; '            # 15 = ~8% opacity
+                    f'font-family:monospace; font-style:italic; '
+                    f'color:#888;">{content}</td>')
         return (f'<td style="{base} background:{color}; '
                 f'font-weight:bold;">{content}</td>')
     return f'<td style="{base} color:#bbb;">{content}</td>'

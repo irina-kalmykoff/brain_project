@@ -1,0 +1,1603 @@
+# End-to-end brain-only phoneme decoding.
+#
+# Single optimized flow:
+#   1. Build pipeline + run_path_b (MFA-aligned features for train/test)
+#   2. Train per-patient CRFs on pipeline.train (the production training data)
+#   3. MFA baseline: feed pipeline.test directly to CRFs (true upper bound)
+#   4. Load (or train+save) the joint boundary detector
+#   5. Detector path: detect phoneme boundaries from iEEG, extract features
+#      USING THE SAME PIPELINE FUNCTIONS, feed to CRFs
+#   6. Side-by-side comparison
+#
+# Key invariants:
+#   - CRF training inputs come from pipeline.train (no re-extraction)
+#   - MFA baseline uses pipeline.test verbatim
+#   - Detector-path features use pipeline's extractHG + stackFeatures with
+#     the SAME channel mask, window, frameshift, and stacking_order. This
+#     guarantees the only difference between MFA baseline and detector path
+#     is the segmentation source.
+
+# ── 1. TORCH FIRST ────────────────────────────────────────────────────────────
+import torch
+
+# ── 2. STANDARD ───────────────────────────────────────────────────────────────
+import os
+import glob
+import random
+from collections import defaultdict
+from datetime import datetime
+
+# ── 3. THIRD-PARTY ────────────────────────────────────────────────────────────
+import numpy as np
+import scipy.signal
+import matplotlib.pyplot as plt
+import sklearn_crfsuite
+from collections import Counter
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+
+# ── 4. PROJECT ────────────────────────────────────────────────────────────────
+from config import DUTCH_30_PATH
+from extract_features import extractHG, stackFeatures
+from dutch_30_pipeline import Dutch30Pipeline
+from dutch_30_feature_extractor import Dutch30FeatureExtractor
+from run_pipeline import (
+    DEFAULT_RUN_CONFIG, run_path_b, load_mfa_alignments,
+)
+from boundary_detector_joint_audio import (
+    split_by_sentence,
+    fit_train_stats, apply_stats,
+    JointBoundaryDetector,
+    ALL_PIDS, HIDDEN_DIM, N_LSTM_LAYERS, DROPOUT,
+    SR_EEG, SR_AUDIO_TARGET, FRAME_HZ,
+    extract_eeg_frames, compute_mfcc, add_delta_features,
+    boundary_labels_from_mfa,
+    MOD_DROPOUT, BATCH_SIZE, N_EPOCHS, LR, WEIGHT_DECAY, POS_WEIGHT,
+    collate_padded_joint, sample_modality,
+)
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CONFIG
+# ═════════════════════════════════════════════════════════════════════════════
+
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+SEED   = 37
+torch.manual_seed(SEED); np.random.seed(SEED); random.seed(SEED)
+
+# Detector inference params
+PEAK_HEIGHT      = 0.05     # fixed-threshold mode (used only if adaptive=False)
+PEAK_DISTANCE    = 4        # frames; 4 × 5 ms = 20 ms minimum gap
+MIN_SEGMENT_MS   = 20
+
+TARGET_PHONEME_RATE  = 11.0
+
+# CRF (mirrors _run_crf_experiment in run_pipeline.py exactly)
+N_PCA             = 50
+CRF_C1, CRF_C2    = 0.1, 0.1
+CRF_MAX_ITER      = 100
+MIN_CLASS_SAMPLES = 5     # _run_crf_experiment default
+RANDOM_STATE      = 37
+
+# Pipeline run config (must match what created the CRF training data)
+RUN_CONFIG = dict(DEFAULT_RUN_CONFIG)
+RUN_CONFIG['use_viterbi']        = True
+RUN_CONFIG['stacking_order']     = 20
+RUN_CONFIG['stacking_step_size'] = 1
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 1. PIPELINE SETUP
+# ═════════════════════════════════════════════════════════════════════════════
+
+def build_pipeline():
+    print("\n[1/6] Building pipeline + running Path B (MFA)...")
+    extractor = Dutch30FeatureExtractor()
+    pipeline = Dutch30Pipeline(
+        dutch30_extractor=extractor,
+        debug_mode=False,
+        feature_extraction_method=RUN_CONFIG['feature_extraction_method'],
+        use_wav2vec=False,
+        subtract_baseline=RUN_CONFIG['subtract_baseline'],
+        use_rms_boundaries=False,
+        use_multifeature=False,
+    )
+    run_path_b(pipeline, RUN_CONFIG)
+    print(f"  pipeline.train: {len(pipeline.train['features'])} phonemes, "
+          f"feat dim={np.asarray(pipeline.train['features'][0]).shape}")
+    print(f"  pipeline.test : {len(pipeline.test['features'])} phonemes")
+    return pipeline
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2. CRF TRAINING — mirrors _run_crf_experiment in run_pipeline.py
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _to_word_sequences(X, labels, words):
+    """Group consecutive phonemes by word into CRF sequences.
+    Returns (list_of_seqs_of_dicts, list_of_label_seqs)."""
+    seqs, lbl_seqs = [], []
+    cur_x, cur_y, prev_w = [], [], None
+    for x, l, w in zip(X, labels, words):
+        if w != prev_w and prev_w is not None and cur_x:
+            seqs.append(cur_x); lbl_seqs.append(cur_y)
+            cur_x, cur_y = [], []
+        cur_x.append({f'f{j}': float(v) for j, v in enumerate(x)})
+        cur_y.append(str(l))
+        prev_w = w
+    if cur_x:
+        seqs.append(cur_x); lbl_seqs.append(cur_y)
+    return seqs, lbl_seqs
+
+
+def _features_to_dicts_one_seq(X):
+    """Treat the whole array as ONE sequence (used at detector inference,
+    where we don't know word boundaries)."""
+    return [[{f'f{j}': float(v) for j, v in enumerate(x)} for x in X]]
+
+
+def train_per_patient_crfs(pipeline):
+    """Train one CRF per patient. Reuses the exact recipe from
+    _run_crf_experiment: StandardScaler → PCA(50) → word-level sequences →
+    CRF(c1=0.1, c2=0.1, lbfgs, all_possible_transitions=True).
+
+    Returns dict pid → {'crf', 'scaler', 'pca', 'valid_classes'}.
+    """
+    print("\n[2/6] Training per-patient CRFs on pipeline.train "
+          f"(StandardScaler + PCA({N_PCA}) + word-level sequences)...")
+
+    by_pid = defaultdict(lambda: {'X': [], 'y': [], 'w': []})
+    for i, p in enumerate(pipeline.train['phoneme_participant_ids']):
+        by_pid[p]['X'].append(np.asarray(pipeline.train['features'][i]).flatten())
+        by_pid[p]['y'].append(str(pipeline.train['phoneme_labels'][i]))
+        by_pid[p]['w'].append(pipeline.train['phoneme_words'][i])
+
+    classifiers = {}
+    for pid, d in by_pid.items():
+        tr_feat, tr_lbl, tr_wrd = d['X'], d['y'], d['w']
+
+        # Filter rare classes on TRAIN only (no leak)
+        valid = {c for c, n in Counter(tr_lbl).items() if n >= MIN_CLASS_SAMPLES}
+        keep = [i for i, l in enumerate(tr_lbl) if l in valid]
+        tr_feat = [tr_feat[i] for i in keep]
+        tr_lbl  = [tr_lbl[i]  for i in keep]
+        tr_wrd  = [tr_wrd[i]  for i in keep]
+        if len(tr_feat) < 10:
+            continue
+
+        X_tr = np.asarray(tr_feat)
+
+        # Scale + PCA
+        scaler = StandardScaler().fit(X_tr)
+        X_tr = scaler.transform(X_tr)
+        n_comp = min(N_PCA, X_tr.shape[1], X_tr.shape[0])
+        pca = PCA(n_components=n_comp, random_state=RANDOM_STATE).fit(X_tr)
+        X_tr = pca.transform(X_tr)
+
+        # Word-level CRF sequences
+        X_seq, y_seq = _to_word_sequences(X_tr, tr_lbl, tr_wrd)
+
+        crf = sklearn_crfsuite.CRF(
+            algorithm='lbfgs', c1=CRF_C1, c2=CRF_C2,
+            max_iterations=CRF_MAX_ITER, all_possible_transitions=True,
+        )
+        crf.fit(X_seq, y_seq)
+
+        classifiers[pid] = {
+            'crf': crf, 'scaler': scaler, 'pca': pca,
+            'valid_classes': valid,
+        }
+    print(f"  Trained {len(classifiers)} CRFs")
+    return classifiers
+
+
+def _transform(features, scaler, pca):
+    X = np.asarray([np.asarray(f).flatten() for f in features])
+    return pca.transform(scaler.transform(X))
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 3. MFA BASELINE — uses pipeline.test directly
+# ═════════════════════════════════════════════════════════════════════════════
+
+def evaluate_mfa_baseline(pipeline, classifiers):
+    """Feed pipeline.test directly to per-patient CRFs, with the SAME
+    word-level sequencing the CRF was trained with. True upper bound."""
+    print("\n[3/6] MFA baseline (pipeline.test → CRF, word sequences)...")
+
+    by_pid = defaultdict(lambda: {'X': [], 'y': [], 'w': []})
+    for i, p in enumerate(pipeline.test['phoneme_participant_ids']):
+        by_pid[p]['X'].append(np.asarray(pipeline.test['features'][i]).flatten())
+        by_pid[p]['y'].append(str(pipeline.test['phoneme_labels'][i]))
+        by_pid[p]['w'].append(pipeline.test['phoneme_words'][i])
+
+    summary = {}
+    for pid, d in by_pid.items():
+        if pid not in classifiers:
+            continue
+        valid  = classifiers[pid]['valid_classes']
+        scaler = classifiers[pid]['scaler']
+        pca    = classifiers[pid]['pca']
+        crf    = classifiers[pid]['crf']
+
+        keep = [i for i, l in enumerate(d['y']) if l in valid]
+        if len(keep) < 5:
+            continue
+        te_feat = [d['X'][i] for i in keep]
+        te_lbl  = [d['y'][i] for i in keep]
+        te_wrd  = [d['w'][i] for i in keep]
+
+        X_te = pca.transform(scaler.transform(np.asarray(te_feat)))
+        X_seq, y_seq = _to_word_sequences(X_te, te_lbl, te_wrd)
+        y_pred_seq   = crf.predict(X_seq)
+
+        y_pred = [p for s in y_pred_seq for p in s]
+        y_true = [l for s in y_seq      for l in s]
+
+        ed = edit_distance(y_true, y_pred)
+        accuracy = sum(p == t for p, t in zip(y_pred, y_true)) / max(len(y_true), 1)
+        summary[pid] = {
+            'n_true':    len(y_true),
+            'n_pred':    len(y_pred),
+            'edit':      ed,
+            'per':       ed / max(len(y_true), 1),
+            'accuracy':  accuracy,
+            'len_ratio': len(y_pred) / max(len(y_true), 1),
+        }
+    _print_table(summary, label='MFA baseline (pipeline.test, CRF upper bound)')
+    return summary
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 4. BOUNDARY DETECTOR — load or train
+# ═════════════════════════════════════════════════════════════════════════════
+
+# ── CORRECTED dataset builder ────────────────────────────────────────────────
+# The version in boundary_detector_joint_audio.py reads `eeg_segments` from
+# the pipeline, which contains short per-WORD slices, not full sentences.
+# This version slices raw EEG by sentence using stim_start_idx/stim_end_idx,
+# matching what run_path_b does for the CRF features.
+
+# v6 = v5 with much lower word-onset loss weight (0.5 → 0.1)
+CKPT_PREFIX = 'boundary_detector_v6_'
+
+COUNT_LOSS_WEIGHT      = 0.005
+WORD_ONSET_LOSS_WEIGHT = 0.1    # was 0.5 in v5 — lower to avoid hijacking encoder
+WORD_ONSET_POS_WEIGHT  = 40.0
+N_EPOCHS_OVERRIDE      = 40
+
+# Inference: how to pick K (number of phoneme segments per sentence)
+#   'predicted' — use the count-regressor head (BRAIN-ONLY, realistic)
+#   'oracle'    — K = item['n_phonemes'] (best case, uses MFA at test)
+#   'rate'      — TARGET_PHONEME_RATE × duration_s (single global rate)
+#   'fixed'     — fixed PEAK_HEIGHT, no top-K
+ADAPTIVE_K_SOURCE = 'predicted'
+
+
+def word_onset_labels_from_mfa(phone_alignments, n_frames,
+                                 frame_hz=FRAME_HZ, sigma_ms=10.0):
+    """Soft Gaussian labels on word ONSETS (first phoneme of each word).
+
+    Returns (labels, onset_times). Each unique consecutive `word` group is
+    one onset event at the first phoneme's start_s.
+    """
+    sigma_frames = sigma_ms * frame_hz / 1000.0
+    half_window = max(1, int(np.ceil(3 * sigma_frames)))
+    labels = np.zeros(n_frames, dtype=np.float32)
+
+    onset_times = []
+    prev_word = None
+    for ph in phone_alignments:
+        w = ph.get('word', '') or ''
+        if w != prev_word:
+            onset_times.append(ph['start_s'])
+            prev_word = w
+
+    for t in onset_times:
+        c = int(round(t * frame_hz))
+        for off in range(-half_window, half_window + 1):
+            f = c + off
+            if 0 <= f < n_frames:
+                weight = float(np.exp(-(off ** 2) / (2 * sigma_frames ** 2)))
+                if weight > labels[f]:
+                    labels[f] = weight
+    return labels, onset_times
+
+
+def _get_pipeline_chan_mask(pipeline, pid):
+    """Same channel-keep logic as run_path_b uses."""
+    if hasattr(pipeline, 'patient_data') and pid in pipeline.patient_data:
+        pdata = pipeline.patient_data[pid]
+        if 'channel_mask' in pdata:
+            cm = pdata['channel_mask']
+            return np.where(cm)[0] if cm.dtype == bool else np.asarray(cm)
+        if 'included_channels' in pdata:
+            return np.asarray(pdata['included_channels'])
+    return None  # use all channels
+
+
+def build_joint_dataset_fixed(pipeline, patient_ids):
+    """Returns list of {pid, sent_idx, eeg, mfcc, labels, boundaries, ...}.
+
+    Slices raw EEG and raw audio by sentence_list[sent_idx]['stim_start_idx']
+    / ['stim_end_idx'] — mirrors run_path_b. Applies the same channel mask
+    the pipeline applies for CRF features.
+    """
+    dataset = []
+    audio_sr_raw = 48000
+    try:
+        audio_sr_raw = int(pipeline.config.audio_sr)
+    except Exception:
+        pass
+    print(f"  [fixed] Audio raw sample rate: {audio_sr_raw} Hz, "
+          f"target for MFCC: {SR_AUDIO_TARGET} Hz")
+    eeg_sr = pipeline.config.eeg_sr
+
+    raw_cache = {}    # pid -> (raw_eeg_kept_channels, raw_audio)
+
+    for pid in patient_ids:
+        wd = pipeline.split_result.get('word_segments_dict', {}).get(pid)
+        if wd is None:
+            print(f"  {pid}: not in word_segments_dict, skipping")
+            continue
+
+        try:
+            mfa = load_mfa_alignments(pid)
+        except Exception as e:
+            print(f"  {pid}: MFA load failed ({e}), skipping")
+            continue
+
+        # Load and channel-mask raw EEG, raw audio (cached per pid)
+        if pid not in raw_cache:
+            raw_eeg = np.load(os.path.join(DUTCH_30_PATH, 'raw',
+                                            f'{pid}_sEEG.npy'))
+            raw_aud = np.load(os.path.join(DUTCH_30_PATH, 'raw',
+                                            f'{pid}_audio.npy'))
+            mask = _get_pipeline_chan_mask(pipeline, pid)
+            if mask is not None:
+                raw_eeg = raw_eeg[:, mask]
+            raw_cache[pid] = (raw_eeg, raw_aud)
+        raw_eeg, raw_aud = raw_cache[pid]
+
+        sentence_list = wd['sentence_list']
+        n_kept = 0
+        for sent_idx, sent_info in enumerate(sentence_list):
+            text = sent_info['text'] if isinstance(sent_info, dict) else sent_info
+            if not text:
+                continue
+            if sent_idx not in mfa or not mfa[sent_idx]:
+                continue
+
+            eeg_start = int(sent_info['stim_start_idx'])
+            eeg_end   = int(sent_info['stim_end_idx'])
+            sent_eeg  = raw_eeg[eeg_start:eeg_end]
+            if sent_eeg.shape[0] < int(0.2 * eeg_sr):  # < 200 ms — skip
+                continue
+
+            # Map EEG sample indices to audio sample indices
+            aud_start = int(eeg_start * audio_sr_raw / eeg_sr)
+            aud_end   = int(eeg_end   * audio_sr_raw / eeg_sr)
+            sent_audio = raw_aud[aud_start:aud_end].astype(np.float32)
+            if sent_audio.size == 0:
+                continue
+
+            try:
+                eeg_frames = extract_eeg_frames(sent_eeg)
+                n_frames   = eeg_frames.shape[0]
+
+                if audio_sr_raw != SR_AUDIO_TARGET:
+                    g = gcd(int(audio_sr_raw), int(SR_AUDIO_TARGET))
+                    sent_audio_rs = scipy.signal.resample_poly(
+                        sent_audio,
+                        int(SR_AUDIO_TARGET / g),
+                        int(audio_sr_raw / g))
+                else:
+                    sent_audio_rs = sent_audio
+
+                mfcc = compute_mfcc(sent_audio_rs, sr=SR_AUDIO_TARGET)
+                mfcc = add_delta_features(mfcc)
+                if mfcc.shape[0] < n_frames:
+                    pad = np.zeros((n_frames - mfcc.shape[0], mfcc.shape[1]),
+                                    dtype=np.float32)
+                    mfcc = np.concatenate([mfcc, pad], axis=0)
+                elif mfcc.shape[0] > n_frames:
+                    mfcc = mfcc[:n_frames]
+
+                labels, boundary_times = boundary_labels_from_mfa(
+                    mfa[sent_idx], n_frames)
+                word_labels, word_onset_times = word_onset_labels_from_mfa(
+                    mfa[sent_idx], n_frames)
+            except Exception as e:
+                print(f"  {pid} sent {sent_idx}: feature extraction failed: {e}")
+                continue
+
+            dataset.append({
+                'pid':              pid,
+                'sentence_idx':     sent_idx,
+                'eeg':              eeg_frames,
+                'mfcc':             mfcc,
+                'labels':           labels,
+                'word_labels':      word_labels,
+                'boundary_times':   boundary_times,
+                'word_onset_times': word_onset_times,
+                'n_phonemes':       len(mfa[sent_idx]),
+                'n_words':          len(word_onset_times),
+            })
+            n_kept += 1
+        print(f"  {pid}: kept {n_kept} sentences "
+              f"(mean eeg frames = {np.mean([d['eeg'].shape[0] for d in dataset if d['pid']==pid]):.0f})")
+
+    return dataset
+
+
+# Need gcd for audio resampling
+from math import gcd
+
+
+# ── COUNT-AWARE DETECTOR (v3) ────────────────────────────────────────────────
+# Same encoder as JointBoundaryDetector, plus a second head that regresses
+# per-sentence phoneme count from the pooled (mask-aware) encoder output.
+
+class CountAwareJointDetector(nn.Module):
+    def __init__(self, per_patient_eeg_n_ch, mfcc_dim,
+                 hidden_dim=HIDDEN_DIM, n_layers=N_LSTM_LAYERS,
+                 dropout=DROPOUT, proj_dim=64):
+        super().__init__()
+        self.eeg_proj = nn.ModuleDict({
+            pid: nn.Linear(n_ch, proj_dim)
+            for pid, n_ch in per_patient_eeg_n_ch.items()
+        })
+        self.mfcc_proj = nn.Linear(mfcc_dim, proj_dim)
+        self.lstm = nn.LSTM(
+            input_size=proj_dim, hidden_size=hidden_dim,
+            num_layers=n_layers, batch_first=True,
+            bidirectional=True,
+            dropout=dropout if n_layers > 1 else 0.0,
+        )
+        self.boundary_head = nn.Sequential(
+            nn.Linear(2 * hidden_dim, hidden_dim),
+            nn.ReLU(), nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+        )
+        self.count_head = nn.Sequential(
+            nn.Linear(2 * hidden_dim, hidden_dim),
+            nn.ReLU(), nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def encode(self, eeg, mfcc, pid):
+        h_eeg  = self.eeg_proj[pid](eeg)  if eeg  is not None else None
+        h_mfcc = self.mfcc_proj(mfcc)     if mfcc is not None else None
+        if   h_eeg is not None and h_mfcc is not None:
+            h = (h_eeg + h_mfcc) / 2.0
+        elif h_eeg is not None: h = h_eeg
+        else:                    h = h_mfcc
+        h, _ = self.lstm(h)
+        return h          # (B, T, 2*H)
+
+    def forward(self, eeg=None, mfcc=None, pid=None, mask=None):
+        """Returns (boundary_logits (B,T), count_pred (B,))."""
+        h = self.encode(eeg, mfcc, pid)
+        boundary_logits = self.boundary_head(h).squeeze(-1)   # (B, T)
+        # Mask-aware mean pool for count head
+        if mask is None:
+            pooled = h.mean(dim=1)
+        else:
+            m = mask.float().unsqueeze(-1)            # (B, T, 1)
+            pooled = (h * m).sum(dim=1) / m.sum(dim=1).clamp(min=1.0)
+        count_pred = self.count_head(pooled).squeeze(-1)      # (B,)
+        return boundary_logits, count_pred
+
+
+def collate_padded_with_count(batch):
+    """Like collate_padded_joint, plus a count target."""
+    X_eeg, X_mfcc, Y, mask = collate_padded_joint(batch)
+    counts = torch.tensor([item['n_phonemes'] for item in batch],
+                           dtype=torch.float32)
+    return X_eeg, X_mfcc, Y, mask, counts
+
+
+def train_count_aware(train_dataset, n_epochs=None, lr=LR):
+    if n_epochs is None:
+        n_epochs = N_EPOCHS_OVERRIDE
+    per_patient_eeg_n_ch = {d['pid']: d['eeg'].shape[1] for d in train_dataset}
+    mfcc_dim = train_dataset[0]['mfcc'].shape[1]
+
+    model = CountAwareJointDetector(per_patient_eeg_n_ch, mfcc_dim).to(DEVICE)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr,
+                                   weight_decay=WEIGHT_DECAY)
+    pos_weight = torch.tensor([POS_WEIGHT], device=DEVICE)
+
+    by_pid = defaultdict(list)
+    for d in train_dataset:
+        by_pid[d['pid']].append(d)
+    pids = list(by_pid.keys())
+
+    print(f"\n  Training count-aware detector — {n_epochs} epochs "
+          f"(modality dropout: {MOD_DROPOUT}, count_loss_weight={COUNT_LOSS_WEIGHT})")
+
+    for epoch in range(n_epochs):
+        model.train()
+        random.shuffle(pids)
+        total_b_loss = 0.0; total_c_loss = 0.0
+        total_frames = 0;   total_sents  = 0
+        modality_counts = defaultdict(int)
+
+        for pid in pids:
+            items = by_pid[pid]
+            random.shuffle(items)
+            for i in range(0, len(items), BATCH_SIZE):
+                batch = items[i:i + BATCH_SIZE]
+                X_eeg, X_mfcc, Y, mask, counts = collate_padded_with_count(batch)
+                X_eeg, X_mfcc = X_eeg.to(DEVICE), X_mfcc.to(DEVICE)
+                Y, mask, counts = Y.to(DEVICE), mask.to(DEVICE), counts.to(DEVICE)
+
+                modality = sample_modality()
+                modality_counts[modality] += 1
+                optimizer.zero_grad()
+
+                if   modality == 'ieeg_only':
+                    logits, count_pred = model(eeg=X_eeg, mfcc=None,    pid=pid, mask=mask)
+                elif modality == 'audio_only':
+                    logits, count_pred = model(eeg=None,  mfcc=X_mfcc,  pid=pid, mask=mask)
+                else:
+                    logits, count_pred = model(eeg=X_eeg, mfcc=X_mfcc,  pid=pid, mask=mask)
+
+                # Boundary BCE on valid frames
+                b_loss = F.binary_cross_entropy_with_logits(
+                    logits, Y, pos_weight=pos_weight, reduction='none')
+                b_loss = (b_loss * mask.float()).sum() / mask.float().sum().clamp(min=1)
+
+                # Count MSE on every sentence
+                c_loss = F.mse_loss(count_pred, counts)
+
+                loss = b_loss + COUNT_LOSS_WEIGHT * c_loss
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                optimizer.step()
+
+                total_b_loss += b_loss.item() * mask.float().sum().item()
+                total_c_loss += c_loss.item() * len(batch)
+                total_frames += mask.float().sum().item()
+                total_sents  += len(batch)
+
+        if (epoch + 1) % 5 == 0 or epoch == n_epochs - 1:
+            print(f"    epoch {epoch+1:2d}/{n_epochs}  "
+                  f"bce={total_b_loss/max(total_frames,1):.4f}  "
+                  f"count_mse={total_c_loss/max(total_sents,1):.2f}  "
+                  f"sqrt_mse≈{(total_c_loss/max(total_sents,1))**0.5:.2f} phonemes  "
+                  f"modalities: {dict(modality_counts)}")
+    return model
+
+
+# ── COUNT + WORD-ONSET AWARE DETECTOR (v5) ───────────────────────────────────
+# Three heads:
+#   - boundary_head: per-frame phoneme boundary BCE (primary signal, top-K peaks)
+#   - count_head:    per-sentence phoneme count regression (chooses K)
+#   - word_head:     per-frame word-onset BCE (auxiliary, regularizes encoder)
+# At inference we only consume boundary + count. The word head is training-only
+# regularization to encourage the encoder to learn word-level structure.
+
+class CountWordAwareDetector(nn.Module):
+    def __init__(self, per_patient_eeg_n_ch, mfcc_dim,
+                 hidden_dim=HIDDEN_DIM, n_layers=N_LSTM_LAYERS,
+                 dropout=DROPOUT, proj_dim=64):
+        super().__init__()
+        self.eeg_proj = nn.ModuleDict({
+            pid: nn.Linear(n_ch, proj_dim)
+            for pid, n_ch in per_patient_eeg_n_ch.items()
+        })
+        self.mfcc_proj = nn.Linear(mfcc_dim, proj_dim)
+        self.lstm = nn.LSTM(
+            input_size=proj_dim, hidden_size=hidden_dim,
+            num_layers=n_layers, batch_first=True,
+            bidirectional=True,
+            dropout=dropout if n_layers > 1 else 0.0,
+        )
+        self.boundary_head = nn.Sequential(
+            nn.Linear(2 * hidden_dim, hidden_dim),
+            nn.ReLU(), nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+        )
+        self.word_head = nn.Sequential(
+            nn.Linear(2 * hidden_dim, hidden_dim),
+            nn.ReLU(), nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+        )
+        self.count_head = nn.Sequential(
+            nn.Linear(2 * hidden_dim, hidden_dim),
+            nn.ReLU(), nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def encode(self, eeg, mfcc, pid):
+        h_eeg  = self.eeg_proj[pid](eeg)  if eeg  is not None else None
+        h_mfcc = self.mfcc_proj(mfcc)     if mfcc is not None else None
+        if   h_eeg is not None and h_mfcc is not None:
+            h = (h_eeg + h_mfcc) / 2.0
+        elif h_eeg is not None: h = h_eeg
+        else:                    h = h_mfcc
+        h, _ = self.lstm(h)
+        return h
+
+    def forward(self, eeg=None, mfcc=None, pid=None, mask=None):
+        h = self.encode(eeg, mfcc, pid)
+        boundary_logits = self.boundary_head(h).squeeze(-1)
+        word_logits     = self.word_head(h).squeeze(-1)
+        if mask is None:
+            pooled = h.mean(dim=1)
+        else:
+            m = mask.float().unsqueeze(-1)
+            pooled = (h * m).sum(dim=1) / m.sum(dim=1).clamp(min=1.0)
+        count_pred = self.count_head(pooled).squeeze(-1)
+        return boundary_logits, word_logits, count_pred
+
+
+def collate_padded_with_count_and_words(batch):
+    """Like collate_padded_with_count, plus a word-onset label tensor."""
+    max_len = max(item['eeg'].shape[0] for item in batch)
+    n_ch = batch[0]['eeg'].shape[1]
+    n_mfcc = batch[0]['mfcc'].shape[1]
+
+    X_eeg  = torch.zeros(len(batch), max_len, n_ch)
+    X_mfcc = torch.zeros(len(batch), max_len, n_mfcc)
+    Y_b    = torch.zeros(len(batch), max_len)
+    Y_w    = torch.zeros(len(batch), max_len)
+    mask   = torch.zeros(len(batch), max_len, dtype=torch.bool)
+
+    for i, item in enumerate(batch):
+        n = item['eeg'].shape[0]
+        X_eeg[i, :n]  = torch.from_numpy(item['eeg'])
+        X_mfcc[i, :n] = torch.from_numpy(item['mfcc'])
+        Y_b[i, :n]    = torch.from_numpy(item['labels'])
+        Y_w[i, :n]    = torch.from_numpy(item['word_labels'])
+        mask[i, :n]   = True
+    counts = torch.tensor([item['n_phonemes'] for item in batch],
+                           dtype=torch.float32)
+    return X_eeg, X_mfcc, Y_b, Y_w, mask, counts
+
+
+def train_count_word_aware(train_dataset, n_epochs=None, lr=LR):
+    if n_epochs is None:
+        n_epochs = N_EPOCHS_OVERRIDE
+    per_patient_eeg_n_ch = {d['pid']: d['eeg'].shape[1] for d in train_dataset}
+    mfcc_dim = train_dataset[0]['mfcc'].shape[1]
+
+    model = CountWordAwareDetector(per_patient_eeg_n_ch, mfcc_dim).to(DEVICE)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr,
+                                   weight_decay=WEIGHT_DECAY)
+    pos_weight_b = torch.tensor([POS_WEIGHT],            device=DEVICE)
+    pos_weight_w = torch.tensor([WORD_ONSET_POS_WEIGHT], device=DEVICE)
+
+    by_pid = defaultdict(list)
+    for d in train_dataset:
+        by_pid[d['pid']].append(d)
+    pids = list(by_pid.keys())
+
+    print(f"\n  Training count+word-aware detector — {n_epochs} epochs "
+          f"(modality dropout: {MOD_DROPOUT}, "
+          f"count_w={COUNT_LOSS_WEIGHT}, word_w={WORD_ONSET_LOSS_WEIGHT})")
+
+    for epoch in range(n_epochs):
+        model.train()
+        random.shuffle(pids)
+        tot_b = tot_w = tot_c = 0.0
+        tot_frames = tot_sents = 0
+        modality_counts = defaultdict(int)
+
+        for pid in pids:
+            items = by_pid[pid]
+            random.shuffle(items)
+            for i in range(0, len(items), BATCH_SIZE):
+                batch = items[i:i + BATCH_SIZE]
+                X_eeg, X_mfcc, Y_b, Y_w, mask, counts = collate_padded_with_count_and_words(batch)
+                X_eeg, X_mfcc = X_eeg.to(DEVICE), X_mfcc.to(DEVICE)
+                Y_b, Y_w, mask, counts = Y_b.to(DEVICE), Y_w.to(DEVICE), mask.to(DEVICE), counts.to(DEVICE)
+
+                modality = sample_modality()
+                modality_counts[modality] += 1
+                optimizer.zero_grad()
+
+                if   modality == 'ieeg_only':
+                    b_logits, w_logits, count_pred = model(eeg=X_eeg, mfcc=None,    pid=pid, mask=mask)
+                elif modality == 'audio_only':
+                    b_logits, w_logits, count_pred = model(eeg=None,  mfcc=X_mfcc,  pid=pid, mask=mask)
+                else:
+                    b_logits, w_logits, count_pred = model(eeg=X_eeg, mfcc=X_mfcc,  pid=pid, mask=mask)
+
+                m_f = mask.float()
+                m_sum = m_f.sum().clamp(min=1)
+
+                b_loss = F.binary_cross_entropy_with_logits(
+                    b_logits, Y_b, pos_weight=pos_weight_b, reduction='none')
+                b_loss = (b_loss * m_f).sum() / m_sum
+
+                w_loss = F.binary_cross_entropy_with_logits(
+                    w_logits, Y_w, pos_weight=pos_weight_w, reduction='none')
+                w_loss = (w_loss * m_f).sum() / m_sum
+
+                c_loss = F.mse_loss(count_pred, counts)
+
+                loss = b_loss + WORD_ONSET_LOSS_WEIGHT * w_loss + COUNT_LOSS_WEIGHT * c_loss
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                optimizer.step()
+
+                tot_b += b_loss.item() * m_sum.item()
+                tot_w += w_loss.item() * m_sum.item()
+                tot_c += c_loss.item() * len(batch)
+                tot_frames += m_sum.item()
+                tot_sents  += len(batch)
+
+        if (epoch + 1) % 5 == 0 or epoch == n_epochs - 1:
+            print(f"    epoch {epoch+1:2d}/{n_epochs}  "
+                  f"bce_b={tot_b/max(tot_frames,1):.4f}  "
+                  f"bce_w={tot_w/max(tot_frames,1):.4f}  "
+                  f"count_mse={tot_c/max(tot_sents,1):.2f}  "
+                  f"sqrt≈{(tot_c/max(tot_sents,1))**0.5:.2f}p  "
+                  f"mods: {dict(modality_counts)}")
+    return model
+
+
+def load_or_train_detector(pipeline):
+    print("\n[4/6] Building joint dataset for detector (corrected slicing)...")
+    full_ds = build_joint_dataset_fixed(pipeline, ALL_PIDS)
+    train_ds, test_ds = split_by_sentence(full_ds)
+    eeg_stats  = fit_train_stats(train_ds, 'eeg')
+    mfcc_stats = fit_train_stats(train_ds, 'mfcc')
+    train_ds   = apply_stats(train_ds, eeg_stats, mfcc_stats)
+    test_ds    = apply_stats(test_ds,  eeg_stats, mfcc_stats)
+    print(f"  detector dataset: train={len(train_ds)}  test={len(test_ds)}")
+
+    # Use a v2 prefix so we don't accidentally load the stale .pt that was
+    # trained on broken (per-word, truncated) EEG slices.
+    ckpts = sorted(glob.glob(f'{CKPT_PREFIX}*.pt'))
+    if ckpts:
+        ckpt_path = ckpts[-1]
+        print(f"  Loading {ckpt_path}")
+        ckpt = torch.load(ckpt_path, map_location=DEVICE)
+        model = CountWordAwareDetector(
+            per_patient_eeg_n_ch=ckpt['per_patient_eeg_n_ch'],
+            mfcc_dim=ckpt['mfcc_dim'],
+            hidden_dim=HIDDEN_DIM, n_layers=N_LSTM_LAYERS, dropout=DROPOUT,
+        ).to(DEVICE)
+        model.load_state_dict(ckpt['model_state'])
+        model.eval()
+        print(f"  ✓ loaded ({sum(p.numel() for p in model.parameters())/1e6:.2f}M params)")
+    else:
+        print(f"  No {CKPT_PREFIX} checkpoint — training count+word-aware "
+              "detector from scratch (~5–10 min on GPU)")
+        model = train_count_word_aware(train_ds)
+        out_path = f'{CKPT_PREFIX}{datetime.now().strftime("%Y%m%d_%H%M")}.pt'
+        torch.save({
+            'model_state':         model.state_dict(),
+            'per_patient_eeg_n_ch': {pid: model.eeg_proj[pid].in_features
+                                      for pid in model.eeg_proj},
+            'mfcc_dim':            model.mfcc_proj.in_features,
+        }, out_path)
+        print(f"  ✓ saved to {out_path}")
+
+    return model, test_ds
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 5. DETECTOR PATH — uses pipeline's extractHG + stackFeatures + channel mask
+# ═════════════════════════════════════════════════════════════════════════════
+
+def get_pipeline_channel_mask(pipeline, pid):
+    """Return the channel index array the pipeline used for this patient
+    (the SAME mask that produced pipeline.train['features'])."""
+    if hasattr(pipeline, 'patient_data') and pid in pipeline.patient_data:
+        pdata = pipeline.patient_data[pid]
+        if 'channel_mask' in pdata:
+            cm = pdata['channel_mask']
+            return np.where(cm)[0] if cm.dtype == bool else cm
+        if 'included_channels' in pdata:
+            return np.asarray(pdata['included_channels'])
+    return None  # no exclusion → use all channels
+
+
+def extract_phoneme_feature_pipeline_native(sentence_eeg, start_s, end_s,
+                                             eeg_sr, win_len, frameshift,
+                                             stacking_order):
+    """Mirror exactly what run_path_b + step5b/c do for ONE phoneme.
+
+    Returns a single (n_features,) vector matching CRF input dim.
+    """
+    ph_start = int(start_s * eeg_sr)
+    ph_end   = int(end_s   * eeg_sr)
+    ph_start = max(0, min(ph_start, sentence_eeg.shape[0] - 1))
+    ph_end   = max(ph_start + 1, min(ph_end, sentence_eeg.shape[0]))
+    eeg_seg  = sentence_eeg[ph_start:ph_end]
+
+    # Zero-pad short segments. extractHG's internal sosfiltfilt needs
+    # ≥28 samples; we also want enough frames for the stacking step. Pad to
+    # whichever is larger.
+    min_samples = max(int(win_len * eeg_sr) + 1, 64)
+    if len(eeg_seg) < min_samples:
+        eeg_seg = np.pad(eeg_seg,
+                         ((0, min_samples - len(eeg_seg)), (0, 0)),
+                         mode='constant')
+
+    try:
+        feat = extractHG(eeg_seg, eeg_sr,
+                         windowLength=win_len, frameshift=frameshift)
+    except ValueError:
+        return None
+    if feat is None or feat.shape[0] == 0:
+        return None
+
+    # Step 5b: stackFeatures requires at least 2*so+1 frames; zero-pad if not
+    n_needed = 2 * stacking_order + 1
+    if feat.shape[0] < n_needed:
+        feat = np.pad(feat,
+                      ((0, n_needed - feat.shape[0]), (0, 0)),
+                      mode='constant')
+
+    stacked = stackFeatures(feat, modelOrder=stacking_order, stepSize=1)
+    if stacked.shape[0] == 0:
+        return None
+
+    # Step 5c: collapse to one vector per phoneme via mean
+    return stacked.mean(axis=0)
+
+
+def predict_segments(model, eeg_frames_for_detector, pid, oracle_n_phonemes=None):
+    """Run detector → list of (start_s, end_s) phoneme intervals.
+
+    K (target segment count) source depends on ADAPTIVE_K_SOURCE.
+    """
+    model.eval()
+    is_word_aware  = isinstance(model, CountWordAwareDetector)
+    is_count_aware = isinstance(model, CountAwareJointDetector)
+
+    with torch.no_grad():
+        X = torch.from_numpy(eeg_frames_for_detector.astype(np.float32)
+                              ).unsqueeze(0).to(DEVICE)
+        if is_word_aware:
+            b_logits, _w_logits, count_pred = model(eeg=X, mfcc=None, pid=pid)
+            count_pred_val = float(count_pred[0].item())
+            logits = b_logits
+        elif is_count_aware:
+            logits, count_pred = model(eeg=X, mfcc=None, pid=pid)
+            count_pred_val = float(count_pred[0].item())
+        else:
+            logits = model(eeg=X, mfcc=None, pid=pid)
+            count_pred_val = None
+        probs  = torch.sigmoid(logits)[0].cpu().numpy()
+
+    n_frames   = len(probs)
+    frame_hz   = 200
+    duration_s = n_frames / frame_hz
+
+    # Choose K
+    if ADAPTIVE_K_SOURCE == 'oracle':
+        if oracle_n_phonemes is None:
+            raise ValueError("oracle K-mode requires oracle_n_phonemes")
+        k = int(oracle_n_phonemes)
+    elif ADAPTIVE_K_SOURCE == 'predicted':
+        if count_pred_val is None:
+            raise ValueError("predicted K-mode requires CountAwareJointDetector")
+        k = max(1, int(round(count_pred_val)))
+    elif ADAPTIVE_K_SOURCE == 'rate':
+        k = int(round(TARGET_PHONEME_RATE * duration_s))
+    elif ADAPTIVE_K_SOURCE == 'fixed':
+        peaks_arr, _ = scipy.signal.find_peaks(probs, height=PEAK_HEIGHT,
+                                                distance=PEAK_DISTANCE)
+        peaks = list(peaks_arr)
+        boundaries = sorted(set([0] + peaks + [n_frames]))
+        min_seg_frames = int(MIN_SEGMENT_MS * frame_hz / 1000)
+        return [(boundaries[i] / frame_hz, boundaries[i+1] / frame_hz)
+                for i in range(len(boundaries) - 1)
+                if boundaries[i+1] - boundaries[i] >= min_seg_frames]
+    else:
+        raise ValueError(f"Unknown ADAPTIVE_K_SOURCE: {ADAPTIVE_K_SOURCE}")
+
+    # Top-K peak selection
+    peaks_all, _ = scipy.signal.find_peaks(probs, distance=PEAK_DISTANCE)
+    n_boundaries_needed = max(1, k - 1)
+    predict_segments.last_n_candidates = len(peaks_all)
+    predict_segments.last_n_wanted     = n_boundaries_needed
+    predict_segments.last_prob_max     = float(probs.max())
+    predict_segments.last_prob_p95     = float(np.percentile(probs, 95))
+    predict_segments.last_count_pred   = count_pred_val
+    predict_segments.last_k_used       = k
+    if len(peaks_all) > n_boundaries_needed:
+        order = np.argsort(probs[peaks_all])[::-1][:n_boundaries_needed]
+        peaks = sorted(peaks_all[order].tolist())
+    else:
+        peaks = list(peaks_all)
+
+    boundaries = sorted(set([0] + peaks + [n_frames]))
+    min_seg_frames = int(MIN_SEGMENT_MS * frame_hz / 1000)
+    return [(boundaries[i] / frame_hz, boundaries[i+1] / frame_hz)
+            for i in range(len(boundaries) - 1)
+            if boundaries[i+1] - boundaries[i] >= min_seg_frames]
+
+
+def evaluate_detector_path(pipeline, classifiers,
+                            model, detector_test_ds):
+    """For each test sentence: detect boundaries, extract features
+    pipeline-native, classify, compare to MFA labels."""
+    print("\n[5/6] Detector path (iEEG → boundaries → features → CRF)...")
+
+    # Shape sanity check — first 5 items from detector_test_ds
+    print("  Detector test_ds shape sanity check (first 5):")
+    for i, item in enumerate(detector_test_ds[:5]):
+        print(f"    {item['pid']}  sent {item['sentence_idx']:3d}  "
+              f"eeg.shape={item['eeg'].shape}  "
+              f"labels.shape={item['labels'].shape}  "
+              f"n_phonemes={item['n_phonemes']}  "
+              f"duration={item['eeg'].shape[0]/200:.2f}s")
+
+    eeg_sr     = pipeline.config.eeg_sr
+    win_len    = pipeline.config.window_length
+    frameshift = pipeline.config.frameshift
+    stk_order  = RUN_CONFIG['stacking_order']
+
+    # Cache full-channel raw EEG per patient (slow to load)
+    raw_eeg_cache  = {}
+    chan_mask_cache = {pid: get_pipeline_channel_mask(pipeline, pid)
+                       for pid in ALL_PIDS}
+
+    per_pid = defaultdict(lambda: {'true': [], 'pred': [], 'n_sent': 0,
+                                     'n_cand': [], 'n_wanted': [],
+                                     'prob_max': [], 'prob_p95': [],
+                                     'k_pred': [], 'k_true': []})
+    n_skipped_segments = 0
+
+    for item in detector_test_ds:
+        pid      = item['pid']
+        sent_idx = item['sentence_idx']
+        if pid not in classifiers:
+            continue
+
+        # Load raw EEG once per patient, apply pipeline channel mask
+        if pid not in raw_eeg_cache:
+            raw = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
+            mask = chan_mask_cache[pid]
+            raw_eeg_cache[pid] = raw[:, mask] if mask is not None else raw
+
+        # Get sentence-level EEG slice (pipeline-native channels)
+        wd        = pipeline.split_result['word_segments_dict'][pid]
+        sent_info = wd['sentence_list'][sent_idx]
+        eeg_start = int(sent_info['stim_start_idx'])
+        eeg_end   = int(sent_info['stim_end_idx'])
+        sentence_eeg = raw_eeg_cache[pid][eeg_start:eeg_end]
+
+        # 5a. Detect boundaries from iEEG (uses detector-trained channels:
+        #     item['eeg'] was already z-scored with detector channel mask)
+        segments = predict_segments(
+            model, item['eeg'], pid,
+            oracle_n_phonemes=item.get('n_phonemes'))
+        # capture diagnostics from the last call
+        per_pid[pid]['n_cand'].append(getattr(predict_segments, 'last_n_candidates', 0))
+        per_pid[pid]['n_wanted'].append(getattr(predict_segments, 'last_n_wanted', 0))
+        per_pid[pid]['prob_max'].append(getattr(predict_segments, 'last_prob_max', 0.0))
+        per_pid[pid]['prob_p95'].append(getattr(predict_segments, 'last_prob_p95', 0.0))
+        cp = getattr(predict_segments, 'last_count_pred', None)
+        if cp is not None:
+            per_pid[pid]['k_pred'].append(cp)
+            per_pid[pid]['k_true'].append(item.get('n_phonemes', 0))
+        if not segments:
+            continue
+
+        # 5b. Extract one feature vector per detected segment, pipeline-native
+        seg_feats = []
+        for (s_s, e_s) in segments:
+            f = extract_phoneme_feature_pipeline_native(
+                sentence_eeg, s_s, e_s, eeg_sr, win_len, frameshift, stk_order)
+            if f is None:
+                n_skipped_segments += 1
+                continue
+            seg_feats.append(f)
+        if not seg_feats:
+            continue
+
+        # 5c. CRF inference: scaler+PCA from train, then one sequence per
+        #     sentence (we don't have word boundaries from iEEG)
+        scaler = classifiers[pid]['scaler']
+        pca    = classifiers[pid]['pca']
+        crf    = classifiers[pid]['crf']
+        valid  = classifiers[pid]['valid_classes']
+
+        X = pca.transform(scaler.transform(np.asarray(seg_feats)))
+        X_seq = _features_to_dicts_one_seq(X)
+        y_pred = crf.predict(X_seq)[0]
+
+        # 5d. True labels = MFA phonemes for this sentence, filtered to the
+        #     valid class set used in training (matches MFA baseline filter)
+        mfa = load_mfa_alignments(pid).get(sent_idx, [])
+        y_true = [p['phone'] for p in mfa if p['phone'] in valid]
+
+        per_pid[pid]['true'].extend(y_true)
+        per_pid[pid]['pred'].extend(list(y_pred))
+        per_pid[pid]['n_sent'] += 1
+
+    summary = {}
+    for pid, d in per_pid.items():
+        ed = edit_distance(d['true'], d['pred'])
+        summary[pid] = {
+            'n_sentences': d['n_sent'],
+            'n_true':      len(d['true']),
+            'n_pred':      len(d['pred']),
+            'edit':        ed,
+            'per':         ed / max(len(d['true']), 1),
+            'len_ratio':   len(d['pred']) / max(len(d['true']), 1),
+        }
+    print(f"  Skipped {n_skipped_segments} degenerate segments "
+          f"(extractHG returned None)")
+
+    # Detector diagnostic
+    print("\n  Detector diagnostic:")
+    has_count = any(per_pid[p]['k_pred'] for p in per_pid)
+    if has_count:
+        print(f"  {'pid':<5} {'k_pred_mean':>11} {'k_true_mean':>11} "
+              f"{'count_mae':>9} {'p95':>6} {'pmax':>6}")
+        print("  " + "-" * 60)
+        for pid in sorted(per_pid):
+            d = per_pid[pid]
+            if not d['k_pred']: continue
+            kp = np.array(d['k_pred']); kt = np.array(d['k_true'])
+            mae = np.mean(np.abs(kp - kt))
+            print(f"  {pid:<5} {kp.mean():>11.1f} {kt.mean():>11.1f} "
+                  f"{mae:>9.2f} {np.mean(d['prob_p95']):>6.3f} "
+                  f"{np.mean(d['prob_max']):>6.3f}")
+    else:
+        print(f"  {'pid':<5} {'n_cand_mean':>11} {'n_wanted_mean':>13} "
+              f"{'p95':>6} {'pmax':>6}")
+        print("  " + "-" * 50)
+        for pid in sorted(per_pid):
+            d = per_pid[pid]
+            if not d['n_cand']: continue
+            print(f"  {pid:<5} {np.mean(d['n_cand']):>11.1f} "
+                  f"{np.mean(d['n_wanted']):>13.1f} "
+                  f"{np.mean(d['prob_p95']):>6.3f} {np.mean(d['prob_max']):>6.3f}")
+
+    _print_table(summary, label='DETECTED boundaries (iEEG-only path)')
+    return summary
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 6. COMPARISON
+# ═════════════════════════════════════════════════════════════════════════════
+
+def print_comparison(mfa, det):
+    print("\n[6/6] " + "="*72)
+    print("  Comparison: MFA boundaries (true upper bound) vs detected boundaries")
+    print("="*78)
+    print(f"  {'pid':<5} {'PER MFA':>9} {'PER det':>9} {'Δ PER':>8}  "
+          f"{'len ratio':>10}")
+    print("  " + "-" * 60)
+    pids = sorted(set(mfa) & set(det))
+    for pid in pids:
+        m = mfa[pid]['per']; d = det[pid]['per']; lr = det[pid]['len_ratio']
+        print(f"  {pid:<5} {m:>8.2%}  {d:>8.2%} {(d-m):>+7.2%}  {lr:>9.2f}×")
+    print("  " + "-" * 60)
+    print(f"  Mean MFA PER: {np.mean([mfa[p]['per'] for p in pids]):.2%}")
+    print(f"  Mean det PER: {np.mean([det[p]['per'] for p in pids]):.2%}")
+    print(f"  Mean Δ:       {np.mean([det[p]['per']-mfa[p]['per'] for p in pids]):+.2%}")
+    print("="*78)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# UTILITIES
+# ═════════════════════════════════════════════════════════════════════════════
+
+def edit_distance(s1, s2):
+    # Coerce to plain Python lists of hashable scalars
+    s1 = [str(x) for x in s1]
+    s2 = [str(x) for x in s2]
+    if len(s1) < len(s2): return edit_distance(s2, s1)
+    if len(s2) == 0: return len(s1)
+    prev = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        curr = [i + 1]
+        for j, c2 in enumerate(s2):
+            curr.append(min(prev[j+1]+1, curr[j]+1, prev[j]+(c1 != c2)))
+        prev = curr
+    return prev[-1]
+
+
+def _print_table(summary, label=''):
+    print(f"\n  {label}")
+    print(f"  {'pid':<5} {'true_n':>7} {'pred_n':>7} {'edit':>6} "
+          f"{'PER':>8} {'len_ratio':>10}")
+    print("  " + "-" * 55)
+    for pid in sorted(summary):
+        s = summary[pid]
+        print(f"  {pid:<5} {s['n_true']:>7} {s['n_pred']:>7} "
+              f"{s['edit']:>6} {s['per']:>7.2%} {s['len_ratio']:>9.2f}×")
+    print("  " + "-" * 55)
+    print(f"  Mean PER: {np.mean([s['per'] for s in summary.values()]):.2%}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# MAIN — single linear flow
+# ═════════════════════════════════════════════════════════════════════════════
+
+def main():
+    pipeline                = build_pipeline()
+    classifiers             = train_per_patient_crfs(pipeline)
+    mfa_summary             = evaluate_mfa_baseline(pipeline, classifiers)
+    model, detector_test_ds = load_or_train_detector(pipeline)
+    det_summary             = evaluate_detector_path(
+        pipeline, classifiers, model, detector_test_ds)
+    print_comparison(mfa_summary, det_summary)
+    return {
+        'pipeline':    pipeline,
+        'classifiers': classifiers,
+        'model':       model,
+        'mfa_summary': mfa_summary,
+        'det_summary': det_summary,
+    }
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PIPELINE-STEP API
+# ═════════════════════════════════════════════════════════════════════════════
+# Drop-in replacement for run_from_config that uses the iEEG boundary
+# detector for test-time segmentation instead of MFA. Populates
+# pipeline.patient_results[pid] = {'true_labels', 'predictions',
+# 'accuracy', ...} so the colored-n-gram viz keeps working unchanged.
+
+def run_path_detector(pipeline, run_config=None):
+    """Train per-patient CRFs on pipeline.train (MFA features), then
+    evaluate on detector-segmented test sentences. Stores results on
+    pipeline.patient_results.
+
+    Returns (name, params, results) — same shape as run_from_config.
+    """
+    if run_config is not None and run_config.get('stacking_order') is not None:
+        # honour the caller's stacking config for our segment-feature extractor
+        global STK_ORDER  # noqa: PLW0603
+        # (e2e module already pulls stacking_order from RUN_CONFIG)
+
+    classifiers              = train_per_patient_crfs(pipeline)
+    model, detector_test_ds  = load_or_train_detector(pipeline)
+    det_summary              = evaluate_detector_path(
+        pipeline, classifiers, model, detector_test_ds)
+
+    # Build pipeline.patient_results from the per-sentence runs
+    eeg_sr     = pipeline.config.eeg_sr
+    win_len    = pipeline.config.window_length
+    frameshift = pipeline.config.frameshift
+    stk_order  = (run_config or RUN_CONFIG)['stacking_order']
+
+    raw_eeg_cache  = {}
+    chan_mask_cache = {pid: get_pipeline_channel_mask(pipeline, pid)
+                       for pid in ALL_PIDS}
+
+    per_pid_pred = defaultdict(list)
+    per_pid_true = defaultdict(list)
+    per_pid_true_sids = defaultdict(list)   # sentence id per true phoneme
+    per_pid_pred_sids = defaultdict(list)   # sentence id per pred phoneme
+
+    for item in detector_test_ds:
+        pid      = item['pid']
+        sent_idx = item['sentence_idx']
+        if pid not in classifiers:
+            continue
+
+        if pid not in raw_eeg_cache:
+            raw  = np.load(os.path.join(DUTCH_30_PATH, 'raw',
+                                         f'{pid}_sEEG.npy'))
+            mask = chan_mask_cache[pid]
+            raw_eeg_cache[pid] = raw[:, mask] if mask is not None else raw
+
+        wd        = pipeline.split_result['word_segments_dict'][pid]
+        sent_info = wd['sentence_list'][sent_idx]
+        sentence_eeg = raw_eeg_cache[pid][int(sent_info['stim_start_idx']):
+                                          int(sent_info['stim_end_idx'])]
+
+        segments = predict_segments(
+            model, item['eeg'], pid,
+            oracle_n_phonemes=item.get('n_phonemes'))
+        if not segments:
+            continue
+
+        seg_feats = []
+        for (s_s, e_s) in segments:
+            f = extract_phoneme_feature_pipeline_native(
+                sentence_eeg, s_s, e_s, eeg_sr, win_len, frameshift, stk_order)
+            if f is not None:
+                seg_feats.append(f)
+        if not seg_feats:
+            continue
+
+        scaler = classifiers[pid]['scaler']
+        pca    = classifiers[pid]['pca']
+        crf    = classifiers[pid]['crf']
+        valid  = classifiers[pid]['valid_classes']
+
+        X = pca.transform(scaler.transform(np.asarray(seg_feats)))
+        y_pred = crf.predict(_features_to_dicts_one_seq(X))[0]
+
+        mfa = load_mfa_alignments(pid).get(sent_idx, [])
+        y_true = [p['phone'] for p in mfa if p['phone'] in valid]
+
+        per_pid_pred[pid].extend(list(y_pred))
+        per_pid_true[pid].extend(y_true)
+        per_pid_pred_sids[pid].extend([sent_idx] * len(y_pred))
+        per_pid_true_sids[pid].extend([sent_idx] * len(y_true))
+
+    # Pack into pipeline.patient_results
+    pipeline.patient_results = {}
+    for pid in sorted(per_pid_pred):
+        true = per_pid_true[pid]
+        pred = per_pid_pred[pid]
+        if not true:
+            continue
+        common = min(len(true), len(pred))
+        accuracy = (sum(t == p for t, p in zip(true[:common], pred[:common]))
+                    / max(len(true), 1))
+        ed = edit_distance(true, pred)
+        pipeline.patient_results[pid] = {
+            'true_labels':     list(true),
+            'predictions':     list(pred),
+            'true_sentence_ids': list(per_pid_true_sids[pid]),
+            'pred_sentence_ids': list(per_pid_pred_sids[pid]),
+            'accuracy':        accuracy,
+            'edit_distance':   ed,
+            'per':             ed / max(len(true), 1),
+            'n_test':          len(true),
+            'n_pred':          len(pred),
+        }
+
+    return ('detector_path',
+            {'ckpt_prefix': CKPT_PREFIX, 'k_source': ADAPTIVE_K_SOURCE},
+            pipeline.patient_results)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# COLORED N-GRAM VISUALIZATION  (variable shift per n-gram length)
+# ═════════════════════════════════════════════════════════════════════════════
+
+# Per-length max shift. Keys are n-gram lengths; the largest length ≤ key
+# wins for any actual length. {2:5, 3:10, 4:20} means 2-grams allow ±5,
+# 3-grams ±10, 4-grams (and longer) ±20.
+DEFAULT_SHIFT_BY_LEN = {2: 5, 3: 10, 4: 20}
+
+PALETTE = [
+    '#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA', '#FFD9B3',
+    '#E1BAFF', '#B3FFE4', '#FFC8DD', '#C8DDFF', '#DDFFC8',
+    '#FFE4C8', '#C8FFE4', '#E4C8FF', '#FFC8C8', '#C8FFFF',
+    '#F0B3FF', '#FFB3F0', '#B3F0FF', '#F0FFB3', '#FFF0B3',
+]
+
+
+def _shift_for_length(length, shift_by_len):
+    """Look up max shift for a given n-gram length using the largest-key-≤-length rule."""
+    keys = sorted(k for k in shift_by_len if k <= length)
+    return shift_by_len[keys[-1]] if keys else 0
+
+
+def find_color_matches(true_seq, pred_seq,
+                        shift_by_len=None, max_ngram_len=15,
+                        true_sentence_ids=None, pred_sentence_ids=None):
+    """Find non-overlapping matched n-grams between true_seq and pred_seq.
+
+    shift_by_len: dict mapping n-gram length → max allowed shift. The largest
+        key ≤ candidate length wins. 1-grams always require exact position.
+
+    true_sentence_ids / pred_sentence_ids: optional per-position sentence
+        labels. When provided, a candidate match is rejected if (a) the
+        true range crosses a sentence boundary, (b) the pred range crosses
+        a sentence boundary, or (c) the true and pred halves come from
+        different sentence ids. This prevents spurious cross-sentence
+        n-grams in concatenated patient-level sequences.
+
+    Phase 1a: exact-position n-grams (shift=0, length ≥ 2), GLOBALLY
+        longest first.
+    Phase 1b: shifted n-grams (length ≥ 2), globally longest first.
+    Phase 2:  exact-position 1-grams.
+
+    Returns: list of (true_start, pred_start, length, color_idx).
+    """
+    if shift_by_len is None:
+        shift_by_len = DEFAULT_SHIFT_BY_LEN
+
+    n_t, n_p = len(true_seq), len(pred_seq)
+    true_seq, pred_seq = list(true_seq), list(pred_seq)
+    matches = []
+    color_idx_holder = [0]
+
+    def _match_one_slice(t_slice, p_slice, t_offset, p_offset):
+        """Run the full matching algorithm on a single (sentence) slice.
+        All within-slice indices; returns matches in global indices via
+        offsets. Phases match within-slice — 1-gram exact position now means
+        exact within-sentence position."""
+        n_t_l, n_p_l = len(t_slice), len(p_slice)
+        used_true = [False] * n_t_l
+        used_pred = [False] * n_p_l
+
+        def claim(ts_l, ps_l, L):
+            c = color_idx_holder[0]; color_idx_holder[0] += 1
+            matches.append((t_offset + ts_l, p_offset + ps_l, L, c))
+            for k in range(L):
+                used_true[ts_l + k] = True
+                used_pred[ps_l + k] = True
+
+        # Phase 1a — exact-position, longest first
+        for length in range(max_ngram_len, 1, -1):
+            for start in range(min(n_t_l, n_p_l) - length + 1):
+                if any(used_true[start + k] or used_pred[start + k]
+                       for k in range(length)):
+                    continue
+                if all(t_slice[start + k] == p_slice[start + k]
+                       for k in range(length)):
+                    claim(start, start, length)
+
+        # Phase 1b — shifted, longest first
+        for length in range(max_ngram_len, 1, -1):
+            max_shift = _shift_for_length(length, shift_by_len)
+            if max_shift == 0:
+                continue
+            shifts = [s for k in range(1, max_shift + 1) for s in (-k, +k)]
+            for true_start in range(n_t_l - length + 1):
+                if any(used_true[true_start + k] for k in range(length)):
+                    continue
+                seq = t_slice[true_start:true_start + length]
+                for shift in shifts:
+                    pred_start = true_start + shift
+                    if pred_start < 0 or pred_start + length > n_p_l:
+                        continue
+                    if any(used_pred[pred_start + k] for k in range(length)):
+                        continue
+                    if p_slice[pred_start:pred_start + length] != seq:
+                        continue
+                    claim(true_start, pred_start, length)
+                    break
+
+        # Phase 2 — exact within-slice position 1-grams
+        for i in range(min(n_t_l, n_p_l)):
+            if used_true[i] or used_pred[i]:
+                continue
+            if t_slice[i] == p_slice[i]:
+                claim(i, i, 1)
+
+    if true_sentence_ids is not None and pred_sentence_ids is not None:
+        # Walk both sequences sentence-by-sentence in lockstep
+        i_t = 0
+        i_p = 0
+        while i_t < n_t or i_p < n_p:
+            sid_t = true_sentence_ids[i_t] if i_t < n_t else None
+            sid_p = pred_sentence_ids[i_p] if i_p < n_p else None
+            if sid_t is None:   sid = sid_p
+            elif sid_p is None: sid = sid_t
+            else:               sid = sid_t if sid_t == sid_p else min(sid_t, sid_p)
+
+            t_lo = i_t
+            while i_t < n_t and true_sentence_ids[i_t] == sid:
+                i_t += 1
+            t_hi = i_t
+
+            p_lo = i_p
+            while i_p < n_p and pred_sentence_ids[i_p] == sid:
+                i_p += 1
+            p_hi = i_p
+
+            if t_hi > t_lo or p_hi > p_lo:
+                _match_one_slice(true_seq[t_lo:t_hi], pred_seq[p_lo:p_hi],
+                                  t_lo, p_lo)
+    else:
+        _match_one_slice(true_seq, pred_seq, 0, 0)
+
+    return matches
+
+
+def _cell_html(content, color=None, is_pos=False, is_label=False):
+    base = ("text-align:center; padding:3px 8px; border:1px solid #eee; "
+            "font-family:monospace;")
+    if is_label:
+        return (f'<td style="font-family:monospace; font-weight:bold; '
+                f'padding-right:10px; text-align:right;">{content}</td>')
+    if is_pos:
+        return f'<td style="{base} font-size:10px; color:#888;">{content}</td>'
+    if color is not None:
+        return (f'<td style="{base} background:{color}; '
+                f'font-weight:bold;">{content}</td>')
+    return f'<td style="{base} color:#bbb;">{content}</td>'
+
+
+def display_matched_sequences(true_seq, pred_seq, matches,
+                                max_per_line=20,
+                                true_sentence_ids=None,
+                                pred_sentence_ids=None):
+    """Render true_seq vs pred_seq as HTML with matches highlighted.
+
+    If sentence ids are provided, render ONE table per sentence: each
+    sentence's true & pred slices are padded independently to the longer of
+    the two, then chunked into rows of `max_per_line`. This avoids the
+    misleading "column = global flat-list position" layout that drifts when
+    pred and true have different per-sentence lengths.
+
+    Without sentence ids, falls back to flat-list rendering (legacy behavior).
+    """
+    from IPython.display import HTML, display
+
+    n_t, n_p = len(true_seq), len(pred_seq)
+    true_color = [None] * n_t
+    pred_color = [None] * n_p
+    for (ts, ps, L, color_idx) in matches:
+        c = PALETTE[color_idx % len(PALETTE)]
+        for k in range(L):
+            if ts + k < n_t: true_color[ts + k] = c
+            if ps + k < n_p: pred_color[ps + k] = c
+
+    chunks = []
+
+    def render_sentence_block(t_lo, t_hi, p_lo, p_hi, sid=None):
+        """Render one sentence's true/pred slice as table(s)."""
+        len_t = t_hi - t_lo
+        len_p = p_hi - p_lo
+        L = max(len_t, len_p)
+        if sid is not None:
+            chunks.append(
+                f'<div style="margin:8px 0 2px 0; font-family:monospace; '
+                f'font-size:11px; color:#555;">'
+                f'sentence {sid}  (true={len_t}, pred={len_p})'
+                f'</div>'
+            )
+        for chunk_start in range(0, L, max_per_line):
+            chunk_end = min(chunk_start + max_per_line, L)
+            pos_row, true_row, pred_row = '', '', ''
+            for k in range(chunk_start, chunk_end):
+                pos_row += _cell_html(str(k), is_pos=True)
+                if k < len_t:
+                    gi = t_lo + k
+                    true_row += _cell_html(true_seq[gi], true_color[gi])
+                else:
+                    true_row += _cell_html('', None)
+                if k < len_p:
+                    gi = p_lo + k
+                    pred_row += _cell_html(pred_seq[gi], pred_color[gi])
+                else:
+                    pred_row += _cell_html('', None)
+            chunks.append(f"""
+            <table style="border-collapse:collapse; margin-bottom:4px">
+              <tr>{_cell_html("pos",  is_label=True)}{pos_row}</tr>
+              <tr>{_cell_html("true", is_label=True)}{true_row}</tr>
+              <tr>{_cell_html("pred", is_label=True)}{pred_row}</tr>
+            </table>
+            """)
+
+    if true_sentence_ids is not None and pred_sentence_ids is not None:
+        # Walk both sequences sentence-by-sentence in lockstep
+        i_t = 0
+        i_p = 0
+        while i_t < n_t or i_p < n_p:
+            sid_t = true_sentence_ids[i_t] if i_t < n_t else None
+            sid_p = pred_sentence_ids[i_p] if i_p < n_p else None
+
+            # Pick which sentence to render next: in our pipeline they're
+            # always added in matching order, so when both exist they should
+            # equal each other. If they don't (shouldn't happen), advance the
+            # smaller one to resync.
+            if sid_t is None:
+                sid = sid_p
+            elif sid_p is None:
+                sid = sid_t
+            else:
+                sid = sid_t if sid_t == sid_p else min(sid_t, sid_p)
+
+            t_lo = i_t
+            while i_t < n_t and true_sentence_ids[i_t] == sid:
+                i_t += 1
+            t_hi = i_t
+
+            p_lo = i_p
+            while i_p < n_p and pred_sentence_ids[i_p] == sid:
+                i_p += 1
+            p_hi = i_p
+
+            render_sentence_block(t_lo, t_hi, p_lo, p_hi, sid=sid)
+    else:
+        # Legacy flat-list rendering
+        n = max(n_t, n_p)
+        for chunk_start in range(0, n, max_per_line):
+            chunk_end = min(chunk_start + max_per_line, n)
+            idxs = range(chunk_start, chunk_end)
+            pos_row  = ''.join(_cell_html(str(i), is_pos=True) for i in idxs)
+            true_row = ''.join(_cell_html(true_seq[i] if i < n_t else '',
+                                           true_color[i] if i < n_t else None)
+                                for i in idxs)
+            pred_row = ''.join(_cell_html(pred_seq[i] if i < n_p else '',
+                                           pred_color[i] if i < n_p else None)
+                                for i in idxs)
+            chunks.append(f"""
+            <table style="border-collapse:collapse; margin-bottom:6px">
+              <tr>{_cell_html("pos",  is_label=True)}{pos_row}</tr>
+              <tr>{_cell_html("true", is_label=True)}{true_row}</tr>
+              <tr>{_cell_html("pred", is_label=True)}{pred_row}</tr>
+            </table>
+            """)
+    display(HTML(''.join(chunks)))
+
+
+def show_matched_sequences(pipeline, pid,
+                            shift_by_len=None,
+                            max_per_line=50, n_phonemes=None):
+    """Show one patient's true vs pred phoneme sequence with colored
+    n-gram matches (variable shift per length)."""
+    res  = pipeline.patient_results[pid]
+    true = list(res['true_labels'])
+    pred = list(res['predictions'])
+    true_sids = res.get('true_sentence_ids')
+    pred_sids = res.get('pred_sentence_ids')
+
+    if n_phonemes is not None:
+        true = true[:n_phonemes]; pred = pred[:n_phonemes]
+        if true_sids is not None: true_sids = true_sids[:n_phonemes]
+        if pred_sids is not None: pred_sids = pred_sids[:n_phonemes]
+
+    matches = find_color_matches(
+        true, pred, shift_by_len=shift_by_len,
+        true_sentence_ids=true_sids, pred_sentence_ids=pred_sids,
+    )
+
+    n_2plus  = sum(1 for m in matches if m[2] >= 2)
+    n_1grams = sum(1 for m in matches if m[2] == 1)
+    n_covered = sum(m[2] for m in matches)
+
+    n_classes = len(set(true))
+    chance = 1.0 / n_classes if n_classes > 0 else 0
+    acc = res.get('accuracy', float('nan'))
+    lift = acc / chance if chance > 0 else 0
+    ed   = res.get('edit_distance', edit_distance(true, pred))
+    per  = res.get('per', ed / max(len(true), 1))
+
+    sb = shift_by_len or DEFAULT_SHIFT_BY_LEN
+    shift_descr = ', '.join(f'{k}-gram±{v}' for k, v in sorted(sb.items()))
+
+    print(f"\n  {pid}  acc={acc:.2%}  lift={lift:.2f}×  "
+          f"({n_classes} classes)   edit={ed}  PER={per:.2%}")
+    print(f"  {len(matches)} matched n-grams: "
+          f"{n_2plus} of length ≥2  +  {n_1grams} exact 1-grams  "
+          f"(shift tolerance: {shift_descr})")
+    print(f"  Coverage: {n_covered}/{len(true)} phonemes "
+          f"({100*n_covered/max(len(true),1):.1f}% in matched n-grams)")
+    print()
+
+    display_matched_sequences(true, pred, matches, max_per_line=max_per_line,
+                               true_sentence_ids=true_sids,
+                               pred_sentence_ids=pred_sids)
+
+
+def show_all_patients(pipeline, shift_by_len=None, max_per_line=50,
+                       n_phonemes=None):
+    """Loop all patients in pipeline.patient_results and print per-patient
+    edit-distance summary at the end."""
+    pids = sorted(pipeline.patient_results.keys())
+    for pid in pids:
+        show_matched_sequences(pipeline, pid,
+                                shift_by_len=shift_by_len,
+                                max_per_line=max_per_line,
+                                n_phonemes=n_phonemes)
+
+    # Per-patient edit-distance / PER summary
+    print("\n  " + "=" * 60)
+    print(f"  Per-patient summary")
+    print("  " + "=" * 60)
+    print(f"  {'pid':<5} {'n_true':>7} {'n_pred':>7} {'edit':>6} "
+          f"{'PER':>8} {'acc':>7}")
+    print("  " + "-" * 50)
+    eds, pers, accs = [], [], []
+    for pid in pids:
+        r = pipeline.patient_results[pid]
+        ed  = r.get('edit_distance', edit_distance(r['true_labels'],
+                                                    r['predictions']))
+        per = r.get('per', ed / max(len(r['true_labels']), 1))
+        acc = r.get('accuracy', float('nan'))
+        eds.append(ed); pers.append(per); accs.append(acc)
+        print(f"  {pid:<5} {len(r['true_labels']):>7} "
+              f"{len(r['predictions']):>7} {ed:>6} {per:>7.2%} {acc:>6.2%}")
+    print("  " + "-" * 50)
+    print(f"  {'mean':<5} {'':>7} {'':>7} {np.mean(eds):>6.1f} "
+          f"{np.mean(pers):>7.2%} {np.mean(accs):>6.2%}")
+
+
+if __name__ == '__main__':
+    results = main()

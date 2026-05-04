@@ -14,10 +14,10 @@ item []:
         intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.07 
+            xmax = 1.06 
             text = "" 
         intervals [2]:
-            xmin = 1.07 
+            xmin = 1.06 
             xmax = 1.24 
             text = "ik" 
         intervals [3]:
@@ -56,14 +56,14 @@ item []:
         intervals: size = 36 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.07 
+            xmax = 1.06 
             text = "" 
         intervals [2]:
-            xmin = 1.07 
-            xmax = 1.17 
+            xmin = 1.06 
+            xmax = 1.16 
             text = "ɪ" 
         intervals [3]:
-            xmin = 1.17 
+            xmin = 1.16 
             xmax = 1.24 
             text = "k" 
         intervals [4]:

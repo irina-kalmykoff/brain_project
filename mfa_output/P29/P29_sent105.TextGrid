@@ -88,10 +88,10 @@ item []:
             text = "h" 
         intervals [11]:
             xmin = 3.44 
-            xmax = 3.5 
+            xmax = 3.49 
             text = "ɛ" 
         intervals [12]:
-            xmin = 3.5 
+            xmin = 3.49 
             xmax = 3.55 
             text = "p" 
         intervals [13]:
@@ -172,10 +172,10 @@ item []:
             text = "ɪ" 
         intervals [32]:
             xmin = 5.0 
-            xmax = 5.04 
+            xmax = 5.05 
             text = "x" 
         intervals [33]:
-            xmin = 5.04 
+            xmin = 5.05 
             xmax = 5.14 
             text = "t" 
         intervals [34]:

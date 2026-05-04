@@ -26,10 +26,10 @@ item []:
             text = "heeft" 
         intervals [4]:
             xmin = 1.36 
-            xmax = 1.73 
+            xmax = 1.72 
             text = "nooit" 
         intervals [5]:
-            xmin = 1.73 
+            xmin = 1.72 
             xmax = 1.93 
             text = "een" 
         intervals [6]:
@@ -100,10 +100,10 @@ item []:
             text = "j" 
         intervals [12]:
             xmin = 1.66 
-            xmax = 1.73 
+            xmax = 1.72 
             text = "t" 
         intervals [13]:
-            xmin = 1.73 
+            xmin = 1.72 
             xmax = 1.87 
             text = "eː" 
         intervals [14]:
@@ -112,10 +112,10 @@ item []:
             text = "n" 
         intervals [15]:
             xmin = 1.93 
-            xmax = 2.0 
+            xmax = 1.99 
             text = "t" 
         intervals [16]:
-            xmin = 2.0 
+            xmin = 1.99 
             xmax = 2.05 
             text = "ʋ" 
         intervals [17]:

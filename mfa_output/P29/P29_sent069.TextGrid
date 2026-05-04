@@ -22,10 +22,10 @@ item []:
             text = "ik" 
         intervals [3]:
             xmin = 1.89 
-            xmax = 2.0 
+            xmax = 2.01 
             text = "heb" 
         intervals [4]:
-            xmin = 2.0 
+            xmin = 2.01 
             xmax = 2.2 
             text = "mijn" 
         intervals [5]:
@@ -76,14 +76,14 @@ item []:
             text = "h" 
         intervals [5]:
             xmin = 1.92 
-            xmax = 1.96 
+            xmax = 1.97 
             text = "ɛ" 
         intervals [6]:
-            xmin = 1.96 
-            xmax = 2.0 
+            xmin = 1.97 
+            xmax = 2.01 
             text = "p" 
         intervals [7]:
-            xmin = 2.0 
+            xmin = 2.01 
             xmax = 2.07 
             text = "m" 
         intervals [8]:
@@ -124,10 +124,10 @@ item []:
             text = "eː" 
         intervals [17]:
             xmin = 2.68 
-            xmax = 2.72 
+            xmax = 2.73 
             text = "ɣ" 
         intervals [18]:
-            xmin = 2.72 
+            xmin = 2.73 
             xmax = 2.76 
             text = "ɛ" 
         intervals [19]:
@@ -176,10 +176,10 @@ item []:
             text = "s" 
         intervals [30]:
             xmin = 3.43 
-            xmax = 3.49 
+            xmax = 3.48 
             text = "t" 
         intervals [31]:
-            xmin = 3.49 
+            xmin = 3.48 
             xmax = 3.62 
             text = "oː" 
         intervals [32]:

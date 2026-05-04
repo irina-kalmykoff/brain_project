@@ -26,10 +26,10 @@ item []:
             text = "gesuikerde" 
         intervals [4]:
             xmin = 1.87 
-            xmax = 2.3 
+            xmax = 2.25 
             text = "" 
         intervals [5]:
-            xmin = 2.3 
+            xmin = 2.25 
             xmax = 2.84 
             text = "frisdrank" 
         intervals [6]:
@@ -46,10 +46,10 @@ item []:
             text = "aan" 
         intervals [9]:
             xmin = 3.63 
-            xmax = 3.73 
+            xmax = 3.74 
             text = "de" 
         intervals [10]:
-            xmin = 3.73 
+            xmin = 3.74 
             xmax = 4.002 
             text = "vloer" 
     item [2]:
@@ -116,10 +116,10 @@ item []:
             text = "eː" 
         intervals [15]:
             xmin = 1.87 
-            xmax = 2.3 
+            xmax = 2.25 
             text = "" 
         intervals [16]:
-            xmin = 2.3 
+            xmin = 2.25 
             xmax = 2.34 
             text = "f" 
         intervals [17]:
@@ -184,10 +184,10 @@ item []:
             text = "eː" 
         intervals [32]:
             xmin = 3.52 
-            xmax = 3.56 
+            xmax = 3.57 
             text = "aː" 
         intervals [33]:
-            xmin = 3.56 
+            xmin = 3.57 
             xmax = 3.63 
             text = "n" 
         intervals [34]:
@@ -196,10 +196,10 @@ item []:
             text = "d" 
         intervals [35]:
             xmin = 3.66 
-            xmax = 3.73 
+            xmax = 3.74 
             text = "eː" 
         intervals [36]:
-            xmin = 3.73 
+            xmin = 3.74 
             xmax = 3.89 
             text = "v" 
         intervals [37]:

@@ -46,10 +46,10 @@ item []:
             text = "vijftig" 
         intervals [9]:
             xmin = 4.22 
-            xmax = 5.24 
+            xmax = 5.23 
             text = "meerkeuzevragen" 
         intervals [10]:
-            xmin = 5.24 
+            xmin = 5.23 
             xmax = 5.726562 
             text = "" 
     item [2]:
@@ -212,29 +212,29 @@ item []:
             text = "ɛ" 
         intervals [39]:
             xmin = 4.79 
-            xmax = 4.82 
+            xmax = 4.83 
             text = "v" 
         intervals [40]:
-            xmin = 4.82 
-            xmax = 4.85 
+            xmin = 4.83 
+            xmax = 4.91 
             text = "r" 
         intervals [41]:
-            xmin = 4.85 
-            xmax = 5.04 
+            xmin = 4.91 
+            xmax = 5.05 
             text = "aː" 
         intervals [42]:
-            xmin = 5.04 
-            xmax = 5.07 
+            xmin = 5.05 
+            xmax = 5.08 
             text = "ɣ" 
         intervals [43]:
-            xmin = 5.07 
-            xmax = 5.1 
+            xmin = 5.08 
+            xmax = 5.11 
             text = "ɛ" 
         intervals [44]:
-            xmin = 5.1 
-            xmax = 5.24 
+            xmin = 5.11 
+            xmax = 5.23 
             text = "n" 
         intervals [45]:
-            xmin = 5.24 
+            xmin = 5.23 
             xmax = 5.726562 
             text = "" 

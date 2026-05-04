@@ -34,10 +34,10 @@ item []:
             text = "geschiedenis" 
         intervals [6]:
             xmin = 2.01 
-            xmax = 2.15 
+            xmax = 2.14 
             text = "van" 
         intervals [7]:
-            xmin = 2.15 
+            xmin = 2.14 
             xmax = 2.79 
             text = "hartziekten" 
         intervals [8]:
@@ -50,10 +50,10 @@ item []:
             text = "je" 
         intervals [10]:
             xmin = 3.02 
-            xmax = 3.49 
+            xmax = 3.48 
             text = "familie" 
         intervals [11]:
-            xmin = 3.49 
+            xmin = 3.48 
             xmax = 4.150437 
             text = "" 
     item [2]:
@@ -144,10 +144,10 @@ item []:
             text = "ɑ" 
         intervals [21]:
             xmin = 2.1 
-            xmax = 2.15 
+            xmax = 2.14 
             text = "n" 
         intervals [22]:
-            xmin = 2.15 
+            xmin = 2.14 
             xmax = 2.22 
             text = "h" 
         intervals [23]:
@@ -160,14 +160,14 @@ item []:
             text = "r" 
         intervals [25]:
             xmin = 2.37 
-            xmax = 2.44 
+            xmax = 2.43 
             text = "t" 
         intervals [26]:
-            xmin = 2.44 
-            xmax = 2.56 
+            xmin = 2.43 
+            xmax = 2.55 
             text = "z" 
         intervals [27]:
-            xmin = 2.56 
+            xmin = 2.55 
             xmax = 2.65 
             text = "iː" 
         intervals [28]:
@@ -228,9 +228,9 @@ item []:
             text = "iː" 
         intervals [42]:
             xmin = 3.34 
-            xmax = 3.49 
+            xmax = 3.48 
             text = "eː" 
         intervals [43]:
-            xmin = 3.49 
+            xmin = 3.48 
             xmax = 4.150437 
             text = "" 

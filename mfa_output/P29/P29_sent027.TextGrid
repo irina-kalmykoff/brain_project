@@ -38,10 +38,10 @@ item []:
             text = "een" 
         intervals [7]:
             xmin = 2.67 
-            xmax = 2.73 
+            xmax = 2.72 
             text = "" 
         intervals [8]:
-            xmin = 2.73 
+            xmin = 2.72 
             xmax = 3.16 
             text = "kring" 
         intervals [9]:
@@ -152,10 +152,10 @@ item []:
             text = "n" 
         intervals [23]:
             xmin = 2.67 
-            xmax = 2.73 
+            xmax = 2.72 
             text = "" 
         intervals [24]:
-            xmin = 2.73 
+            xmin = 2.72 
             xmax = 2.79 
             text = "k" 
         intervals [25]:
@@ -180,10 +180,10 @@ item []:
             text = "ɣ" 
         intervals [30]:
             xmin = 3.21 
-            xmax = 3.36 
+            xmax = 3.37 
             text = "aː" 
         intervals [31]:
-            xmin = 3.36 
+            xmin = 3.37 
             xmax = 3.48 
             text = "n" 
         intervals [32]:
@@ -192,10 +192,10 @@ item []:
             text = "s" 
         intervals [33]:
             xmin = 3.57 
-            xmax = 3.64 
+            xmax = 3.63 
             text = "t" 
         intervals [34]:
-            xmin = 3.64 
+            xmin = 3.63 
             xmax = 3.77 
             text = "aː" 
         intervals [35]:

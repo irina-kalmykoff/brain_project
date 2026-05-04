@@ -18,10 +18,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.71 
-            xmax = 0.87 
+            xmax = 0.88 
             text = "zij" 
         intervals [3]:
-            xmin = 0.87 
+            xmin = 0.88 
             xmax = 1.06 
             text = "heeft" 
         intervals [4]:
@@ -34,10 +34,10 @@ item []:
             text = "uitgebreide" 
         intervals [6]:
             xmin = 1.68 
-            xmax = 2.31 
+            xmax = 2.33 
             text = "woordenschat" 
         intervals [7]:
-            xmin = 2.31 
+            xmin = 2.33 
             xmax = 4.005875 
             text = "" 
     item [2]:
@@ -56,18 +56,18 @@ item []:
             text = "z" 
         intervals [3]:
             xmin = 0.81 
-            xmax = 0.84 
+            xmax = 0.85 
             text = "ɛ" 
         intervals [4]:
-            xmin = 0.84 
-            xmax = 0.87 
+            xmin = 0.85 
+            xmax = 0.88 
             text = "j" 
         intervals [5]:
-            xmin = 0.87 
-            xmax = 0.9 
+            xmin = 0.88 
+            xmax = 0.91 
             text = "h" 
         intervals [6]:
-            xmin = 0.9 
+            xmin = 0.91 
             xmax = 0.96 
             text = "eː" 
         intervals [7]:
@@ -136,10 +136,10 @@ item []:
             text = "eː" 
         intervals [23]:
             xmin = 1.68 
-            xmax = 1.74 
+            xmax = 1.73 
             text = "ʋ" 
         intervals [24]:
-            xmin = 1.74 
+            xmin = 1.73 
             xmax = 1.83 
             text = "oː" 
         intervals [25]:
@@ -172,9 +172,9 @@ item []:
             text = "ɑ" 
         intervals [32]:
             xmin = 2.18 
-            xmax = 2.31 
+            xmax = 2.33 
             text = "t" 
         intervals [33]:
-            xmin = 2.31 
+            xmin = 2.33 
             xmax = 4.005875 
             text = "" 

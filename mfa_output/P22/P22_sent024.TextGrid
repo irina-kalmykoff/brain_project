@@ -46,18 +46,18 @@ item []:
             text = "bas" 
         intervals [9]:
             xmin = 3.68 
-            xmax = 4.01 
+            xmax = 3.98 
             text = "het" 
         intervals [10]:
-            xmin = 4.01 
-            xmax = 4.13 
+            xmin = 3.98 
+            xmax = 4.01 
             text = "" 
         intervals [11]:
-            xmin = 4.13 
-            xmax = 4.21 
+            xmin = 4.01 
+            xmax = 4.77 
             text = "bewerken" 
         intervals [12]:
-            xmin = 4.21 
+            xmin = 4.77 
             xmax = 4.996125 
             text = "" 
     item [2]:
@@ -65,7 +65,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 4.996125 
-        intervals: size = 37 
+        intervals: size = 46 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.22 
@@ -104,10 +104,10 @@ item []:
             text = "b" 
         intervals [10]:
             xmin = 1.88 
-            xmax = 1.92 
+            xmax = 1.91 
             text = "eː" 
         intervals [11]:
-            xmin = 1.92 
+            xmin = 1.91 
             xmax = 2.03 
             text = "l" 
         intervals [12]:
@@ -200,17 +200,53 @@ item []:
             text = "s" 
         intervals [34]:
             xmin = 3.68 
-            xmax = 3.72 
+            xmax = 3.73 
             text = "h" 
         intervals [35]:
-            xmin = 3.72 
+            xmin = 3.73 
             xmax = 3.79 
             text = "ɛ" 
         intervals [36]:
             xmin = 3.79 
-            xmax = 4.01 
+            xmax = 3.98 
             text = "t" 
         intervals [37]:
+            xmin = 3.98 
+            xmax = 4.01 
+            text = "" 
+        intervals [38]:
             xmin = 4.01 
+            xmax = 4.17 
+            text = "b" 
+        intervals [39]:
+            xmin = 4.17 
+            xmax = 4.24 
+            text = "eː" 
+        intervals [40]:
+            xmin = 4.24 
+            xmax = 4.29 
+            text = "ʋ" 
+        intervals [41]:
+            xmin = 4.29 
+            xmax = 4.39 
+            text = "ɛ" 
+        intervals [42]:
+            xmin = 4.39 
+            xmax = 4.46 
+            text = "r" 
+        intervals [43]:
+            xmin = 4.46 
+            xmax = 4.53 
+            text = "k" 
+        intervals [44]:
+            xmin = 4.53 
+            xmax = 4.59 
+            text = "ɛ" 
+        intervals [45]:
+            xmin = 4.59 
+            xmax = 4.77 
+            text = "n" 
+        intervals [46]:
+            xmin = 4.77 
             xmax = 4.996125 
             text = "" 

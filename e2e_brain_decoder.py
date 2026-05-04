@@ -205,7 +205,7 @@ def _transform(features, scaler, pca):
 def evaluate_mfa_baseline(pipeline, classifiers):
     """Feed pipeline.test directly to per-patient CRFs, with the SAME
     word-level sequencing the CRF was trained with. True upper bound."""
-    print("\n[3/6] MFA baseline (pipeline.test → CRF, word sequences)...")
+    print("\n[3/6] MFA baseline (pipeline.test -> CRF, word sequences)...")
 
     by_pid = defaultdict(lambda: {'X': [], 'y': [], 'w': []})
     for i, p in enumerate(pipeline.test['phoneme_participant_ids']):
@@ -383,6 +383,33 @@ def build_joint_dataset_fixed(pipeline, patient_ids):
             if sent_audio.size == 0:
                 continue
 
+            # ── Trim to speech bounds ─────────────────────────────────────
+            # If enabled, slice both sent_eeg and sent_audio to a snug window
+            # around the actual speech (first MFA phone start → last MFA phone
+            # end), with SPEECH_BUFFER_MS pre/post for motor-planning signal.
+            # MFA phone alignments are also shifted to be relative to the new
+            # trimmed start, so downstream label generators stay consistent.
+            phone_alignments = mfa[sent_idx]
+            if TRIM_TO_SPEECH and phone_alignments:
+                buf_s = SPEECH_BUFFER_MS / 1000.0
+                speech_start_s = max(0.0, phone_alignments[0]['start_s']  - buf_s)
+                speech_end_s   = min(sent_eeg.shape[0] / eeg_sr,
+                                      phone_alignments[-1]['end_s']      + buf_s)
+                if speech_end_s > speech_start_s:
+                    eeg_lo = int(round(speech_start_s * eeg_sr))
+                    eeg_hi = int(round(speech_end_s   * eeg_sr))
+                    aud_lo = int(round(speech_start_s * audio_sr_raw))
+                    aud_hi = int(round(speech_end_s   * audio_sr_raw))
+                    sent_eeg   = sent_eeg[eeg_lo:eeg_hi]
+                    sent_audio = sent_audio[aud_lo:aud_hi]
+                    # Shift phone alignments so t=0 is the new sentence start
+                    phone_alignments = [
+                        {**ph,
+                         'start_s': ph['start_s'] - speech_start_s,
+                         'end_s':   ph['end_s']   - speech_start_s}
+                        for ph in phone_alignments
+                    ]
+
             try:
                 eeg_frames = extract_eeg_frames(sent_eeg)
                 n_frames   = eeg_frames.shape[0]
@@ -406,9 +433,9 @@ def build_joint_dataset_fixed(pipeline, patient_ids):
                     mfcc = mfcc[:n_frames]
 
                 labels, boundary_times = boundary_labels_from_mfa(
-                    mfa[sent_idx], n_frames)
+                    phone_alignments, n_frames)
                 word_labels, word_onset_times = word_onset_labels_from_mfa(
-                    mfa[sent_idx], n_frames)
+                    phone_alignments, n_frames)
             except Exception as e:
                 print(f"  {pid} sent {sent_idx}: feature extraction failed: {e}")
                 continue
@@ -426,14 +453,48 @@ def build_joint_dataset_fixed(pipeline, patient_ids):
                 'n_words':          len(word_onset_times),
             })
             n_kept += 1
-        print(f"  {pid}: kept {n_kept} sentences "
-              f"(mean eeg frames = {np.mean([d['eeg'].shape[0] for d in dataset if d['pid']==pid]):.0f})")
+
+        # Per-patient frame-count diagnostic. The detector runs at 200 Hz
+        # (5 ms/frame), so duration_s = mean_frames / 200. Useful sanity
+        # checks:
+        #   - mean ~4.0–5.0 s = normal Dutch sentence reading
+        #   - mean >7 s usually means silence padding around speech
+        #   - std/mean < ~0.05 (or min == max) ⇒ "uniform" distribution,
+        #     which means stim_start_idx/stim_end_idx were set to a fixed
+        #     window per sentence (not snug around actual speech). Affects:
+        #     CTC has to emit lots of blanks, count regressor has to ignore
+        #     duration as a phoneme-rate proxy.
+        frames = [d['eeg'].shape[0] for d in dataset if d['pid'] == pid]
+        if frames:
+            arr = np.asarray(frames)
+            mean_f = arr.mean()
+            std_f  = arr.std()
+            min_f  = arr.min()
+            max_f  = arr.max()
+            cv = std_f / max(mean_f, 1)            # coefficient of variation
+            uniform_flag = ' [UNIFORM: likely silence-padded]' if cv < 0.05 else ''
+            long_flag    = ' [LONG: >7s, silence padded]' if mean_f > 7 * 200 else ''
+            print(f"  {pid}: kept {n_kept} sentences  "
+                  f"frames mean={mean_f:.0f} (~{mean_f/200:.2f}s) "
+                  f"std={std_f:.0f}  min={min_f}  max={max_f}  "
+                  f"cv(=sd/mean)={cv:.2f}{uniform_flag}{long_flag}")
 
     return dataset
 
 
 # Need gcd for audio resampling
 from math import gcd
+
+# ── Trim to speech bounds (silence-padding fix) ──────────────────────────────
+# When stim_start_idx/stim_end_idx define a fixed window per sentence (e.g.
+# always 4 sec), the sentence has lots of silence around the actual speech.
+# Trimming to MFA-derived speech bounds + a small buffer cuts away that
+# silence so the model spends its capacity on phonemes, not "predict blank".
+#
+# Buffer keeps a small pre-/post-speech window so motor-planning signal
+# (~150–300 ms before phonation) is preserved.
+TRIM_TO_SPEECH    = True
+SPEECH_BUFFER_MS  = 200      # keep this much before first phone / after last phone
 
 
 # ── COUNT-AWARE DETECTOR (v3) ────────────────────────────────────────────────
@@ -765,10 +826,10 @@ def load_or_train_detector(pipeline):
         ).to(DEVICE)
         model.load_state_dict(ckpt['model_state'])
         model.eval()
-        print(f"  ✓ loaded ({sum(p.numel() for p in model.parameters())/1e6:.2f}M params)")
+        print(f"  loaded ({sum(p.numel() for p in model.parameters())/1e6:.2f}M params)")
     else:
-        print(f"  No {CKPT_PREFIX} checkpoint — training count+word-aware "
-              "detector from scratch (~5–10 min on GPU)")
+        print(f"  No {CKPT_PREFIX} checkpoint -- training count+word-aware "
+              "detector from scratch (~5-10 min on GPU)")
         model = train_count_word_aware(train_ds)
         out_path = f'{CKPT_PREFIX}{datetime.now().strftime("%Y%m%d_%H%M")}.pt'
         torch.save({
@@ -777,7 +838,7 @@ def load_or_train_detector(pipeline):
                                       for pid in model.eeg_proj},
             'mfcc_dim':            model.mfcc_proj.in_features,
         }, out_path)
-        print(f"  ✓ saved to {out_path}")
+        print(f"  saved to {out_path}")
 
     return model, test_ds
 
@@ -921,7 +982,7 @@ def evaluate_detector_path(pipeline, classifiers,
                             model, detector_test_ds):
     """For each test sentence: detect boundaries, extract features
     pipeline-native, classify, compare to MFA labels."""
-    print("\n[5/6] Detector path (iEEG → boundaries → features → CRF)...")
+    print("\n[5/6] Detector path (iEEG -> boundaries -> features -> CRF)...")
 
     # Shape sanity check — first 5 items from detector_test_ds
     print("  Detector test_ds shape sanity check (first 5):")
@@ -1101,6 +1162,158 @@ def edit_distance(s1, s2):
     return prev[-1]
 
 
+def edit_ops_breakdown(true_seq, pred_seq):
+    """Return (n_correct, n_sub, n_ins, n_del) from optimal Levenshtein
+    alignment. Insertions = pred has extra; deletions = pred missing.
+    Sub + ins + del + correct does not equal sum of lengths because each
+    position can only be one op."""
+    s1 = [str(x) for x in true_seq]
+    s2 = [str(x) for x in pred_seq]
+    n1, n2 = len(s1), len(s2)
+    # DP for minimum cost path
+    INF = float('inf')
+    cost = [[0] * (n2 + 1) for _ in range(n1 + 1)]
+    for i in range(n1 + 1): cost[i][0] = i
+    for j in range(n2 + 1): cost[0][j] = j
+    for i in range(1, n1 + 1):
+        for j in range(1, n2 + 1):
+            if s1[i-1] == s2[j-1]:
+                cost[i][j] = cost[i-1][j-1]
+            else:
+                cost[i][j] = 1 + min(cost[i-1][j-1], cost[i-1][j], cost[i][j-1])
+    # Backtrace
+    n_correct = n_sub = n_ins = n_del = 0
+    i, j = n1, n2
+    while i > 0 and j > 0:
+        if s1[i-1] == s2[j-1]:
+            n_correct += 1; i -= 1; j -= 1
+        elif cost[i][j] == cost[i-1][j-1] + 1:
+            n_sub += 1; i -= 1; j -= 1
+        elif cost[i][j] == cost[i-1][j] + 1:
+            n_del += 1; i -= 1     # true had a phoneme pred didn't emit
+        else:
+            n_ins += 1; j -= 1     # pred had an extra phoneme
+    n_del += i
+    n_ins += j
+    return n_correct, n_sub, n_ins, n_del
+
+
+def ngram_coverage(true_seq, pred_seq, min_n=3, shift_by_len=None):
+    """Greedy longest-first n-gram coverage. For each contiguous n-gram
+    (n >= min_n) in true_seq that also appears in pred_seq (within the
+    shift budget per length), claim those phonemes as covered. Returns
+    fraction of true phonemes covered.
+
+    Used as the reward signal in MRT training. Shift-tolerant matching
+    (same as `find_color_matches`) so that sequences with the right
+    phonemes in the right relative order get credit even if positionally
+    offset. Each phoneme can only be claimed once."""
+    if not true_seq or not pred_seq:
+        return 0.0
+    if shift_by_len is None:
+        shift_by_len = DEFAULT_SHIFT_BY_LEN
+    matches = find_color_matches(true_seq, pred_seq,
+                                  shift_by_len=shift_by_len,
+                                  max_ngram_len=15)
+    covered = sum(L for m in matches
+                   for (_, _, L, _, _) in [m if len(m) == 5 else m + (None,)]
+                   if L >= min_n)
+    return covered / len(true_seq)
+
+
+def lcs_length(s1, s2):
+    """Length of longest common subsequence (in-order, not contiguous).
+    Equivalent to: longest run of phonemes pred got in the right order."""
+    s1 = [str(x) for x in s1]
+    s2 = [str(x) for x in s2]
+    n1, n2 = len(s1), len(s2)
+    if n1 == 0 or n2 == 0: return 0
+    prev = [0] * (n2 + 1)
+    for i in range(1, n1 + 1):
+        curr = [0] * (n2 + 1)
+        for j in range(1, n2 + 1):
+            if s1[i-1] == s2[j-1]:
+                curr[j] = prev[j-1] + 1
+            else:
+                curr[j] = max(prev[j], curr[j-1])
+        prev = curr
+    return prev[n2]
+
+
+def ngram_recall(true_seq, pred_seq, n):
+    """Fraction of true n-grams (with repetition) that also appear in pred.
+    Multiset overlap, not unique. Chance level for random sequences over
+    V phonemes is (1/V)^(n-1) for true bigrams already in pred sequence."""
+    if len(true_seq) < n or len(pred_seq) < n:
+        return 0.0
+    true_ngrams = Counter(tuple(true_seq[i:i+n])
+                           for i in range(len(true_seq) - n + 1))
+    pred_ngrams = Counter(tuple(pred_seq[i:i+n])
+                           for i in range(len(pred_seq) - n + 1))
+    matched = sum((true_ngrams & pred_ngrams).values())
+    total = sum(true_ngrams.values())
+    return matched / max(total, 1)
+
+
+def rich_metrics(true_seq, pred_seq):
+    """Collect a richer panel of metrics than just PER."""
+    n_true = len(true_seq); n_pred = len(pred_seq)
+    ed = edit_distance(true_seq, pred_seq)
+    n_correct, n_sub, n_ins, n_del = edit_ops_breakdown(true_seq, pred_seq)
+    lcs = lcs_length(true_seq, pred_seq)
+    return {
+        'n_true':       n_true,
+        'n_pred':       n_pred,
+        'edit':         ed,
+        'per':          ed / max(n_true, 1),
+        'len_ratio':    n_pred / max(n_true, 1),
+        'sub_rate':     n_sub  / max(n_true, 1),
+        'del_rate':     n_del  / max(n_true, 1),
+        'ins_rate':     n_ins  / max(n_true, 1),
+        'correct':      n_correct,
+        'correct_frac': n_correct / max(n_true, 1),
+        'lcs':          lcs,
+        'lcs_frac':     lcs / max(n_true, 1),
+        '2gram_recall': ngram_recall(true_seq, pred_seq, 2),
+        '3gram_recall': ngram_recall(true_seq, pred_seq, 3),
+    }
+
+
+def print_rich_metrics_table(per_pid_metrics, label=''):
+    """per_pid_metrics: dict pid -> rich_metrics dict."""
+    print(f"\n  {label}")
+    print(f"  {'pid':<5} {'PER':>7} {'sub%':>6} {'del%':>6} {'ins%':>6} "
+          f"{'corr%':>6} {'LCS%':>6} {'2g_r%':>6} {'3g_r%':>6} {'len':>5}")
+    print("  " + "-" * 75)
+    for pid in sorted(per_pid_metrics):
+        m = per_pid_metrics[pid]
+        print(f"  {pid:<5} "
+              f"{m['per']:>6.1%} "
+              f"{m['sub_rate']:>5.1%} "
+              f"{m['del_rate']:>5.1%} "
+              f"{m['ins_rate']:>5.1%} "
+              f"{m['correct_frac']:>5.1%} "
+              f"{m['lcs_frac']:>5.1%} "
+              f"{m['2gram_recall']:>5.1%} "
+              f"{m['3gram_recall']:>5.1%} "
+              f"{m['len_ratio']:>4.2f}×")
+    print("  " + "-" * 75)
+    keys = ['per', 'sub_rate', 'del_rate', 'ins_rate', 'correct_frac',
+            'lcs_frac', '2gram_recall', '3gram_recall', 'len_ratio']
+    means = {k: np.mean([m[k] for m in per_pid_metrics.values()])
+             for k in keys}
+    print(f"  {'mean':<5} "
+          f"{means['per']:>6.1%} "
+          f"{means['sub_rate']:>5.1%} "
+          f"{means['del_rate']:>5.1%} "
+          f"{means['ins_rate']:>5.1%} "
+          f"{means['correct_frac']:>5.1%} "
+          f"{means['lcs_frac']:>5.1%} "
+          f"{means['2gram_recall']:>5.1%} "
+          f"{means['3gram_recall']:>5.1%} "
+          f"{means['len_ratio']:>4.2f}×")
+
+
 def _print_table(summary, label=''):
     print(f"\n  {label}")
     print(f"  {'pid':<5} {'true_n':>7} {'pred_n':>7} {'edit':>6} "
@@ -1260,6 +1473,107 @@ def run_path_detector(pipeline, run_config=None):
 # 3-grams ±10, 4-grams (and longer) ±20.
 DEFAULT_SHIFT_BY_LEN = {2: 5, 3: 10, 4: 20}
 
+
+# Weak phonetic equivalence classes — phonemes within the same set are
+# considered "almost the same". Used only at viz time to extend strong
+# n-gram matches by one position on either side, rendered with a dashed
+# border in the parent match's color.
+DEFAULT_WEAK_EQUIVALENCE = [
+    # Vowel length pairs (Dutch CGN inventory uses long-vowel ː markers)
+    {'eː', 'e'}, {'aː', 'a'}, {'iː', 'i'}, {'oː', 'o'},
+    {'uː', 'u'}, {'yː', 'y'}, {'øː', 'ø'},
+    # Vowel quality (close pairs)
+    {'e', 'ɛ'}, {'o', 'ɔ'}, {'i', 'ɪ'}, {'u', 'ʊ'},
+    {'eː', 'ɛ'}, {'oː', 'ɔ'},
+    # Voicing pairs (stops + fricatives)
+    {'t', 'd'}, {'p', 'b'},
+    {'k', 'ɡ', 'g'},                    # IPA ɡ (U+0261) and ASCII g often interchangeable
+    {'s', 'z'}, {'f', 'v'}, {'ʃ', 'ʒ'},
+    {'ɣ', 'x'},                         # voiced/voiceless velar fricatives
+    {'ɣ', 'ɦ'},                         # both voiced; cross-dialect overlap
+    # /r/ realization variants (Dutch has alveolar trill, uvular trill, uvular fric.)
+    {'r', 'ʀ', 'ʁ'},
+    # Schwa-adjacent
+    {'ə', 'ɛ'}, {'ə', 'ɪ'},
+]
+
+
+def _build_weak_equiv_map(equiv_classes):
+    """phoneme -> set of weakly-equivalent phonemes (excluding self)."""
+    from collections import defaultdict as _dd
+    weak = _dd(set)
+    for cls in equiv_classes:
+        for p in cls:
+            for q in cls:
+                if p != q:
+                    weak[p].add(q)
+    return dict(weak)
+
+
+def _is_weak_match(a, b, weak_map):
+    if a == b:
+        return False    # exact match, not weak
+    return b in weak_map.get(a, ())
+
+
+def find_weak_extensions(matches, true_seq, pred_seq,
+                          weak_map=None,
+                          true_sentence_ids=None,
+                          pred_sentence_ids=None):
+    """Try to extend each strong n-gram by one position on the left and one
+    on the right using weak phonetic equivalence. Returns a list of
+    (ts, ps, color_idx) triples — single-cell weak extensions, each tagged
+    with the color_idx of the parent match.
+
+    Skips an extension if either side's neighbor is already claimed by a
+    strong match. Respects sentence boundaries when sentence ids provided.
+    """
+    if weak_map is None:
+        weak_map = _build_weak_equiv_map(DEFAULT_WEAK_EQUIVALENCE)
+    n_t, n_p = len(true_seq), len(pred_seq)
+
+    used_true = [False] * n_t
+    used_pred = [False] * n_p
+    for (ts, ps, L, _) in matches:
+        for k in range(L):
+            if ts + k < n_t: used_true[ts + k] = True
+            if ps + k < n_p: used_pred[ps + k] = True
+
+    use_sid = true_sentence_ids is not None and pred_sentence_ids is not None
+
+    def same_sentence(t_idx, p_idx, ref_sid):
+        if not use_sid:
+            return True
+        return (true_sentence_ids[t_idx] == ref_sid
+                and pred_sentence_ids[p_idx] == ref_sid)
+
+    extensions = []
+    for (ts, ps, L, color_idx) in matches:
+        ref_sid = (true_sentence_ids[ts]
+                   if use_sid and ts < len(true_sentence_ids) else None)
+
+        # Left extension
+        lt, lp = ts - 1, ps - 1
+        if (0 <= lt and 0 <= lp
+                and not used_true[lt] and not used_pred[lp]
+                and same_sentence(lt, lp, ref_sid)
+                and _is_weak_match(true_seq[lt], pred_seq[lp], weak_map)):
+            extensions.append((lt, lp, color_idx))
+            used_true[lt] = True
+            used_pred[lp] = True
+
+        # Right extension
+        rt, rp = ts + L, ps + L
+        if (rt < n_t and rp < n_p
+                and not used_true[rt] and not used_pred[rp]
+                and same_sentence(rt, rp, ref_sid)
+                and _is_weak_match(true_seq[rt], pred_seq[rp], weak_map)):
+            extensions.append((rt, rp, color_idx))
+            used_true[rt] = True
+            used_pred[rp] = True
+
+    return extensions
+
 PALETTE = [
     '#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA', '#FFD9B3',
     '#E1BAFF', '#B3FFE4', '#FFC8DD', '#C8DDFF', '#DDFFC8',
@@ -1303,55 +1617,77 @@ def find_color_matches(true_seq, pred_seq,
     true_seq, pred_seq = list(true_seq), list(pred_seq)
     matches = []
     color_idx_holder = [0]
+    weak_map = _build_weak_equiv_map(DEFAULT_WEAK_EQUIVALENCE)
+
+    def cell_kind(a, b):
+        """Per-position classifier: 'exact', 'weak', or None."""
+        if a == b: return 'exact'
+        if b in weak_map.get(a, ()): return 'weak'
+        return None
 
     def _match_one_slice(t_slice, p_slice, t_offset, p_offset):
         """Run the full matching algorithm on a single (sentence) slice.
-        All within-slice indices; returns matches in global indices via
-        offsets. Phases match within-slice — 1-gram exact position now means
-        exact within-sentence position."""
+        Each match is a 5-tuple: (ts_global, ps_global, L, color_idx,
+        cell_types) where cell_types is a tuple of 'exact'/'weak' per
+        position. Pure-exact matches have cell_types = ('exact',) * L."""
         n_t_l, n_p_l = len(t_slice), len(p_slice)
         used_true = [False] * n_t_l
         used_pred = [False] * n_p_l
 
-        def claim(ts_l, ps_l, L):
+        def claim(ts_l, ps_l, L, cell_types=None):
+            if cell_types is None:
+                cell_types = ('exact',) * L
             c = color_idx_holder[0]; color_idx_holder[0] += 1
-            matches.append((t_offset + ts_l, p_offset + ps_l, L, c))
+            matches.append((t_offset + ts_l, p_offset + ps_l, L, c, cell_types))
             for k in range(L):
                 used_true[ts_l + k] = True
                 used_pred[ps_l + k] = True
 
-        # Phase 1a — exact-position, longest first
-        for length in range(max_ngram_len, 1, -1):
-            for start in range(min(n_t_l, n_p_l) - length + 1):
-                if any(used_true[start + k] or used_pred[start + k]
-                       for k in range(length)):
-                    continue
-                if all(t_slice[start + k] == p_slice[start + k]
-                       for k in range(length)):
-                    claim(start, start, length)
-
-        # Phase 1b — shifted, longest first
+        # Phase 1 — UNIFIED length-descending pass.
+        # For each length L (longest first), for each true_start (L→R), find
+        # the best candidate match: any shift in shift_by_len[L] budget,
+        # cells either exact or weak. Among candidates, pick the one with
+        # fewest weak cells (pure-exact preferred); break shift ties by
+        # smallest |shift|. Claims a length-L mixed match in preference to
+        # a shorter pure-exact one — longer matches always win.
         for length in range(max_ngram_len, 1, -1):
             max_shift = _shift_for_length(length, shift_by_len)
-            if max_shift == 0:
-                continue
-            shifts = [s for k in range(1, max_shift + 1) for s in (-k, +k)]
+            shifts = [0] + [s for k in range(1, max_shift + 1) for s in (-k, +k)]
             for true_start in range(n_t_l - length + 1):
                 if any(used_true[true_start + k] for k in range(length)):
                     continue
-                seq = t_slice[true_start:true_start + length]
+                best = None    # (weak_count, |shift|, shift, types)
                 for shift in shifts:
                     pred_start = true_start + shift
                     if pred_start < 0 or pred_start + length > n_p_l:
                         continue
                     if any(used_pred[pred_start + k] for k in range(length)):
                         continue
-                    if p_slice[pred_start:pred_start + length] != seq:
+                    types = []
+                    ok = True
+                    weak_count = 0
+                    for k in range(length):
+                        kind = cell_kind(t_slice[true_start + k],
+                                          p_slice[pred_start + k])
+                        if kind is None:
+                            ok = False
+                            break
+                        if kind == 'weak':
+                            weak_count += 1
+                        types.append(kind)
+                    if not ok:
                         continue
-                    claim(true_start, pred_start, length)
-                    break
+                    cand = (weak_count, abs(shift), shift, tuple(types))
+                    if best is None or cand < best:
+                        best = cand
+                    if weak_count == 0 and shift == 0:
+                        break    # can't beat pure-exact at exact position
+                if best is not None:
+                    weak_count, _absshift, shift, types = best
+                    claim(true_start, true_start + shift, length, types)
 
-        # Phase 2 — exact within-slice position 1-grams
+        # Phase 2 — exact within-slice position 1-grams (no weak 1-grams,
+        # those would dilute the visualization)
         for i in range(min(n_t_l, n_p_l)):
             if used_true[i] or used_pred[i]:
                 continue
@@ -1388,7 +1724,11 @@ def find_color_matches(true_seq, pred_seq,
     return matches
 
 
-def _cell_html(content, color=None, is_pos=False, is_label=False):
+def _cell_html(content, color=None, is_pos=False, is_label=False,
+                cell_kind='exact'):
+    """cell_kind: 'exact' = solid background fill; 'weak' = dashed border
+    in the match color, light fill, italic text. Only relevant when color
+    is set."""
     base = ("text-align:center; padding:3px 8px; border:1px solid #eee; "
             "font-family:monospace;")
     if is_label:
@@ -1397,6 +1737,12 @@ def _cell_html(content, color=None, is_pos=False, is_label=False):
     if is_pos:
         return f'<td style="{base} font-size:10px; color:#888;">{content}</td>'
     if color is not None:
+        if cell_kind == 'weak':
+            # Dashed border in match color, very light fill, italic
+            return (f'<td style="text-align:center; padding:3px 8px; '
+                    f'border:2px dashed {color}; '
+                    f'background:{color}30; '            # 30 = ~19% opacity
+                    f'font-family:monospace; font-style:italic;">{content}</td>')
         return (f'<td style="{base} background:{color}; '
                 f'font-weight:bold;">{content}</td>')
     return f'<td style="{base} color:#bbb;">{content}</td>'
@@ -1421,11 +1767,23 @@ def display_matched_sequences(true_seq, pred_seq, matches,
     n_t, n_p = len(true_seq), len(pred_seq)
     true_color = [None] * n_t
     pred_color = [None] * n_p
-    for (ts, ps, L, color_idx) in matches:
+    true_kind  = ['exact'] * n_t
+    pred_kind  = ['exact'] * n_p
+    for m in matches:
+        # Backward compat: 4-tuple (no cell_types) → all 'exact'
+        if len(m) == 5:
+            ts, ps, L, color_idx, cell_types = m
+        else:
+            ts, ps, L, color_idx = m
+            cell_types = ('exact',) * L
         c = PALETTE[color_idx % len(PALETTE)]
         for k in range(L):
-            if ts + k < n_t: true_color[ts + k] = c
-            if ps + k < n_p: pred_color[ps + k] = c
+            if ts + k < n_t:
+                true_color[ts + k] = c
+                true_kind[ts + k]  = cell_types[k]
+            if ps + k < n_p:
+                pred_color[ps + k] = c
+                pred_kind[ps + k]  = cell_types[k]
 
     chunks = []
 
@@ -1448,12 +1806,14 @@ def display_matched_sequences(true_seq, pred_seq, matches,
                 pos_row += _cell_html(str(k), is_pos=True)
                 if k < len_t:
                     gi = t_lo + k
-                    true_row += _cell_html(true_seq[gi], true_color[gi])
+                    true_row += _cell_html(true_seq[gi], true_color[gi],
+                                            cell_kind=true_kind[gi])
                 else:
                     true_row += _cell_html('', None)
                 if k < len_p:
                     gi = p_lo + k
-                    pred_row += _cell_html(pred_seq[gi], pred_color[gi])
+                    pred_row += _cell_html(pred_seq[gi], pred_color[gi],
+                                            cell_kind=pred_kind[gi])
                 else:
                     pred_row += _cell_html('', None)
             chunks.append(f"""
@@ -1501,11 +1861,15 @@ def display_matched_sequences(true_seq, pred_seq, matches,
             chunk_end = min(chunk_start + max_per_line, n)
             idxs = range(chunk_start, chunk_end)
             pos_row  = ''.join(_cell_html(str(i), is_pos=True) for i in idxs)
-            true_row = ''.join(_cell_html(true_seq[i] if i < n_t else '',
-                                           true_color[i] if i < n_t else None)
+            true_row = ''.join(_cell_html(
+                                    true_seq[i] if i < n_t else '',
+                                    true_color[i] if i < n_t else None,
+                                    cell_kind=(true_kind[i] if i < n_t else 'exact'))
                                 for i in idxs)
-            pred_row = ''.join(_cell_html(pred_seq[i] if i < n_p else '',
-                                           pred_color[i] if i < n_p else None)
+            pred_row = ''.join(_cell_html(
+                                    pred_seq[i] if i < n_p else '',
+                                    pred_color[i] if i < n_p else None,
+                                    cell_kind=(pred_kind[i] if i < n_p else 'exact'))
                                 for i in idxs)
             chunks.append(f"""
             <table style="border-collapse:collapse; margin-bottom:6px">
@@ -1597,6 +1961,14 @@ def show_all_patients(pipeline, shift_by_len=None, max_per_line=50,
     print("  " + "-" * 50)
     print(f"  {'mean':<5} {'':>7} {'':>7} {np.mean(eds):>6.1f} "
           f"{np.mean(pers):>7.2%} {np.mean(accs):>6.2%}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Public alias with a more descriptive name
+# ═════════════════════════════════════════════════════════════════════════════
+# `run_path_detector` predates this convention and is kept for backward
+# compatibility. New code should use `run_with_ieeg_boundaries`.
+run_with_ieeg_boundaries = run_path_detector
 
 
 if __name__ == '__main__':

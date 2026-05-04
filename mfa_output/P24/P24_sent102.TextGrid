@@ -11,13 +11,13 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 5.001 
-        intervals: size = 12 
+        intervals: size = 11 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.66 
+            xmax = 1.65 
             text = "" 
         intervals [2]:
-            xmin = 1.66 
+            xmin = 1.65 
             xmax = 1.92 
             text = "het" 
         intervals [3]:
@@ -26,38 +26,34 @@ item []:
             text = "is" 
         intervals [4]:
             xmin = 2.14 
-            xmax = 2.59 
+            xmax = 2.48 
             text = "wat" 
         intervals [5]:
-            xmin = 2.59 
-            xmax = 2.62 
+            xmin = 2.48 
+            xmax = 3.3 
             text = "saai" 
         intervals [6]:
-            xmin = 2.62 
-            xmax = 3.03 
-            text = "kan" 
-        intervals [7]:
-            xmin = 3.03 
-            xmax = 3.2 
-            text = "je" 
-        intervals [8]:
-            xmin = 3.2 
+            xmin = 3.3 
             xmax = 3.69 
             text = "" 
-        intervals [9]:
+        intervals [7]:
             xmin = 3.69 
+            xmax = 3.94 
+            text = "kan" 
+        intervals [8]:
+            xmin = 3.94 
+            xmax = 4.03 
+            text = "je" 
+        intervals [9]:
+            xmin = 4.03 
             xmax = 4.14 
             text = "een" 
         intervals [10]:
             xmin = 4.14 
-            xmax = 4.9 
+            xmax = 4.6 
             text = "stukje" 
         intervals [11]:
-            xmin = 4.9 
-            xmax = 4.95 
-            text = "" 
-        intervals [12]:
-            xmin = 4.95 
+            xmin = 4.6 
             xmax = 5.001 
             text = "doorspoelen" 
     item [2]:
@@ -65,13 +61,13 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 5.001 
-        intervals: size = 25 
+        intervals: size = 37 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.66 
+            xmax = 1.65 
             text = "" 
         intervals [2]:
-            xmin = 1.66 
+            xmin = 1.65 
             xmax = 1.76 
             text = "h" 
         intervals [3]:
@@ -100,69 +96,117 @@ item []:
             text = "ɑ" 
         intervals [9]:
             xmin = 2.4 
-            xmax = 2.59 
+            xmax = 2.48 
             text = "t" 
         intervals [10]:
-            xmin = 2.59 
-            xmax = 2.62 
-            text = "" 
+            xmin = 2.48 
+            xmax = 2.67 
+            text = "s" 
         intervals [11]:
-            xmin = 2.62 
-            xmax = 2.66 
-            text = "k" 
+            xmin = 2.67 
+            xmax = 2.9 
+            text = "aː" 
         intervals [12]:
-            xmin = 2.66 
-            xmax = 2.87 
-            text = "ɑ" 
-        intervals [13]:
-            xmin = 2.87 
-            xmax = 3.03 
-            text = "n" 
-        intervals [14]:
-            xmin = 3.03 
-            xmax = 3.06 
+            xmin = 2.9 
+            xmax = 3.04 
             text = "j" 
-        intervals [15]:
-            xmin = 3.06 
-            xmax = 3.2 
-            text = "eː" 
-        intervals [16]:
-            xmin = 3.2 
+        intervals [13]:
+            xmin = 3.04 
+            xmax = 3.3 
+            text = "iː" 
+        intervals [14]:
+            xmin = 3.3 
             xmax = 3.69 
             text = "" 
-        intervals [17]:
+        intervals [15]:
             xmin = 3.69 
+            xmax = 3.75 
+            text = "k" 
+        intervals [16]:
+            xmin = 3.75 
+            xmax = 3.8 
+            text = "ɑ" 
+        intervals [17]:
+            xmin = 3.8 
+            xmax = 3.94 
+            text = "n" 
+        intervals [18]:
+            xmin = 3.94 
+            xmax = 3.99 
+            text = "j" 
+        intervals [19]:
+            xmin = 3.99 
+            xmax = 4.03 
+            text = "eː" 
+        intervals [20]:
+            xmin = 4.03 
             xmax = 4.09 
             text = "eː" 
-        intervals [18]:
+        intervals [21]:
             xmin = 4.09 
             xmax = 4.14 
             text = "n" 
-        intervals [19]:
+        intervals [22]:
             xmin = 4.14 
             xmax = 4.22 
             text = "s" 
-        intervals [20]:
+        intervals [23]:
             xmin = 4.22 
             xmax = 4.28 
             text = "t" 
-        intervals [21]:
+        intervals [24]:
             xmin = 4.28 
             xmax = 4.34 
             text = "ʏ" 
-        intervals [22]:
+        intervals [25]:
             xmin = 4.34 
             xmax = 4.4 
             text = "k" 
-        intervals [23]:
+        intervals [26]:
             xmin = 4.4 
             xmax = 4.49 
             text = "j" 
-        intervals [24]:
+        intervals [27]:
             xmin = 4.49 
-            xmax = 4.9 
+            xmax = 4.6 
             text = "eː" 
-        intervals [25]:
-            xmin = 4.9 
+        intervals [28]:
+            xmin = 4.6 
+            xmax = 4.64 
+            text = "d" 
+        intervals [29]:
+            xmin = 4.64 
+            xmax = 4.69 
+            text = "oː" 
+        intervals [30]:
+            xmin = 4.69 
+            xmax = 4.74 
+            text = "r" 
+        intervals [31]:
+            xmin = 4.74 
+            xmax = 4.77 
+            text = "s" 
+        intervals [32]:
+            xmin = 4.77 
+            xmax = 4.8 
+            text = "p" 
+        intervals [33]:
+            xmin = 4.8 
+            xmax = 4.86 
+            text = "uː" 
+        intervals [34]:
+            xmin = 4.86 
+            xmax = 4.89 
+            text = "ɛ" 
+        intervals [35]:
+            xmin = 4.89 
+            xmax = 4.92 
+            text = "l" 
+        intervals [36]:
+            xmin = 4.92 
+            xmax = 4.95 
+            text = "ɛ" 
+        intervals [37]:
+            xmin = 4.95 
             xmax = 5.001 
-            text = "" 
+            text = "n" 

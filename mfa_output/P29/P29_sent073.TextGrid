@@ -34,14 +34,14 @@ item []:
             text = "e" 
         intervals [6]:
             xmin = 2.09 
-            xmax = 2.75 
+            xmax = 2.26 
             text = "van" 
         intervals [7]:
-            xmin = 2.75 
-            xmax = 2.78 
+            xmin = 2.26 
+            xmax = 2.74 
             text = "eagle" 
         intervals [8]:
-            xmin = 2.78 
+            xmin = 2.74 
             xmax = 2.869125 
             text = "" 
     item [2]:
@@ -49,7 +49,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 2.869125 
-        intervals: size = 13 
+        intervals: size = 18 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.45 
@@ -96,9 +96,29 @@ item []:
             text = "ɑ" 
         intervals [12]:
             xmin = 2.18 
-            xmax = 2.75 
+            xmax = 2.26 
             text = "n" 
         intervals [13]:
-            xmin = 2.75 
+            xmin = 2.26 
+            xmax = 2.37 
+            text = "ɛ" 
+        intervals [14]:
+            xmin = 2.37 
+            xmax = 2.41 
+            text = "ɑ" 
+        intervals [15]:
+            xmin = 2.41 
+            xmax = 2.47 
+            text = "x" 
+        intervals [16]:
+            xmin = 2.47 
+            xmax = 2.5 
+            text = "l" 
+        intervals [17]:
+            xmin = 2.5 
+            xmax = 2.74 
+            text = "eː" 
+        intervals [18]:
+            xmin = 2.74 
             xmax = 2.869125 
             text = "" 

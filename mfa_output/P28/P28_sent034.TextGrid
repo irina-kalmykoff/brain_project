@@ -11,7 +11,7 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 4.902375 
-        intervals: size = 8 
+        intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.22 
@@ -34,22 +34,26 @@ item []:
             text = "sponsoren" 
         intervals [6]:
             xmin = 3.16 
-            xmax = 4.08 
+            xmax = 3.54 
             text = "veel" 
         intervals [7]:
-            xmin = 4.08 
-            xmax = 4.85 
+            xmin = 3.54 
+            xmax = 3.57 
             text = "" 
         intervals [8]:
-            xmin = 4.85 
-            xmax = 4.902375 
+            xmin = 3.57 
+            xmax = 4.57 
             text = "topsporters" 
+        intervals [9]:
+            xmin = 4.57 
+            xmax = 4.902375 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 4.902375 
-        intervals: size = 26 
+        intervals: size = 38 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.22 
@@ -148,9 +152,57 @@ item []:
             text = "eː" 
         intervals [25]:
             xmin = 3.32 
-            xmax = 4.08 
+            xmax = 3.54 
             text = "l" 
         intervals [26]:
-            xmin = 4.08 
+            xmin = 3.54 
+            xmax = 3.57 
+            text = "" 
+        intervals [27]:
+            xmin = 3.57 
+            xmax = 3.64 
+            text = "t" 
+        intervals [28]:
+            xmin = 3.64 
+            xmax = 3.69 
+            text = "ɔ" 
+        intervals [29]:
+            xmin = 3.69 
+            xmax = 3.76 
+            text = "p" 
+        intervals [30]:
+            xmin = 3.76 
+            xmax = 3.85 
+            text = "s" 
+        intervals [31]:
+            xmin = 3.85 
+            xmax = 3.93 
+            text = "p" 
+        intervals [32]:
+            xmin = 3.93 
+            xmax = 4.02 
+            text = "ɔ" 
+        intervals [33]:
+            xmin = 4.02 
+            xmax = 4.09 
+            text = "r" 
+        intervals [34]:
+            xmin = 4.09 
+            xmax = 4.2 
+            text = "t" 
+        intervals [35]:
+            xmin = 4.2 
+            xmax = 4.28 
+            text = "ɛ" 
+        intervals [36]:
+            xmin = 4.28 
+            xmax = 4.34 
+            text = "r" 
+        intervals [37]:
+            xmin = 4.34 
+            xmax = 4.57 
+            text = "s" 
+        intervals [38]:
+            xmin = 4.57 
             xmax = 4.902375 
             text = "" 

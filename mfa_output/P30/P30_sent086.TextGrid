@@ -30,10 +30,10 @@ item []:
             text = "" 
         intervals [5]:
             xmin = 2.68 
-            xmax = 2.97 
+            xmax = 2.99 
             text = "ligt" 
         intervals [6]:
-            xmin = 2.97 
+            xmin = 2.99 
             xmax = 3.49 
             text = "" 
         intervals [7]:
@@ -76,10 +76,10 @@ item []:
             text = "h" 
         intervals [5]:
             xmin = 1.83 
-            xmax = 1.88 
+            xmax = 1.87 
             text = "ɑ" 
         intervals [6]:
-            xmin = 1.88 
+            xmin = 1.87 
             xmax = 1.99 
             text = "w" 
         intervals [7]:
@@ -120,14 +120,14 @@ item []:
             text = "ɪ" 
         intervals [16]:
             xmin = 2.87 
-            xmax = 2.94 
+            xmax = 2.96 
             text = "x" 
         intervals [17]:
-            xmin = 2.94 
-            xmax = 2.97 
+            xmin = 2.96 
+            xmax = 2.99 
             text = "t" 
         intervals [18]:
-            xmin = 2.97 
+            xmin = 2.99 
             xmax = 3.49 
             text = "" 
         intervals [19]:
@@ -192,10 +192,10 @@ item []:
             text = "d" 
         intervals [34]:
             xmin = 4.74 
-            xmax = 5.48 
+            xmax = 5.49 
             text = "ɛ" 
         intervals [35]:
-            xmin = 5.48 
+            xmin = 5.49 
             xmax = 5.61 
             text = "r" 
         intervals [36]:

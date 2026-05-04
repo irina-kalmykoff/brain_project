@@ -30,10 +30,10 @@ item []:
             text = "" 
         intervals [5]:
             xmin = 6.98 
-            xmax = 8.41 
+            xmax = 8.4 
             text = "enorm" 
         intervals [6]:
-            xmin = 8.41 
+            xmin = 8.4 
             xmax = 9.21 
             text = "comfortabel" 
         intervals [7]:
@@ -100,22 +100,22 @@ item []:
             text = "ɑ" 
         intervals [12]:
             xmin = 3.97 
-            xmax = 4.03 
+            xmax = 4.02 
             text = "r" 
         intervals [13]:
-            xmin = 4.03 
-            xmax = 4.07 
+            xmin = 4.02 
+            xmax = 4.06 
             text = "m" 
         intervals [14]:
-            xmin = 4.07 
+            xmin = 4.06 
             xmax = 4.14 
             text = "ɪ" 
         intervals [15]:
             xmin = 4.14 
-            xmax = 4.28 
+            xmax = 4.32 
             text = "n" 
         intervals [16]:
-            xmin = 4.28 
+            xmin = 4.32 
             xmax = 4.35 
             text = "x" 
         intervals [17]:
@@ -140,18 +140,18 @@ item []:
             text = "n" 
         intervals [22]:
             xmin = 7.18 
-            xmax = 7.3 
+            xmax = 7.31 
             text = "ɔ" 
         intervals [23]:
-            xmin = 7.3 
+            xmin = 7.31 
             xmax = 7.37 
             text = "r" 
         intervals [24]:
             xmin = 7.37 
-            xmax = 8.41 
+            xmax = 8.4 
             text = "m" 
         intervals [25]:
-            xmin = 8.41 
+            xmin = 8.4 
             xmax = 8.47 
             text = "c" 
         intervals [26]:
@@ -228,9 +228,9 @@ item []:
             text = "t" 
         intervals [44]:
             xmin = 9.64 
-            xmax = 9.7 
+            xmax = 9.71 
             text = "ɛ" 
         intervals [45]:
-            xmin = 9.7 
+            xmin = 9.71 
             xmax = 10.002 
             text = "r" 

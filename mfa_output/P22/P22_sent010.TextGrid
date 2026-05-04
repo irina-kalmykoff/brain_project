@@ -26,10 +26,10 @@ item []:
             text = "draagt" 
         intervals [4]:
             xmin = 2.08 
-            xmax = 2.3 
+            xmax = 2.31 
             text = "een" 
         intervals [5]:
-            xmin = 2.3 
+            xmin = 2.31 
             xmax = 2.79 
             text = "petje" 
         intervals [6]:
@@ -42,10 +42,10 @@ item []:
             text = "om" 
         intervals [8]:
             xmin = 3.01 
-            xmax = 3.19 
+            xmax = 3.2 
             text = "een" 
         intervals [9]:
-            xmin = 3.19 
+            xmin = 3.2 
             xmax = 3.87 
             text = "zonnesteek" 
         intervals [10]:
@@ -100,10 +100,10 @@ item []:
             text = "eː" 
         intervals [10]:
             xmin = 2.14 
-            xmax = 2.3 
+            xmax = 2.31 
             text = "n" 
         intervals [11]:
-            xmin = 2.3 
+            xmin = 2.31 
             xmax = 2.37 
             text = "p" 
         intervals [12]:
@@ -140,10 +140,10 @@ item []:
             text = "eː" 
         intervals [20]:
             xmin = 3.13 
-            xmax = 3.19 
+            xmax = 3.2 
             text = "n" 
         intervals [21]:
-            xmin = 3.19 
+            xmin = 3.2 
             xmax = 3.3 
             text = "z" 
         intervals [22]:
@@ -172,10 +172,10 @@ item []:
             text = "t" 
         intervals [28]:
             xmin = 3.67 
-            xmax = 3.77 
+            xmax = 3.78 
             text = "eː" 
         intervals [29]:
-            xmin = 3.77 
+            xmin = 3.78 
             xmax = 3.87 
             text = "k" 
         intervals [30]:
@@ -192,10 +192,10 @@ item []:
             text = "v" 
         intervals [33]:
             xmin = 4.25 
-            xmax = 4.62 
+            xmax = 4.65 
             text = "ɛ" 
         intervals [34]:
-            xmin = 4.62 
+            xmin = 4.65 
             xmax = 4.72 
             text = "r" 
         intervals [35]:

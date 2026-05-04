@@ -26,10 +26,10 @@ item []:
             text = "sprak" 
         intervals [4]:
             xmin = 2.63 
-            xmax = 2.97 
+            xmax = 2.98 
             text = "tegen" 
         intervals [5]:
-            xmin = 2.97 
+            xmin = 2.98 
             xmax = 3.6 
             text = "julia" 
         intervals [6]:
@@ -120,22 +120,22 @@ item []:
             text = "ɛ" 
         intervals [16]:
             xmin = 2.88 
-            xmax = 2.97 
+            xmax = 2.98 
             text = "n" 
         intervals [17]:
-            xmin = 2.97 
-            xmax = 3.0 
+            xmin = 2.98 
+            xmax = 3.02 
             text = "j" 
         intervals [18]:
-            xmin = 3.0 
-            xmax = 3.18 
+            xmin = 3.02 
+            xmax = 3.05 
             text = "yː" 
         intervals [19]:
-            xmin = 3.18 
-            xmax = 3.21 
+            xmin = 3.05 
+            xmax = 3.09 
             text = "l" 
         intervals [20]:
-            xmin = 3.21 
+            xmin = 3.09 
             xmax = 3.35 
             text = "ɪ" 
         intervals [21]:

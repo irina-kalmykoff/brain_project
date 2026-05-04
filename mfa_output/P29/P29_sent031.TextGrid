@@ -18,10 +18,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 1.21 
-            xmax = 1.36 
+            xmax = 1.35 
             text = "je" 
         intervals [3]:
-            xmin = 1.36 
+            xmin = 1.35 
             xmax = 1.68 
             text = "mag" 
         intervals [4]:
@@ -42,10 +42,10 @@ item []:
             text = "volgend" 
         intervals [8]:
             xmin = 3.32 
-            xmax = 3.65 
+            xmax = 3.64 
             text = "liedje" 
         intervals [9]:
-            xmin = 3.65 
+            xmin = 3.64 
             xmax = 3.94 
             text = "gaan" 
         intervals [10]:
@@ -68,10 +68,10 @@ item []:
             text = "j" 
         intervals [3]:
             xmin = 1.29 
-            xmax = 1.36 
+            xmax = 1.35 
             text = "eː" 
         intervals [4]:
-            xmin = 1.36 
+            xmin = 1.35 
             xmax = 1.43 
             text = "m" 
         intervals [5]:
@@ -152,18 +152,18 @@ item []:
             text = "t" 
         intervals [24]:
             xmin = 3.56 
-            xmax = 3.62 
+            xmax = 3.61 
             text = "j" 
         intervals [25]:
-            xmin = 3.62 
-            xmax = 3.65 
+            xmin = 3.61 
+            xmax = 3.64 
             text = "eː" 
         intervals [26]:
-            xmin = 3.65 
-            xmax = 3.68 
+            xmin = 3.64 
+            xmax = 3.67 
             text = "ɣ" 
         intervals [27]:
-            xmin = 3.68 
+            xmin = 3.67 
             xmax = 3.8 
             text = "aː" 
         intervals [28]:

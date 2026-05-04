@@ -180,10 +180,10 @@ item []:
             text = "t" 
         intervals [31]:
             xmin = 3.82 
-            xmax = 3.96 
+            xmax = 3.97 
             text = "oː" 
         intervals [32]:
-            xmin = 3.96 
+            xmin = 3.97 
             xmax = 4.07 
             text = "r" 
         intervals [33]:
@@ -204,10 +204,10 @@ item []:
             text = "n" 
         intervals [37]:
             xmin = 4.31 
-            xmax = 4.4 
+            xmax = 4.41 
             text = "ɛ" 
         intervals [38]:
-            xmin = 4.4 
+            xmin = 4.41 
             xmax = 4.72 
             text = "n" 
         intervals [39]:

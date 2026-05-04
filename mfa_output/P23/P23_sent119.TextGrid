@@ -54,10 +54,10 @@ item []:
             text = "in" 
         intervals [11]:
             xmin = 4.59 
-            xmax = 5.06 
+            xmax = 5.19 
             text = "bloei" 
         intervals [12]:
-            xmin = 5.06 
+            xmin = 5.19 
             xmax = 9.999063 
             text = "" 
     item [2]:
@@ -132,10 +132,10 @@ item []:
             text = "x" 
         intervals [17]:
             xmin = 2.56 
-            xmax = 2.64 
+            xmax = 2.65 
             text = "s" 
         intervals [18]:
-            xmin = 2.64 
+            xmin = 2.65 
             xmax = 2.71 
             text = "t" 
         intervals [19]:
@@ -228,9 +228,9 @@ item []:
             text = "j" 
         intervals [41]:
             xmin = 4.81 
-            xmax = 5.06 
+            xmax = 5.19 
             text = "iː" 
         intervals [42]:
-            xmin = 5.06 
+            xmin = 5.19 
             xmax = 9.999063 
             text = "" 

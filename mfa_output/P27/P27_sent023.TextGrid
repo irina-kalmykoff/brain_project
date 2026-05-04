@@ -50,10 +50,10 @@ item []:
             text = "pauze" 
         intervals [10]:
             xmin = 3.17 
-            xmax = 3.78 
+            xmax = 3.77 
             text = "zetten" 
         intervals [11]:
-            xmin = 3.78 
+            xmin = 3.77 
             xmax = 4.30175 
             text = "" 
     item [2]:
@@ -100,10 +100,10 @@ item []:
             text = "s" 
         intervals [10]:
             xmin = 2.04 
-            xmax = 2.16 
+            xmax = 2.17 
             text = "eː" 
         intervals [11]:
-            xmin = 2.16 
+            xmin = 2.17 
             xmax = 2.22 
             text = "r" 
         intervals [12]:
@@ -116,10 +116,10 @@ item []:
             text = "eː" 
         intervals [14]:
             xmin = 2.35 
-            xmax = 2.47 
+            xmax = 2.48 
             text = "eː" 
         intervals [15]:
-            xmin = 2.47 
+            xmin = 2.48 
             xmax = 2.54 
             text = "v" 
         intervals [16]:
@@ -156,10 +156,10 @@ item []:
             text = "w" 
         intervals [24]:
             xmin = 2.96 
-            xmax = 3.02 
+            xmax = 3.01 
             text = "ʏ" 
         intervals [25]:
-            xmin = 3.02 
+            xmin = 3.01 
             xmax = 3.11 
             text = "z" 
         intervals [26]:
@@ -184,13 +184,13 @@ item []:
             text = "t" 
         intervals [31]:
             xmin = 3.56 
-            xmax = 3.62 
+            xmax = 3.65 
             text = "ɛ" 
         intervals [32]:
-            xmin = 3.62 
-            xmax = 3.78 
+            xmin = 3.65 
+            xmax = 3.77 
             text = "n" 
         intervals [33]:
-            xmin = 3.78 
+            xmin = 3.77 
             xmax = 4.30175 
             text = "" 

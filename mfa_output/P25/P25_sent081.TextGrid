@@ -14,10 +14,10 @@ item []:
         intervals: size = 7 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.69 
+            xmax = 0.68 
             text = "" 
         intervals [2]:
-            xmin = 0.69 
+            xmin = 0.68 
             xmax = 0.87 
             text = "heb" 
         intervals [3]:
@@ -48,10 +48,10 @@ item []:
         intervals: size = 20 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.69 
+            xmax = 0.68 
             text = "" 
         intervals [2]:
-            xmin = 0.69 
+            xmin = 0.68 
             xmax = 0.78 
             text = "h" 
         intervals [3]:
@@ -72,10 +72,10 @@ item []:
             text = "eː" 
         intervals [7]:
             xmin = 0.94 
-            xmax = 0.99 
+            xmax = 0.98 
             text = "d" 
         intervals [8]:
-            xmin = 0.99 
+            xmin = 0.98 
             xmax = 1.05 
             text = "eː" 
         intervals [9]:
@@ -112,10 +112,10 @@ item []:
             text = "d" 
         intervals [17]:
             xmin = 1.57 
-            xmax = 1.7 
+            xmax = 1.69 
             text = "ɛ" 
         intervals [18]:
-            xmin = 1.7 
+            xmin = 1.69 
             xmax = 1.78 
             text = "k" 
         intervals [19]:

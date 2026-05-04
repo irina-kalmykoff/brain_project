@@ -34,10 +34,10 @@ item []:
             text = "een" 
         intervals [6]:
             xmin = 1.87 
-            xmax = 2.22 
+            xmax = 2.23 
             text = "mooie" 
         intervals [7]:
-            xmin = 2.22 
+            xmin = 2.23 
             xmax = 2.83 
             text = "jacht" 
         intervals [8]:
@@ -124,10 +124,10 @@ item []:
             text = "j" 
         intervals [19]:
             xmin = 2.17 
-            xmax = 2.22 
+            xmax = 2.23 
             text = "eː" 
         intervals [20]:
-            xmin = 2.22 
+            xmin = 2.23 
             xmax = 2.29 
             text = "j" 
         intervals [21]:

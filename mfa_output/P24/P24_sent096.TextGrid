@@ -104,18 +104,18 @@ item []:
             text = "n" 
         intervals [14]:
             xmin = 1.98 
-            xmax = 2.11 
+            xmax = 2.1 
             text = "v" 
         intervals [15]:
-            xmin = 2.11 
+            xmin = 2.1 
             xmax = 2.16 
             text = "eː" 
         intervals [16]:
             xmin = 2.16 
-            xmax = 2.3 
+            xmax = 2.29 
             text = "n" 
         intervals [17]:
-            xmin = 2.3 
+            xmin = 2.29 
             xmax = 2.36 
             text = "ɛ" 
         intervals [18]:

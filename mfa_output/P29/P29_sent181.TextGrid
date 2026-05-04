@@ -14,10 +14,10 @@ item []:
         intervals: size = 11 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.2 
+            xmax = 1.19 
             text = "" 
         intervals [2]:
-            xmin = 1.2 
+            xmin = 1.19 
             xmax = 1.36 
             text = "het" 
         intervals [3]:
@@ -64,10 +64,10 @@ item []:
         intervals: size = 30 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.2 
+            xmax = 1.19 
             text = "" 
         intervals [2]:
-            xmin = 1.2 
+            xmin = 1.19 
             xmax = 1.28 
             text = "h" 
         intervals [3]:
@@ -172,10 +172,10 @@ item []:
             text = "eː" 
         intervals [28]:
             xmin = 7.41 
-            xmax = 7.46 
+            xmax = 7.45 
             text = "ʋ" 
         intervals [29]:
-            xmin = 7.46 
+            xmin = 7.45 
             xmax = 7.6 
             text = "eː" 
         intervals [30]:

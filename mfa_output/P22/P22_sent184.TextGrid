@@ -42,10 +42,10 @@ item []:
             text = "het" 
         intervals [8]:
             xmin = 3.19 
-            xmax = 3.6 
+            xmax = 3.58 
             text = "midden" 
         intervals [9]:
-            xmin = 3.6 
+            xmin = 3.58 
             xmax = 5.001 
             text = "" 
     item [2]:
@@ -136,10 +136,10 @@ item []:
             text = "t" 
         intervals [21]:
             xmin = 2.95 
-            xmax = 3.04 
+            xmax = 3.03 
             text = "ɪ" 
         intervals [22]:
-            xmin = 3.04 
+            xmin = 3.03 
             xmax = 3.07 
             text = "n" 
         intervals [23]:
@@ -148,10 +148,10 @@ item []:
             text = "h" 
         intervals [24]:
             xmin = 3.1 
-            xmax = 3.13 
+            xmax = 3.14 
             text = "ɛ" 
         intervals [25]:
-            xmin = 3.13 
+            xmin = 3.14 
             xmax = 3.19 
             text = "t" 
         intervals [26]:
@@ -176,9 +176,9 @@ item []:
             text = "ɛ" 
         intervals [31]:
             xmin = 3.43 
-            xmax = 3.6 
+            xmax = 3.58 
             text = "n" 
         intervals [32]:
-            xmin = 3.6 
+            xmin = 3.58 
             xmax = 5.001 
             text = "" 

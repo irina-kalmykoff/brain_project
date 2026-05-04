@@ -38,10 +38,10 @@ item []:
             text = "een" 
         intervals [7]:
             xmin = 1.34 
-            xmax = 2.02 
+            xmax = 2.01 
             text = "escape" 
         intervals [8]:
-            xmin = 2.02 
+            xmin = 2.01 
             xmax = 2.31 
             text = "game" 
         intervals [9]:
@@ -128,22 +128,22 @@ item []:
             text = "c" 
         intervals [18]:
             xmin = 1.64 
-            xmax = 1.83 
+            xmax = 1.77 
             text = "aː" 
         intervals [19]:
-            xmin = 1.83 
+            xmin = 1.77 
             xmax = 1.95 
             text = "p" 
         intervals [20]:
             xmin = 1.95 
-            xmax = 2.02 
+            xmax = 2.01 
             text = "eː" 
         intervals [21]:
-            xmin = 2.02 
-            xmax = 2.06 
+            xmin = 2.01 
+            xmax = 2.07 
             text = "ɣ" 
         intervals [22]:
-            xmin = 2.06 
+            xmin = 2.07 
             xmax = 2.1 
             text = "aː" 
         intervals [23]:

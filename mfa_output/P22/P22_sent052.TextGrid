@@ -38,10 +38,10 @@ item []:
             text = "de" 
         intervals [7]:
             xmin = 2.85 
-            xmax = 3.3 
+            xmax = 3.2 
             text = "hoek" 
         intervals [8]:
-            xmin = 3.3 
+            xmin = 3.2 
             xmax = 3.47 
             text = "van" 
         intervals [9]:
@@ -50,10 +50,10 @@ item []:
             text = "de" 
         intervals [10]:
             xmin = 3.59 
-            xmax = 4.15 
+            xmax = 4.13 
             text = "kamer" 
         intervals [11]:
-            xmin = 4.15 
+            xmin = 4.13 
             xmax = 4.998062 
             text = "" 
     item [2]:
@@ -156,10 +156,10 @@ item []:
             text = "uː" 
         intervals [24]:
             xmin = 3.09 
-            xmax = 3.3 
+            xmax = 3.2 
             text = "k" 
         intervals [25]:
-            xmin = 3.3 
+            xmin = 3.2 
             xmax = 3.36 
             text = "v" 
         intervals [26]:
@@ -196,9 +196,9 @@ item []:
             text = "ɛ" 
         intervals [34]:
             xmin = 3.96 
-            xmax = 4.15 
+            xmax = 4.13 
             text = "r" 
         intervals [35]:
-            xmin = 4.15 
+            xmin = 4.13 
             xmax = 4.998062 
             text = "" 

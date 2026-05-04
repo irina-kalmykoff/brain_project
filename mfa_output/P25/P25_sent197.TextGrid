@@ -34,10 +34,10 @@ item []:
             text = "kolonel" 
         intervals [6]:
             xmin = 1.7 
-            xmax = 2.19 
+            xmax = 2.2 
             text = "geworden" 
         intervals [7]:
-            xmin = 2.19 
+            xmin = 2.2 
             xmax = 4.002937 
             text = "" 
     item [2]:
@@ -84,10 +84,10 @@ item []:
             text = "eː" 
         intervals [10]:
             xmin = 1.14 
-            xmax = 1.18 
+            xmax = 1.17 
             text = "ɪ" 
         intervals [11]:
-            xmin = 1.18 
+            xmin = 1.17 
             xmax = 1.23 
             text = "s" 
         intervals [12]:
@@ -108,10 +108,10 @@ item []:
             text = "ɔ" 
         intervals [16]:
             xmin = 1.5 
-            xmax = 1.56 
+            xmax = 1.55 
             text = "n" 
         intervals [17]:
-            xmin = 1.56 
+            xmin = 1.55 
             xmax = 1.63 
             text = "ɛ" 
         intervals [18]:
@@ -148,9 +148,9 @@ item []:
             text = "ɛ" 
         intervals [26]:
             xmin = 2.03 
-            xmax = 2.19 
+            xmax = 2.2 
             text = "n" 
         intervals [27]:
-            xmin = 2.19 
+            xmin = 2.2 
             xmax = 4.002937 
             text = "" 

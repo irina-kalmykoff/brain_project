@@ -204,10 +204,10 @@ item []:
             text = "s" 
         intervals [35]:
             xmin = 3.3 
-            xmax = 3.5 
+            xmax = 3.51 
             text = "oː" 
         intervals [36]:
-            xmin = 3.5 
+            xmin = 3.51 
             xmax = 3.6 
             text = "v" 
         intervals [37]:

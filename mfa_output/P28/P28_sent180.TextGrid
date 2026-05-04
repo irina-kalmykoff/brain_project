@@ -34,10 +34,10 @@ item []:
             text = "het" 
         intervals [6]:
             xmin = 1.94 
-            xmax = 2.35 
+            xmax = 2.34 
             text = "hoogste" 
         intervals [7]:
-            xmin = 2.35 
+            xmin = 2.34 
             xmax = 2.68 
             text = "gebouw" 
         intervals [8]:
@@ -46,10 +46,10 @@ item []:
             text = "in" 
         intervals [9]:
             xmin = 2.77 
-            xmax = 3.42 
+            xmax = 3.43 
             text = "parijs" 
         intervals [10]:
-            xmin = 3.42 
+            xmin = 3.43 
             xmax = 3.983437 
             text = "" 
     item [2]:
@@ -80,22 +80,22 @@ item []:
             text = "j" 
         intervals [6]:
             xmin = 1.3 
-            xmax = 1.33 
+            xmax = 1.34 
             text = "f" 
         intervals [7]:
-            xmin = 1.33 
-            xmax = 1.36 
+            xmin = 1.34 
+            xmax = 1.37 
             text = "f" 
         intervals [8]:
-            xmin = 1.36 
-            xmax = 1.39 
+            xmin = 1.37 
+            xmax = 1.4 
             text = "ɛ" 
         intervals [9]:
-            xmin = 1.39 
-            xmax = 1.42 
+            xmin = 1.4 
+            xmax = 1.43 
             text = "l" 
         intervals [10]:
-            xmin = 1.42 
+            xmin = 1.43 
             xmax = 1.5 
             text = "t" 
         intervals [11]:
@@ -156,10 +156,10 @@ item []:
             text = "t" 
         intervals [25]:
             xmin = 2.29 
-            xmax = 2.35 
+            xmax = 2.34 
             text = "eː" 
         intervals [26]:
-            xmin = 2.35 
+            xmin = 2.34 
             xmax = 2.39 
             text = "ɣ" 
         intervals [27]:
@@ -172,10 +172,10 @@ item []:
             text = "b" 
         intervals [29]:
             xmin = 2.48 
-            xmax = 2.57 
+            xmax = 2.56 
             text = "ɑ" 
         intervals [30]:
-            xmin = 2.57 
+            xmin = 2.56 
             xmax = 2.68 
             text = "w" 
         intervals [31]:
@@ -208,9 +208,9 @@ item []:
             text = "j" 
         intervals [38]:
             xmin = 3.21 
-            xmax = 3.42 
+            xmax = 3.43 
             text = "s" 
         intervals [39]:
-            xmin = 3.42 
+            xmin = 3.43 
             xmax = 3.983437 
             text = "" 

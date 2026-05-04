@@ -46,10 +46,10 @@ item []:
             text = "in" 
         intervals [9]:
             xmin = 2.64 
-            xmax = 2.9 
+            xmax = 2.91 
             text = "een" 
         intervals [10]:
-            xmin = 2.9 
+            xmin = 2.91 
             xmax = 3.03 
             text = "" 
         intervals [11]:
@@ -58,10 +58,10 @@ item []:
             text = "zak" 
         intervals [12]:
             xmin = 3.45 
-            xmax = 4.29 
+            xmax = 3.56 
             text = "" 
         intervals [13]:
-            xmin = 4.29 
+            xmin = 3.56 
             xmax = 4.66 
             text = "gekocht" 
         intervals [14]:
@@ -148,10 +148,10 @@ item []:
             text = "eː" 
         intervals [19]:
             xmin = 2.75 
-            xmax = 2.9 
+            xmax = 2.91 
             text = "n" 
         intervals [20]:
-            xmin = 2.9 
+            xmin = 2.91 
             xmax = 3.03 
             text = "" 
         intervals [21]:
@@ -168,22 +168,22 @@ item []:
             text = "k" 
         intervals [24]:
             xmin = 3.45 
-            xmax = 4.29 
+            xmax = 3.56 
             text = "" 
         intervals [25]:
-            xmin = 4.29 
-            xmax = 4.36 
+            xmin = 3.56 
+            xmax = 3.7 
             text = "ɣ" 
         intervals [26]:
-            xmin = 4.36 
-            xmax = 4.39 
+            xmin = 3.7 
+            xmax = 3.76 
             text = "eː" 
         intervals [27]:
-            xmin = 4.39 
-            xmax = 4.42 
+            xmin = 3.76 
+            xmax = 4.4 
             text = "k" 
         intervals [28]:
-            xmin = 4.42 
+            xmin = 4.4 
             xmax = 4.52 
             text = "ɔ" 
         intervals [29]:

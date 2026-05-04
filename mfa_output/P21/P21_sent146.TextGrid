@@ -34,10 +34,10 @@ item []:
             text = "de" 
         intervals [6]:
             xmin = 2.06 
-            xmax = 2.57 
+            xmax = 2.59 
             text = "grond" 
         intervals [7]:
-            xmin = 2.57 
+            xmin = 2.59 
             xmax = 4.002 
             text = "" 
     item [2]:
@@ -68,18 +68,18 @@ item []:
             text = "ɑ" 
         intervals [6]:
             xmin = 1.13 
-            xmax = 1.19 
+            xmax = 1.18 
             text = "p" 
         intervals [7]:
-            xmin = 1.19 
-            xmax = 1.23 
+            xmin = 1.18 
+            xmax = 1.21 
             text = "p" 
         intervals [8]:
-            xmin = 1.23 
-            xmax = 1.26 
+            xmin = 1.21 
+            xmax = 1.24 
             text = "eː" 
         intervals [9]:
-            xmin = 1.26 
+            xmin = 1.24 
             xmax = 1.29 
             text = "l" 
         intervals [10]:
@@ -160,9 +160,9 @@ item []:
             text = "n" 
         intervals [29]:
             xmin = 2.32 
-            xmax = 2.57 
+            xmax = 2.59 
             text = "t" 
         intervals [30]:
-            xmin = 2.57 
+            xmin = 2.59 
             xmax = 4.002 
             text = "" 

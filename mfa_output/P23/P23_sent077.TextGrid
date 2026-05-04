@@ -30,10 +30,10 @@ item []:
             text = "benzine" 
         intervals [5]:
             xmin = 1.88 
-            xmax = 1.98 
+            xmax = 1.99 
             text = "is" 
         intervals [6]:
-            xmin = 1.98 
+            xmin = 1.99 
             xmax = 2.31 
             text = "een" 
         intervals [7]:
@@ -108,10 +108,10 @@ item []:
             text = "ɪ" 
         intervals [13]:
             xmin = 1.93 
-            xmax = 1.98 
+            xmax = 1.99 
             text = "s" 
         intervals [14]:
-            xmin = 1.98 
+            xmin = 1.99 
             xmax = 2.07 
             text = "eː" 
         intervals [15]:
@@ -184,10 +184,10 @@ item []:
             text = "d" 
         intervals [32]:
             xmin = 3.39 
-            xmax = 3.48 
+            xmax = 3.5 
             text = "ɛ" 
         intervals [33]:
-            xmin = 3.48 
+            xmin = 3.5 
             xmax = 3.66 
             text = "n" 
         intervals [34]:

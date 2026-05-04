@@ -30,10 +30,10 @@ item []:
             text = "moest" 
         intervals [5]:
             xmin = 1.4 
-            xmax = 1.51 
+            xmax = 1.5 
             text = "op" 
         intervals [6]:
-            xmin = 1.51 
+            xmin = 1.5 
             xmax = 1.58 
             text = "de" 
         intervals [7]:
@@ -50,10 +50,10 @@ item []:
             text = "worden" 
         intervals [10]:
             xmin = 2.35 
-            xmax = 2.76 
+            xmax = 2.81 
             text = "gebakken" 
         intervals [11]:
-            xmin = 2.76 
+            xmin = 2.81 
             xmax = 4.003938 
             text = "" 
     item [2]:
@@ -124,14 +124,14 @@ item []:
             text = "ɔ" 
         intervals [16]:
             xmin = 1.43 
-            xmax = 1.51 
+            xmax = 1.5 
             text = "p" 
         intervals [17]:
-            xmin = 1.51 
-            xmax = 1.54 
+            xmin = 1.5 
+            xmax = 1.53 
             text = "d" 
         intervals [18]:
-            xmin = 1.54 
+            xmin = 1.53 
             xmax = 1.58 
             text = "eː" 
         intervals [19]:
@@ -144,10 +144,10 @@ item []:
             text = "œ" 
         intervals [21]:
             xmin = 1.71 
-            xmax = 1.78 
+            xmax = 1.77 
             text = "ɥ" 
         intervals [22]:
-            xmin = 1.78 
+            xmin = 1.77 
             xmax = 1.83 
             text = "s" 
         intervals [23]:
@@ -184,10 +184,10 @@ item []:
             text = "ʋ" 
         intervals [31]:
             xmin = 2.17 
-            xmax = 2.22 
+            xmax = 2.23 
             text = "ɔ" 
         intervals [32]:
-            xmin = 2.22 
+            xmin = 2.23 
             xmax = 2.26 
             text = "r" 
         intervals [33]:
@@ -232,9 +232,9 @@ item []:
             text = "ɛ" 
         intervals [43]:
             xmin = 2.67 
-            xmax = 2.76 
+            xmax = 2.81 
             text = "n" 
         intervals [44]:
-            xmin = 2.76 
+            xmin = 2.81 
             xmax = 4.003938 
             text = "" 

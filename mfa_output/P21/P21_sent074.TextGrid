@@ -100,14 +100,14 @@ item []:
             text = "oː" 
         intervals [13]:
             xmin = 1.48 
-            xmax = 1.53 
+            xmax = 1.52 
             text = "f" 
         intervals [14]:
-            xmin = 1.53 
-            xmax = 1.56 
+            xmin = 1.52 
+            xmax = 1.55 
             text = "t" 
         intervals [15]:
-            xmin = 1.56 
+            xmin = 1.55 
             xmax = 1.59 
             text = "s" 
         intervals [16]:
@@ -124,14 +124,14 @@ item []:
             text = "t" 
         intervals [19]:
             xmin = 1.78 
-            xmax = 1.86 
+            xmax = 1.85 
             text = "v" 
         intervals [20]:
-            xmin = 1.86 
-            xmax = 1.89 
+            xmin = 1.85 
+            xmax = 1.88 
             text = "ɑ" 
         intervals [21]:
-            xmin = 1.89 
+            xmin = 1.88 
             xmax = 1.92 
             text = "n" 
         intervals [22]:
@@ -160,10 +160,10 @@ item []:
             text = "r" 
         intervals [28]:
             xmin = 2.29 
-            xmax = 2.38 
+            xmax = 2.37 
             text = "ɛ" 
         intervals [29]:
-            xmin = 2.38 
+            xmin = 2.37 
             xmax = 2.49 
             text = "j" 
         intervals [30]:

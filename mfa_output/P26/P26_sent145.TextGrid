@@ -104,10 +104,10 @@ item []:
             text = "r" 
         intervals [10]:
             xmin = 1.28 
-            xmax = 1.33 
+            xmax = 1.32 
             text = "ɛ" 
         intervals [11]:
-            xmin = 1.33 
+            xmin = 1.32 
             xmax = 1.38 
             text = "n" 
         intervals [12]:
@@ -208,10 +208,10 @@ item []:
             text = "z" 
         intervals [36]:
             xmin = 3.29 
-            xmax = 3.35 
+            xmax = 3.36 
             text = "ɪ" 
         intervals [37]:
-            xmin = 3.35 
+            xmin = 3.36 
             xmax = 3.39 
             text = "t" 
         intervals [38]:

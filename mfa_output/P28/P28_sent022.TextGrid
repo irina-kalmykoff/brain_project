@@ -34,10 +34,10 @@ item []:
             text = "snel" 
         intervals [6]:
             xmin = 2.55 
-            xmax = 3.23 
+            xmax = 3.22 
             text = "gedaald" 
         intervals [7]:
-            xmin = 3.23 
+            xmin = 3.22 
             xmax = 3.565437 
             text = "" 
     item [2]:
@@ -120,9 +120,9 @@ item []:
             text = "l" 
         intervals [19]:
             xmin = 3.02 
-            xmax = 3.23 
+            xmax = 3.22 
             text = "t" 
         intervals [20]:
-            xmin = 3.23 
+            xmin = 3.22 
             xmax = 3.565437 
             text = "" 

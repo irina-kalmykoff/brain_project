@@ -22,10 +22,10 @@ item []:
             text = "zalig" 
         intervals [3]:
             xmin = 1.46 
-            xmax = 1.54 
+            xmax = 1.53 
             text = "" 
         intervals [4]:
-            xmin = 1.54 
+            xmin = 1.53 
             xmax = 1.71 
             text = "heb" 
         intervals [5]:
@@ -64,10 +64,10 @@ item []:
             text = "z" 
         intervals [3]:
             xmin = 0.89 
-            xmax = 1.18 
+            xmax = 1.16 
             text = "aː" 
         intervals [4]:
-            xmin = 1.18 
+            xmin = 1.16 
             xmax = 1.25 
             text = "l" 
         intervals [5]:
@@ -80,10 +80,10 @@ item []:
             text = "x" 
         intervals [7]:
             xmin = 1.46 
-            xmax = 1.54 
+            xmax = 1.53 
             text = "" 
         intervals [8]:
-            xmin = 1.54 
+            xmin = 1.53 
             xmax = 1.61 
             text = "h" 
         intervals [9]:
@@ -148,10 +148,10 @@ item []:
             text = "ɣ" 
         intervals [24]:
             xmin = 2.75 
-            xmax = 2.78 
+            xmax = 2.79 
             text = "ɛ" 
         intervals [25]:
-            xmin = 2.78 
+            xmin = 2.79 
             xmax = 2.87 
             text = "s" 
         intervals [26]:

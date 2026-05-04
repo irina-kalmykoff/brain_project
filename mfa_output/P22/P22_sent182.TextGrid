@@ -14,10 +14,10 @@ item []:
         intervals: size = 14 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.96 
+            xmax = 0.95 
             text = "" 
         intervals [2]:
-            xmin = 0.96 
+            xmin = 0.95 
             xmax = 1.17 
             text = "ik" 
         intervals [3]:
@@ -26,10 +26,10 @@ item []:
             text = "woon" 
         intervals [4]:
             xmin = 1.46 
-            xmax = 1.76 
+            xmax = 1.77 
             text = "liever" 
         intervals [5]:
-            xmin = 1.76 
+            xmin = 1.77 
             xmax = 1.97 
             text = "op" 
         intervals [6]:
@@ -62,10 +62,10 @@ item []:
             text = "stedelijk" 
         intervals [13]:
             xmin = 3.99 
-            xmax = 4.46 
+            xmax = 4.49 
             text = "gebied" 
         intervals [14]:
-            xmin = 4.46 
+            xmin = 4.49 
             xmax = 5.002937 
             text = "" 
     item [2]:
@@ -76,10 +76,10 @@ item []:
         intervals: size = 49 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.96 
+            xmax = 0.95 
             text = "" 
         intervals [2]:
-            xmin = 0.96 
+            xmin = 0.95 
             xmax = 1.09 
             text = "ɪ" 
         intervals [3]:
@@ -120,10 +120,10 @@ item []:
             text = "ɛ" 
         intervals [12]:
             xmin = 1.73 
-            xmax = 1.76 
+            xmax = 1.77 
             text = "r" 
         intervals [13]:
-            xmin = 1.76 
+            xmin = 1.77 
             xmax = 1.92 
             text = "ɔ" 
         intervals [14]:
@@ -264,9 +264,9 @@ item []:
             text = "iː" 
         intervals [48]:
             xmin = 4.35 
-            xmax = 4.46 
+            xmax = 4.49 
             text = "t" 
         intervals [49]:
-            xmin = 4.46 
+            xmin = 4.49 
             xmax = 5.002937 
             text = "" 

@@ -34,10 +34,10 @@ item []:
             text = "de" 
         intervals [6]:
             xmin = 2.09 
-            xmax = 2.85 
+            xmax = 2.86 
             text = "verlichting" 
         intervals [7]:
-            xmin = 2.85 
+            xmin = 2.86 
             xmax = 2.91 
             text = "" 
         intervals [8]:
@@ -172,10 +172,10 @@ item []:
             text = "n" 
         intervals [25]:
             xmin = 2.74 
-            xmax = 2.85 
+            xmax = 2.86 
             text = "x" 
         intervals [26]:
-            xmin = 2.85 
+            xmin = 2.86 
             xmax = 2.91 
             text = "" 
         intervals [27]:

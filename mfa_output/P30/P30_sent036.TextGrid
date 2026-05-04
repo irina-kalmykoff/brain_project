@@ -34,22 +34,22 @@ item []:
             text = "naar" 
         intervals [6]:
             xmin = 4.97 
-            xmax = 5.37 
+            xmax = 5.3 
             text = "haar" 
         intervals [7]:
-            xmin = 5.37 
-            xmax = 5.84 
-            text = "" 
-        intervals [8]:
-            xmin = 5.84 
-            xmax = 5.894563 
+            xmin = 5.3 
+            xmax = 5.33 
             text = "bh" 
+        intervals [8]:
+            xmin = 5.33 
+            xmax = 5.894563 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 5.894563 
-        intervals: size = 17 
+        intervals: size = 18 
         intervals [1]:
             xmin = 0.0 
             xmax = 3.69 
@@ -108,13 +108,17 @@ item []:
             text = "h" 
         intervals [15]:
             xmin = 5.06 
-            xmax = 5.26 
+            xmax = 5.27 
             text = "aː" 
         intervals [16]:
-            xmin = 5.26 
-            xmax = 5.37 
+            xmin = 5.27 
+            xmax = 5.3 
             text = "r" 
         intervals [17]:
-            xmin = 5.37 
+            xmin = 5.3 
+            xmax = 5.33 
+            text = "f" 
+        intervals [18]:
+            xmin = 5.33 
             xmax = 5.894563 
             text = "" 

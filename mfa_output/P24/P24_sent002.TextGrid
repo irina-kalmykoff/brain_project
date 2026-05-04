@@ -14,10 +14,10 @@ item []:
         intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.7 
+            xmax = 1.69 
             text = "" 
         intervals [2]:
-            xmin = 1.7 
+            xmin = 1.69 
             xmax = 2.15 
             text = "donald" 
         intervals [3]:
@@ -38,10 +38,10 @@ item []:
             text = "de" 
         intervals [7]:
             xmin = 3.01 
-            xmax = 3.46 
+            xmax = 3.45 
             text = "huidige" 
         intervals [8]:
-            xmin = 3.46 
+            xmin = 3.45 
             xmax = 4.27 
             text = "amerikaanse" 
         intervals [9]:
@@ -56,14 +56,14 @@ item []:
         intervals: size = 44 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.7 
+            xmax = 1.69 
             text = "" 
         intervals [2]:
-            xmin = 1.7 
-            xmax = 1.77 
+            xmin = 1.69 
+            xmax = 1.76 
             text = "d" 
         intervals [3]:
-            xmin = 1.77 
+            xmin = 1.76 
             xmax = 1.88 
             text = "oː" 
         intervals [4]:
@@ -128,10 +128,10 @@ item []:
             text = "h" 
         intervals [19]:
             xmin = 3.07 
-            xmax = 3.15 
+            xmax = 3.16 
             text = "œ" 
         intervals [20]:
-            xmin = 3.15 
+            xmin = 3.16 
             xmax = 3.19 
             text = "ɥ" 
         intervals [21]:
@@ -152,10 +152,10 @@ item []:
             text = "ɣ" 
         intervals [25]:
             xmin = 3.35 
-            xmax = 3.46 
+            xmax = 3.45 
             text = "eː" 
         intervals [26]:
-            xmin = 3.46 
+            xmin = 3.45 
             xmax = 3.58 
             text = "aː" 
         intervals [27]:

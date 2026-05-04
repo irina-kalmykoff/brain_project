@@ -11,17 +11,17 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 6.632812 
-        intervals: size = 14 
+        intervals: size = 15 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.65 
             text = "" 
         intervals [2]:
             xmin = 1.65 
-            xmax = 1.86 
+            xmax = 1.85 
             text = "na" 
         intervals [3]:
-            xmin = 1.86 
+            xmin = 1.85 
             xmax = 1.98 
             text = "die" 
         intervals [4]:
@@ -58,14 +58,18 @@ item []:
             text = "" 
         intervals [12]:
             xmin = 5.24 
-            xmax = 5.95 
+            xmax = 5.45 
             text = "tot" 
         intervals [13]:
-            xmin = 5.95 
-            xmax = 5.98 
-            text = "teen" 
+            xmin = 5.45 
+            xmax = 5.48 
+            text = "" 
         intervals [14]:
-            xmin = 5.98 
+            xmin = 5.48 
+            xmax = 6.06 
+            text = "teen" 
+        intervals [15]:
+            xmin = 6.06 
             xmax = 6.632812 
             text = "" 
     item [2]:
@@ -73,7 +77,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 6.632812 
-        intervals: size = 36 
+        intervals: size = 40 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.65 
@@ -84,10 +88,10 @@ item []:
             text = "n" 
         intervals [3]:
             xmin = 1.72 
-            xmax = 1.86 
+            xmax = 1.85 
             text = "aː" 
         intervals [4]:
-            xmin = 1.86 
+            xmin = 1.85 
             xmax = 1.89 
             text = "d" 
         intervals [5]:
@@ -192,10 +196,10 @@ item []:
             text = "k" 
         intervals [30]:
             xmin = 4.89 
-            xmax = 4.94 
+            xmax = 4.95 
             text = "ɔ" 
         intervals [31]:
-            xmin = 4.94 
+            xmin = 4.95 
             xmax = 5.04 
             text = "p" 
         intervals [32]:
@@ -212,9 +216,25 @@ item []:
             text = "ɔ" 
         intervals [35]:
             xmin = 5.4 
-            xmax = 5.95 
+            xmax = 5.45 
             text = "t" 
         intervals [36]:
-            xmin = 5.95 
+            xmin = 5.45 
+            xmax = 5.48 
+            text = "" 
+        intervals [37]:
+            xmin = 5.48 
+            xmax = 5.55 
+            text = "t" 
+        intervals [38]:
+            xmin = 5.55 
+            xmax = 5.76 
+            text = "eː" 
+        intervals [39]:
+            xmin = 5.76 
+            xmax = 6.06 
+            text = "n" 
+        intervals [40]:
+            xmin = 6.06 
             xmax = 6.632812 
             text = "" 

@@ -38,10 +38,10 @@ item []:
             text = "altijd" 
         intervals [7]:
             xmin = 2.05 
-            xmax = 2.3 
+            xmax = 2.29 
             text = "al" 
         intervals [8]:
-            xmin = 2.3 
+            xmin = 2.29 
             xmax = 3.1 
             text = "afgevraagd" 
         intervals [9]:
@@ -132,10 +132,10 @@ item []:
             text = "ɑ" 
         intervals [20]:
             xmin = 2.17 
-            xmax = 2.3 
+            xmax = 2.29 
             text = "l" 
         intervals [21]:
-            xmin = 2.3 
+            xmin = 2.29 
             xmax = 2.38 
             text = "ɑ" 
         intervals [22]:
@@ -164,10 +164,10 @@ item []:
             text = "aː" 
         intervals [28]:
             xmin = 2.89 
-            xmax = 2.92 
+            xmax = 2.93 
             text = "x" 
         intervals [29]:
-            xmin = 2.92 
+            xmin = 2.93 
             xmax = 3.1 
             text = "t" 
         intervals [30]:

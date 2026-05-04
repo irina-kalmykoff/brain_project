@@ -22,10 +22,10 @@ item []:
             text = "de" 
         intervals [3]:
             xmin = 2.01 
-            xmax = 2.68 
+            xmax = 2.66 
             text = "treinrit" 
         intervals [4]:
-            xmin = 2.68 
+            xmin = 2.66 
             xmax = 2.87 
             text = "" 
         intervals [5]:
@@ -104,10 +104,10 @@ item []:
             text = "ɪ" 
         intervals [11]:
             xmin = 2.56 
-            xmax = 2.68 
+            xmax = 2.66 
             text = "t" 
         intervals [12]:
-            xmin = 2.68 
+            xmin = 2.66 
             xmax = 2.87 
             text = "" 
         intervals [13]:

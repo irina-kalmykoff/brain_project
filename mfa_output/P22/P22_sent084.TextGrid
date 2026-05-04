@@ -18,14 +18,14 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 1.01 
-            xmax = 1.17 
+            xmax = 1.18 
             text = "haar" 
         intervals [3]:
-            xmin = 1.17 
-            xmax = 1.64 
+            xmin = 1.18 
+            xmax = 1.63 
             text = "kinderen" 
         intervals [4]:
-            xmin = 1.64 
+            xmin = 1.63 
             xmax = 1.94 
             text = "hebben" 
         intervals [5]:
@@ -50,10 +50,10 @@ item []:
             text = "het" 
         intervals [10]:
             xmin = 4.13 
-            xmax = 4.8 
+            xmax = 4.81 
             text = "strand" 
         intervals [11]:
-            xmin = 4.8 
+            xmin = 4.81 
             xmax = 5.002 
             text = "" 
     item [2]:
@@ -76,10 +76,10 @@ item []:
             text = "aː" 
         intervals [4]:
             xmin = 1.09 
-            xmax = 1.17 
+            xmax = 1.18 
             text = "r" 
         intervals [5]:
-            xmin = 1.17 
+            xmin = 1.18 
             xmax = 1.27 
             text = "k" 
         intervals [6]:
@@ -108,10 +108,10 @@ item []:
             text = "ɛ" 
         intervals [12]:
             xmin = 1.57 
-            xmax = 1.64 
+            xmax = 1.63 
             text = "n" 
         intervals [13]:
-            xmin = 1.64 
+            xmin = 1.63 
             xmax = 1.7 
             text = "h" 
         intervals [14]:
@@ -148,10 +148,10 @@ item []:
             text = "z" 
         intervals [22]:
             xmin = 2.19 
-            xmax = 2.25 
+            xmax = 2.26 
             text = "ɑ" 
         intervals [23]:
-            xmin = 2.25 
+            xmin = 2.26 
             xmax = 2.31 
             text = "n" 
         intervals [24]:
@@ -244,13 +244,13 @@ item []:
             text = "ɑ" 
         intervals [46]:
             xmin = 4.55 
-            xmax = 4.63 
+            xmax = 4.64 
             text = "n" 
         intervals [47]:
-            xmin = 4.63 
-            xmax = 4.8 
+            xmin = 4.64 
+            xmax = 4.81 
             text = "t" 
         intervals [48]:
-            xmin = 4.8 
+            xmin = 4.81 
             xmax = 5.002 
             text = "" 

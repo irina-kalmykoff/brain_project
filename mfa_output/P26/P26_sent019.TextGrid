@@ -50,22 +50,22 @@ item []:
             text = "een" 
         intervals [10]:
             xmin = 3.39 
-            xmax = 3.83 
+            xmax = 3.76 
             text = "eigen" 
         intervals [11]:
-            xmin = 3.83 
-            xmax = 3.95 
-            text = "" 
+            xmin = 3.76 
+            xmax = 3.89 
+            text = "back" 
         intervals [12]:
-            xmin = 3.95 
+            xmin = 3.89 
             xmax = 4.002937 
-            text = "back-up" 
+            text = "up" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 4.002937 
-        intervals: size = 33 
+        intervals: size = 37 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.02 
@@ -176,10 +176,10 @@ item []:
             text = "ɛ" 
         intervals [28]:
             xmin = 3.47 
-            xmax = 3.57 
+            xmax = 3.58 
             text = "j" 
         intervals [29]:
-            xmin = 3.57 
+            xmin = 3.58 
             xmax = 3.61 
             text = "ɪ" 
         intervals [30]:
@@ -188,13 +188,29 @@ item []:
             text = "ɣ" 
         intervals [31]:
             xmin = 3.68 
-            xmax = 3.73 
+            xmax = 3.72 
             text = "ɛ" 
         intervals [32]:
-            xmin = 3.73 
-            xmax = 3.83 
+            xmin = 3.72 
+            xmax = 3.76 
             text = "n" 
         intervals [33]:
-            xmin = 3.83 
+            xmin = 3.76 
+            xmax = 3.79 
+            text = "b" 
+        intervals [34]:
+            xmin = 3.79 
+            xmax = 3.82 
+            text = "ɑ" 
+        intervals [35]:
+            xmin = 3.82 
+            xmax = 3.89 
+            text = "k" 
+        intervals [36]:
+            xmin = 3.89 
+            xmax = 3.95 
+            text = "ʏ" 
+        intervals [37]:
+            xmin = 3.95 
             xmax = 4.002937 
-            text = "" 
+            text = "p" 

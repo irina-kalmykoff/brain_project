@@ -11,7 +11,7 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 5.280312 
-        intervals: size = 12 
+        intervals: size = 11 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.15 
@@ -46,18 +46,14 @@ item []:
             text = "" 
         intervals [9]:
             xmin = 2.75 
-            xmax = 3.85 
+            xmax = 2.83 
             text = "de" 
         intervals [10]:
-            xmin = 3.85 
-            xmax = 4.03 
-            text = "" 
-        intervals [11]:
-            xmin = 4.03 
-            xmax = 4.06 
+            xmin = 2.83 
+            xmax = 3.85 
             text = "tekenles" 
-        intervals [12]:
-            xmin = 4.06 
+        intervals [11]:
+            xmin = 3.85 
             xmax = 5.280312 
             text = "" 
     item [2]:
@@ -65,7 +61,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 5.280312 
-        intervals: size = 23 
+        intervals: size = 31 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.15 
@@ -148,13 +144,45 @@ item []:
             text = "" 
         intervals [21]:
             xmin = 2.75 
-            xmax = 2.88 
+            xmax = 2.8 
             text = "d" 
         intervals [22]:
-            xmin = 2.88 
-            xmax = 3.85 
+            xmin = 2.8 
+            xmax = 2.83 
             text = "eː" 
         intervals [23]:
+            xmin = 2.83 
+            xmax = 2.86 
+            text = "t" 
+        intervals [24]:
+            xmin = 2.86 
+            xmax = 3.02 
+            text = "eː" 
+        intervals [25]:
+            xmin = 3.02 
+            xmax = 3.16 
+            text = "k" 
+        intervals [26]:
+            xmin = 3.16 
+            xmax = 3.19 
+            text = "ɛ" 
+        intervals [27]:
+            xmin = 3.19 
+            xmax = 3.22 
+            text = "n" 
+        intervals [28]:
+            xmin = 3.22 
+            xmax = 3.47 
+            text = "l" 
+        intervals [29]:
+            xmin = 3.47 
+            xmax = 3.66 
+            text = "ɛ" 
+        intervals [30]:
+            xmin = 3.66 
+            xmax = 3.85 
+            text = "s" 
+        intervals [31]:
             xmin = 3.85 
             xmax = 5.280312 
             text = "" 

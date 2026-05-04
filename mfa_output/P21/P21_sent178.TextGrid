@@ -26,18 +26,18 @@ item []:
             text = "is" 
         intervals [4]:
             xmin = 1.55 
-            xmax = 2.09 
+            xmax = 2.06 
             text = "verantwoordelijk" 
         intervals [5]:
-            xmin = 2.09 
+            xmin = 2.06 
             xmax = 2.2 
             text = "voor" 
         intervals [6]:
             xmin = 2.2 
-            xmax = 2.4 
+            xmax = 2.41 
             text = "deze" 
         intervals [7]:
-            xmin = 2.4 
+            xmin = 2.41 
             xmax = 3.15 
             text = "misdaad" 
         intervals [8]:
@@ -68,10 +68,10 @@ item []:
             text = "eː" 
         intervals [5]:
             xmin = 1.42 
-            xmax = 1.46 
+            xmax = 1.45 
             text = "ɪ" 
         intervals [6]:
-            xmin = 1.46 
+            xmin = 1.45 
             xmax = 1.55 
             text = "s" 
         intervals [7]:
@@ -104,38 +104,38 @@ item []:
             text = "ʋ" 
         intervals [14]:
             xmin = 1.79 
-            xmax = 1.88 
+            xmax = 1.83 
             text = "oː" 
         intervals [15]:
-            xmin = 1.88 
-            xmax = 1.91 
+            xmin = 1.83 
+            xmax = 1.86 
             text = "r" 
         intervals [16]:
-            xmin = 1.91 
-            xmax = 1.94 
+            xmin = 1.86 
+            xmax = 1.89 
             text = "d" 
         intervals [17]:
-            xmin = 1.94 
-            xmax = 1.97 
+            xmin = 1.89 
+            xmax = 1.93 
             text = "eː" 
         intervals [18]:
-            xmin = 1.97 
-            xmax = 2.0 
+            xmin = 1.93 
+            xmax = 1.96 
             text = "l" 
         intervals [19]:
-            xmin = 2.0 
-            xmax = 2.03 
+            xmin = 1.96 
+            xmax = 1.99 
             text = "ɛ" 
         intervals [20]:
-            xmin = 2.03 
-            xmax = 2.06 
+            xmin = 1.99 
+            xmax = 2.02 
             text = "j" 
         intervals [21]:
-            xmin = 2.06 
-            xmax = 2.09 
+            xmin = 2.02 
+            xmax = 2.06 
             text = "k" 
         intervals [22]:
-            xmin = 2.09 
+            xmin = 2.06 
             xmax = 2.14 
             text = "v" 
         intervals [23]:
@@ -160,18 +160,18 @@ item []:
             text = "z" 
         intervals [28]:
             xmin = 2.35 
-            xmax = 2.4 
+            xmax = 2.41 
             text = "eː" 
         intervals [29]:
-            xmin = 2.4 
+            xmin = 2.41 
             xmax = 2.52 
             text = "m" 
         intervals [30]:
             xmin = 2.52 
-            xmax = 2.62 
+            xmax = 2.61 
             text = "ɪ" 
         intervals [31]:
-            xmin = 2.62 
+            xmin = 2.61 
             xmax = 2.7 
             text = "s" 
         intervals [32]:

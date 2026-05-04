@@ -14,10 +14,10 @@ item []:
         intervals: size = 10 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.06 
+            xmax = 1.05 
             text = "" 
         intervals [2]:
-            xmin = 1.06 
+            xmin = 1.05 
             xmax = 1.22 
             text = "ik" 
         intervals [3]:
@@ -26,14 +26,14 @@ item []:
             text = "heb" 
         intervals [4]:
             xmin = 1.37 
-            xmax = 1.86 
+            xmax = 1.88 
             text = "geen" 
         intervals [5]:
-            xmin = 1.86 
-            xmax = 2.47 
+            xmin = 1.88 
+            xmax = 2.48 
             text = "" 
         intervals [6]:
-            xmin = 2.47 
+            xmin = 2.48 
             xmax = 3.37 
             text = "bekerhouders" 
         intervals [7]:
@@ -60,10 +60,10 @@ item []:
         intervals: size = 35 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.06 
+            xmax = 1.05 
             text = "" 
         intervals [2]:
-            xmin = 1.06 
+            xmin = 1.05 
             xmax = 1.16 
             text = "ɪ" 
         intervals [3]:
@@ -92,14 +92,14 @@ item []:
             text = "eː" 
         intervals [9]:
             xmin = 1.54 
-            xmax = 1.86 
+            xmax = 1.88 
             text = "n" 
         intervals [10]:
-            xmin = 1.86 
-            xmax = 2.47 
+            xmin = 1.88 
+            xmax = 2.48 
             text = "" 
         intervals [11]:
-            xmin = 2.47 
+            xmin = 2.48 
             xmax = 2.71 
             text = "b" 
         intervals [12]:
@@ -180,18 +180,18 @@ item []:
             text = "ʋ" 
         intervals [31]:
             xmin = 3.86 
-            xmax = 4.02 
+            xmax = 4.03 
             text = "aː" 
         intervals [32]:
-            xmin = 4.02 
-            xmax = 4.05 
+            xmin = 4.03 
+            xmax = 4.06 
             text = "ɣ" 
         intervals [33]:
-            xmin = 4.05 
-            xmax = 4.08 
+            xmin = 4.06 
+            xmax = 4.09 
             text = "ɛ" 
         intervals [34]:
-            xmin = 4.08 
+            xmin = 4.09 
             xmax = 4.26 
             text = "n" 
         intervals [35]:

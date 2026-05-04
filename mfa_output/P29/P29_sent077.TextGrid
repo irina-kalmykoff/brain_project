@@ -144,9 +144,9 @@ item []:
             text = "s" 
         intervals [24]:
             xmin = 4.75 
-            xmax = 4.78 
+            xmax = 5.38 
             text = "ɛ" 
         intervals [25]:
-            xmin = 4.78 
+            xmin = 5.38 
             xmax = 5.598687 
             text = "l" 

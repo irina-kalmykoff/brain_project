@@ -38,10 +38,10 @@ item []:
             text = "" 
         intervals [7]:
             xmin = 2.35 
-            xmax = 3.44 
+            xmax = 3.43 
             text = "chocolaterie" 
         intervals [8]:
-            xmin = 3.44 
+            xmin = 3.43 
             xmax = 3.47 
             text = "" 
         intervals [9]:
@@ -50,10 +50,10 @@ item []:
             text = "van" 
         intervals [10]:
             xmin = 3.71 
-            xmax = 4.26 
+            xmax = 4.28 
             text = "belgië" 
         intervals [11]:
-            xmin = 4.26 
+            xmin = 4.28 
             xmax = 5.007812 
             text = "" 
     item [2]:
@@ -148,10 +148,10 @@ item []:
             text = "t" 
         intervals [22]:
             xmin = 3.11 
-            xmax = 3.16 
+            xmax = 3.17 
             text = "eː" 
         intervals [23]:
-            xmin = 3.16 
+            xmin = 3.17 
             xmax = 3.28 
             text = "r" 
         intervals [24]:
@@ -160,18 +160,18 @@ item []:
             text = "iː" 
         intervals [25]:
             xmin = 3.33 
-            xmax = 3.44 
+            xmax = 3.43 
             text = "eː" 
         intervals [26]:
-            xmin = 3.44 
+            xmin = 3.43 
             xmax = 3.47 
             text = "" 
         intervals [27]:
             xmin = 3.47 
-            xmax = 3.6 
+            xmax = 3.61 
             text = "v" 
         intervals [28]:
-            xmin = 3.6 
+            xmin = 3.61 
             xmax = 3.64 
             text = "ɑ" 
         intervals [29]:
@@ -196,9 +196,9 @@ item []:
             text = "ɣ" 
         intervals [34]:
             xmin = 4.04 
-            xmax = 4.26 
+            xmax = 4.28 
             text = "iː" 
         intervals [35]:
-            xmin = 4.26 
+            xmin = 4.28 
             xmax = 5.007812 
             text = "" 

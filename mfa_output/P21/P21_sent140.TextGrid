@@ -22,10 +22,10 @@ item []:
             text = "de" 
         intervals [3]:
             xmin = 1.34 
-            xmax = 1.57 
+            xmax = 1.56 
             text = "" 
         intervals [4]:
-            xmin = 1.57 
+            xmin = 1.56 
             xmax = 2.08 
             text = "geest" 
         intervals [5]:
@@ -72,14 +72,14 @@ item []:
             text = "eː" 
         intervals [4]:
             xmin = 1.34 
-            xmax = 1.57 
+            xmax = 1.56 
             text = "" 
         intervals [5]:
-            xmin = 1.57 
-            xmax = 1.74 
+            xmin = 1.56 
+            xmax = 1.73 
             text = "ɣ" 
         intervals [6]:
-            xmin = 1.74 
+            xmin = 1.73 
             xmax = 1.88 
             text = "eː" 
         intervals [7]:

@@ -18,22 +18,22 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 1.15 
-            xmax = 1.53 
+            xmax = 1.5 
             text = "de" 
         intervals [3]:
-            xmin = 1.53 
-            xmax = 1.56 
+            xmin = 1.5 
+            xmax = 1.53 
             text = "" 
         intervals [4]:
-            xmin = 1.56 
+            xmin = 1.53 
             xmax = 2.25 
             text = "gefaalde" 
         intervals [5]:
             xmin = 2.25 
-            xmax = 2.98 
+            xmax = 2.99 
             text = "acquisitie" 
         intervals [6]:
-            xmin = 2.98 
+            xmin = 2.99 
             xmax = 3.34 
             text = "had" 
         intervals [7]:
@@ -72,14 +72,14 @@ item []:
             text = "d" 
         intervals [3]:
             xmin = 1.22 
-            xmax = 1.53 
+            xmax = 1.5 
             text = "eː" 
         intervals [4]:
-            xmin = 1.53 
-            xmax = 1.56 
+            xmin = 1.5 
+            xmax = 1.53 
             text = "" 
         intervals [5]:
-            xmin = 1.56 
+            xmin = 1.53 
             xmax = 1.68 
             text = "ɣ" 
         intervals [6]:
@@ -144,10 +144,10 @@ item []:
             text = "iː" 
         intervals [21]:
             xmin = 2.93 
-            xmax = 2.98 
+            xmax = 2.99 
             text = "eː" 
         intervals [22]:
-            xmin = 2.98 
+            xmin = 2.99 
             xmax = 3.05 
             text = "h" 
         intervals [23]:

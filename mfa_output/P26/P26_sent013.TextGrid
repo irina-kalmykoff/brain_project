@@ -38,10 +38,10 @@ item []:
             text = "" 
         intervals [7]:
             xmin = 1.88 
-            xmax = 2.21 
+            xmax = 2.22 
             text = "maar" 
         intervals [8]:
-            xmin = 2.21 
+            xmin = 2.22 
             xmax = 2.57 
             text = "het" 
         intervals [9]:
@@ -124,22 +124,22 @@ item []:
             text = "m" 
         intervals [17]:
             xmin = 2.02 
-            xmax = 2.18 
+            xmax = 2.19 
             text = "aː" 
         intervals [18]:
-            xmin = 2.18 
-            xmax = 2.21 
+            xmin = 2.19 
+            xmax = 2.22 
             text = "r" 
         intervals [19]:
-            xmin = 2.21 
+            xmin = 2.22 
             xmax = 2.25 
             text = "h" 
         intervals [20]:
             xmin = 2.25 
-            xmax = 2.49 
+            xmax = 2.48 
             text = "ɛ" 
         intervals [21]:
-            xmin = 2.49 
+            xmin = 2.48 
             xmax = 2.57 
             text = "t" 
         intervals [22]:

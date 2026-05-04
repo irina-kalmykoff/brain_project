@@ -30,14 +30,14 @@ item []:
             text = "gebruiken" 
         intervals [5]:
             xmin = 2.16 
-            xmax = 2.27 
+            xmax = 2.3 
             text = "ze" 
         intervals [6]:
-            xmin = 2.27 
-            xmax = 2.56 
+            xmin = 2.3 
+            xmax = 2.54 
             text = "een" 
         intervals [7]:
-            xmin = 2.56 
+            xmin = 2.54 
             xmax = 3.05 
             text = "" 
         intervals [8]:
@@ -136,18 +136,18 @@ item []:
             text = "z" 
         intervals [20]:
             xmin = 2.23 
-            xmax = 2.27 
-            text = "eː" 
-        intervals [21]:
-            xmin = 2.27 
             xmax = 2.3 
             text = "eː" 
-        intervals [22]:
+        intervals [21]:
             xmin = 2.3 
-            xmax = 2.56 
+            xmax = 2.45 
+            text = "eː" 
+        intervals [22]:
+            xmin = 2.45 
+            xmax = 2.54 
             text = "n" 
         intervals [23]:
-            xmin = 2.56 
+            xmin = 2.54 
             xmax = 3.05 
             text = "" 
         intervals [24]:

@@ -22,10 +22,10 @@ item []:
             text = "papagaaien" 
         intervals [3]:
             xmin = 1.52 
-            xmax = 1.83 
+            xmax = 1.82 
             text = "kunnen" 
         intervals [4]:
-            xmin = 1.83 
+            xmin = 1.82 
             xmax = 2.13 
             text = "heel" 
         intervals [5]:
@@ -104,14 +104,14 @@ item []:
             text = "n" 
         intervals [15]:
             xmin = 1.76 
-            xmax = 1.8 
+            xmax = 1.79 
             text = "ɛ" 
         intervals [16]:
-            xmin = 1.8 
-            xmax = 1.83 
+            xmin = 1.79 
+            xmax = 1.82 
             text = "n" 
         intervals [17]:
-            xmin = 1.83 
+            xmin = 1.82 
             xmax = 1.87 
             text = "h" 
         intervals [18]:

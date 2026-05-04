@@ -124,14 +124,14 @@ item []:
             text = "" 
         intervals [19]:
             xmin = 6.73 
-            xmax = 6.78 
+            xmax = 6.76 
             text = "v" 
         intervals [20]:
-            xmin = 6.78 
-            xmax = 6.81 
+            xmin = 6.76 
+            xmax = 6.79 
             text = "r" 
         intervals [21]:
-            xmin = 6.81 
+            xmin = 6.79 
             xmax = 7.12 
             text = "aː" 
         intervals [22]:

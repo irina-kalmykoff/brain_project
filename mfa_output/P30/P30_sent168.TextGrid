@@ -11,7 +11,7 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 4.4385 
-        intervals: size = 8 
+        intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
             xmax = 2.32 
@@ -34,14 +34,18 @@ item []:
             text = "q" 
         intervals [6]:
             xmin = 3.04 
-            xmax = 3.97 
+            xmax = 3.23 
             text = "van" 
         intervals [7]:
-            xmin = 3.97 
-            xmax = 4.01 
-            text = "quinten" 
+            xmin = 3.23 
+            xmax = 3.35 
+            text = "" 
         intervals [8]:
-            xmin = 4.01 
+            xmin = 3.35 
+            xmax = 4.0 
+            text = "quinten" 
+        intervals [9]:
+            xmin = 4.0 
             xmax = 4.4385 
             text = "" 
     item [2]:
@@ -49,7 +53,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 4.4385 
-        intervals: size = 13 
+        intervals: size = 21 
         intervals [1]:
             xmin = 0.0 
             xmax = 2.32 
@@ -96,9 +100,41 @@ item []:
             text = "ɑ" 
         intervals [12]:
             xmin = 3.14 
-            xmax = 3.97 
+            xmax = 3.23 
             text = "n" 
         intervals [13]:
-            xmin = 3.97 
+            xmin = 3.23 
+            xmax = 3.35 
+            text = "" 
+        intervals [14]:
+            xmin = 3.35 
+            xmax = 3.41 
+            text = "k" 
+        intervals [15]:
+            xmin = 3.41 
+            xmax = 3.45 
+            text = "ʋ" 
+        intervals [16]:
+            xmin = 3.45 
+            xmax = 3.54 
+            text = "ɪ" 
+        intervals [17]:
+            xmin = 3.54 
+            xmax = 3.64 
+            text = "n" 
+        intervals [18]:
+            xmin = 3.64 
+            xmax = 3.7 
+            text = "t" 
+        intervals [19]:
+            xmin = 3.7 
+            xmax = 3.79 
+            text = "ɛ" 
+        intervals [20]:
+            xmin = 3.79 
+            xmax = 4.0 
+            text = "n" 
+        intervals [21]:
+            xmin = 4.0 
             xmax = 4.4385 
             text = "" 

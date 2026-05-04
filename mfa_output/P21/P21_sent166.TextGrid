@@ -14,14 +14,14 @@ item []:
         intervals: size = 8 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.08 
+            xmax = 1.07 
             text = "" 
         intervals [2]:
-            xmin = 1.08 
-            xmax = 1.18 
+            xmin = 1.07 
+            xmax = 1.17 
             text = "het" 
         intervals [3]:
-            xmin = 1.18 
+            xmin = 1.17 
             xmax = 1.71 
             text = "meisje" 
         intervals [4]:
@@ -52,26 +52,26 @@ item []:
         intervals: size = 22 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.08 
+            xmax = 1.07 
             text = "" 
         intervals [2]:
-            xmin = 1.08 
-            xmax = 1.12 
+            xmin = 1.07 
+            xmax = 1.11 
             text = "h" 
         intervals [3]:
-            xmin = 1.12 
-            xmax = 1.15 
+            xmin = 1.11 
+            xmax = 1.14 
             text = "ɛ" 
         intervals [4]:
-            xmin = 1.15 
-            xmax = 1.18 
+            xmin = 1.14 
+            xmax = 1.17 
             text = "t" 
         intervals [5]:
-            xmin = 1.18 
-            xmax = 1.21 
+            xmin = 1.17 
+            xmax = 1.2 
             text = "m" 
         intervals [6]:
-            xmin = 1.21 
+            xmin = 1.2 
             xmax = 1.24 
             text = "ɛ" 
         intervals [7]:
@@ -96,10 +96,10 @@ item []:
             text = "h" 
         intervals [12]:
             xmin = 2.08 
-            xmax = 2.17 
+            xmax = 2.21 
             text = "ɑ" 
         intervals [13]:
-            xmin = 2.17 
+            xmin = 2.21 
             xmax = 2.33 
             text = "t" 
         intervals [14]:
@@ -128,10 +128,10 @@ item []:
             text = "h" 
         intervals [20]:
             xmin = 2.67 
-            xmax = 2.82 
+            xmax = 2.84 
             text = "aː" 
         intervals [21]:
-            xmin = 2.82 
+            xmin = 2.84 
             xmax = 3.12 
             text = "r" 
         intervals [22]:

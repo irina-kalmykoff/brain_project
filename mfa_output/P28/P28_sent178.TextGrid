@@ -50,14 +50,14 @@ item []:
             text = "" 
         intervals [10]:
             xmin = 9.03 
-            xmax = 9.92 
+            xmax = 9.8 
             text = "producten" 
         intervals [11]:
-            xmin = 9.92 
-            xmax = 10.56 
+            xmin = 9.8 
+            xmax = 9.92 
             text = "in" 
         intervals [12]:
-            xmin = 10.56 
+            xmin = 9.92 
             xmax = 11.32 
             text = "vlaanderen" 
         intervals [13]:
@@ -136,14 +136,14 @@ item []:
             text = "s" 
         intervals [17]:
             xmin = 6.78 
-            xmax = 6.81 
+            xmax = 6.89 
             text = "iː" 
         intervals [18]:
-            xmin = 6.81 
-            xmax = 6.86 
+            xmin = 6.89 
+            xmax = 7.03 
             text = "m" 
         intervals [19]:
-            xmin = 6.86 
+            xmin = 7.03 
             xmax = 7.06 
             text = "ʏ" 
         intervals [20]:
@@ -208,10 +208,10 @@ item []:
             text = "r" 
         intervals [35]:
             xmin = 7.82 
-            xmax = 7.87 
+            xmax = 7.85 
             text = "eː" 
         intervals [36]:
-            xmin = 7.87 
+            xmin = 7.85 
             xmax = 7.94 
             text = "r" 
         intervals [37]:
@@ -264,50 +264,50 @@ item []:
             text = "t" 
         intervals [49]:
             xmin = 9.33 
-            xmax = 9.36 
+            xmax = 9.37 
             text = "ɛ" 
         intervals [50]:
-            xmin = 9.36 
-            xmax = 9.92 
+            xmin = 9.37 
+            xmax = 9.8 
             text = "n" 
         intervals [51]:
-            xmin = 9.92 
-            xmax = 10.49 
+            xmin = 9.8 
+            xmax = 9.84 
             text = "ɪ" 
         intervals [52]:
-            xmin = 10.49 
-            xmax = 10.56 
+            xmin = 9.84 
+            xmax = 9.92 
             text = "n" 
         intervals [53]:
-            xmin = 10.56 
-            xmax = 10.62 
+            xmin = 9.92 
+            xmax = 9.95 
             text = "v" 
         intervals [54]:
-            xmin = 10.62 
-            xmax = 10.67 
+            xmin = 9.95 
+            xmax = 10.0 
             text = "l" 
         intervals [55]:
-            xmin = 10.67 
-            xmax = 10.88 
+            xmin = 10.0 
+            xmax = 10.03 
             text = "aː" 
         intervals [56]:
-            xmin = 10.88 
-            xmax = 10.96 
+            xmin = 10.03 
+            xmax = 10.06 
             text = "n" 
         intervals [57]:
-            xmin = 10.96 
-            xmax = 10.99 
+            xmin = 10.06 
+            xmax = 10.1 
             text = "d" 
         intervals [58]:
-            xmin = 10.99 
-            xmax = 11.03 
+            xmin = 10.1 
+            xmax = 10.13 
             text = "eː" 
         intervals [59]:
-            xmin = 11.03 
-            xmax = 11.07 
+            xmin = 10.13 
+            xmax = 10.64 
             text = "r" 
         intervals [60]:
-            xmin = 11.07 
+            xmin = 10.64 
             xmax = 11.19 
             text = "ɛ" 
         intervals [61]:

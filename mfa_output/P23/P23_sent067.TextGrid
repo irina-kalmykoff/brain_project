@@ -46,10 +46,10 @@ item []:
             text = "het" 
         intervals [9]:
             xmin = 4.06 
-            xmax = 4.99 
+            xmax = 4.88 
             text = "noorden" 
         intervals [10]:
-            xmin = 4.99 
+            xmin = 4.88 
             xmax = 10.002 
             text = "" 
     item [2]:
@@ -100,10 +100,10 @@ item []:
             text = "n" 
         intervals [11]:
             xmin = 2.78 
-            xmax = 2.81 
+            xmax = 2.82 
             text = "v" 
         intervals [12]:
-            xmin = 2.81 
+            xmin = 2.82 
             xmax = 2.88 
             text = "l" 
         intervals [13]:
@@ -148,10 +148,10 @@ item []:
             text = "h" 
         intervals [23]:
             xmin = 3.97 
-            xmax = 4.0 
+            xmax = 4.01 
             text = "ɛ" 
         intervals [24]:
-            xmin = 4.0 
+            xmin = 4.01 
             xmax = 4.06 
             text = "t" 
         intervals [25]:
@@ -176,9 +176,9 @@ item []:
             text = "ɛ" 
         intervals [30]:
             xmin = 4.44 
-            xmax = 4.99 
+            xmax = 4.88 
             text = "n" 
         intervals [31]:
-            xmin = 4.99 
+            xmin = 4.88 
             xmax = 10.002 
             text = "" 

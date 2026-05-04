@@ -14,10 +14,10 @@ item []:
         intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.42 
+            xmax = 0.44 
             text = "de" 
         intervals [2]:
-            xmin = 0.42 
+            xmin = 0.44 
             xmax = 1.8 
             text = "" 
         intervals [3]:
@@ -60,10 +60,10 @@ item []:
             text = "d" 
         intervals [2]:
             xmin = 0.04 
-            xmax = 0.42 
+            xmax = 0.44 
             text = "eː" 
         intervals [3]:
-            xmin = 0.42 
+            xmin = 0.44 
             xmax = 1.8 
             text = "" 
         intervals [4]:
@@ -152,10 +152,10 @@ item []:
             text = "m" 
         intervals [25]:
             xmin = 3.92 
-            xmax = 3.99 
+            xmax = 3.98 
             text = "k" 
         intervals [26]:
-            xmin = 3.99 
+            xmin = 3.98 
             xmax = 4.03 
             text = "ʋ" 
         intervals [27]:

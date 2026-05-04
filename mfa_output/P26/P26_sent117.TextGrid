@@ -18,10 +18,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.84 
-            xmax = 1.27 
+            xmax = 1.21 
             text = "kwallen" 
         intervals [3]:
-            xmin = 1.27 
+            xmin = 1.21 
             xmax = 1.57 
             text = "kunnen" 
         intervals [4]:
@@ -88,10 +88,10 @@ item []:
             text = "ɛ" 
         intervals [7]:
             xmin = 1.18 
-            xmax = 1.27 
+            xmax = 1.21 
             text = "n" 
         intervals [8]:
-            xmin = 1.27 
+            xmin = 1.21 
             xmax = 1.33 
             text = "k" 
         intervals [9]:
@@ -100,10 +100,10 @@ item []:
             text = "ʏ" 
         intervals [10]:
             xmin = 1.39 
-            xmax = 1.44 
+            xmax = 1.43 
             text = "n" 
         intervals [11]:
-            xmin = 1.44 
+            xmin = 1.43 
             xmax = 1.51 
             text = "n" 
         intervals [12]:
@@ -196,10 +196,10 @@ item []:
             text = "d" 
         intervals [34]:
             xmin = 3.48 
-            xmax = 3.53 
+            xmax = 3.54 
             text = "ɛ" 
         intervals [35]:
-            xmin = 3.53 
+            xmin = 3.54 
             xmax = 3.64 
             text = "n" 
         intervals [36]:
@@ -232,13 +232,13 @@ item []:
             text = "aː" 
         intervals [43]:
             xmin = 3.89 
-            xmax = 3.92 
+            xmax = 3.93 
             text = "t" 
         intervals [44]:
-            xmin = 3.92 
-            xmax = 3.95 
+            xmin = 3.93 
+            xmax = 3.96 
             text = "ɛ" 
         intervals [45]:
-            xmin = 3.95 
+            xmin = 3.96 
             xmax = 4.005875 
             text = "r" 

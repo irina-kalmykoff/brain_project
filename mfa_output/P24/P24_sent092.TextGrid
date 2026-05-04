@@ -30,10 +30,10 @@ item []:
             text = "geen" 
         intervals [5]:
             xmin = 0.9 
-            xmax = 1.46 
+            xmax = 1.51 
             text = "inspiratie" 
         intervals [6]:
-            xmin = 1.46 
+            xmin = 1.51 
             xmax = 2.14 
             text = "" 
         intervals [7]:
@@ -124,10 +124,10 @@ item []:
             text = "iː" 
         intervals [19]:
             xmin = 1.38 
-            xmax = 1.46 
+            xmax = 1.51 
             text = "eː" 
         intervals [20]:
-            xmin = 1.46 
+            xmin = 1.51 
             xmax = 2.14 
             text = "" 
         intervals [21]:

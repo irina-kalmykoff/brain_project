@@ -50,10 +50,10 @@ item []:
             text = "van" 
         intervals [10]:
             xmin = 4.01 
-            xmax = 4.15 
+            xmax = 4.17 
             text = "de" 
         intervals [11]:
-            xmin = 4.15 
+            xmin = 4.17 
             xmax = 4.91 
             text = "" 
         intervals [12]:
@@ -172,10 +172,10 @@ item []:
             text = "d" 
         intervals [26]:
             xmin = 4.04 
-            xmax = 4.15 
+            xmax = 4.17 
             text = "eː" 
         intervals [27]:
-            xmin = 4.15 
+            xmin = 4.17 
             xmax = 4.91 
             text = "" 
         intervals [28]:

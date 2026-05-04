@@ -112,10 +112,10 @@ item []:
             text = "p" 
         intervals [16]:
             xmin = 2.06 
-            xmax = 2.2 
+            xmax = 2.19 
             text = "iː" 
         intervals [17]:
-            xmin = 2.2 
+            xmin = 2.19 
             xmax = 2.24 
             text = "ɛ" 
         intervals [18]:

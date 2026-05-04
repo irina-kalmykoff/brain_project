@@ -38,10 +38,10 @@ item []:
             text = "vastgevaren" 
         intervals [7]:
             xmin = 3.16 
-            xmax = 3.28 
+            xmax = 3.29 
             text = "in" 
         intervals [8]:
-            xmin = 3.28 
+            xmin = 3.29 
             xmax = 3.44 
             text = "het" 
         intervals [9]:
@@ -180,14 +180,14 @@ item []:
             text = "n" 
         intervals [31]:
             xmin = 3.16 
-            xmax = 3.22 
+            xmax = 3.21 
             text = "ɪ" 
         intervals [32]:
-            xmin = 3.22 
-            xmax = 3.28 
+            xmin = 3.21 
+            xmax = 3.29 
             text = "n" 
         intervals [33]:
-            xmin = 3.28 
+            xmin = 3.29 
             xmax = 3.33 
             text = "h" 
         intervals [34]:
@@ -200,10 +200,10 @@ item []:
             text = "t" 
         intervals [36]:
             xmin = 3.44 
-            xmax = 3.61 
+            xmax = 3.6 
             text = "ɔ" 
         intervals [37]:
-            xmin = 3.61 
+            xmin = 3.6 
             xmax = 3.68 
             text = "n" 
         intervals [38]:

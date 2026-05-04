@@ -38,10 +38,10 @@ item []:
             text = "meermalen" 
         intervals [7]:
             xmin = 3.47 
-            xmax = 4.2 
+            xmax = 4.21 
             text = "bedreigt" 
         intervals [8]:
-            xmin = 4.2 
+            xmin = 4.21 
             xmax = 4.623062 
             text = "" 
     item [2]:
@@ -100,10 +100,10 @@ item []:
             text = "t" 
         intervals [13]:
             xmin = 1.71 
-            xmax = 1.76 
+            xmax = 1.78 
             text = "ɛ" 
         intervals [14]:
-            xmin = 1.76 
+            xmin = 1.78 
             xmax = 1.81 
             text = "r" 
         intervals [15]:
@@ -132,10 +132,10 @@ item []:
             text = "m" 
         intervals [21]:
             xmin = 2.53 
-            xmax = 2.75 
+            xmax = 2.74 
             text = "eː" 
         intervals [22]:
-            xmin = 2.75 
+            xmin = 2.74 
             xmax = 2.86 
             text = "r" 
         intervals [23]:
@@ -188,9 +188,9 @@ item []:
             text = "x" 
         intervals [35]:
             xmin = 4.02 
-            xmax = 4.2 
+            xmax = 4.21 
             text = "t" 
         intervals [36]:
-            xmin = 4.2 
+            xmin = 4.21 
             xmax = 4.623062 
             text = "" 

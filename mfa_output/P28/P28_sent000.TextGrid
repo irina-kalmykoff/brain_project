@@ -30,10 +30,10 @@ item []:
             text = "ambassadeur" 
         intervals [5]:
             xmin = 6.31 
-            xmax = 6.58 
+            xmax = 6.59 
             text = "werd" 
         intervals [6]:
-            xmin = 6.58 
+            xmin = 6.59 
             xmax = 6.63 
             text = "" 
         intervals [7]:
@@ -116,10 +116,10 @@ item []:
             text = "d" 
         intervals [13]:
             xmin = 6.0 
-            xmax = 6.19 
+            xmax = 6.2 
             text = "øː" 
         intervals [14]:
-            xmin = 6.19 
+            xmin = 6.2 
             xmax = 6.31 
             text = "r" 
         intervals [15]:
@@ -136,10 +136,10 @@ item []:
             text = "r" 
         intervals [18]:
             xmin = 6.51 
-            xmax = 6.58 
+            xmax = 6.59 
             text = "t" 
         intervals [19]:
-            xmin = 6.58 
+            xmin = 6.59 
             xmax = 6.63 
             text = "" 
         intervals [20]:
@@ -148,10 +148,10 @@ item []:
             text = "ɔ" 
         intervals [21]:
             xmin = 6.76 
-            xmax = 6.84 
+            xmax = 6.83 
             text = "p" 
         intervals [22]:
-            xmin = 6.84 
+            xmin = 6.83 
             xmax = 6.94 
             text = "ɣ" 
         intervals [23]:
@@ -196,10 +196,10 @@ item []:
             text = "œ" 
         intervals [33]:
             xmin = 7.69 
-            xmax = 7.76 
+            xmax = 7.77 
             text = "ɥ" 
         intervals [34]:
-            xmin = 7.76 
+            xmin = 7.77 
             xmax = 7.84 
             text = "t" 
         intervals [35]:

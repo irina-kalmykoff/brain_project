@@ -80,10 +80,10 @@ item []:
             text = "j" 
         intervals [5]:
             xmin = 1.52 
-            xmax = 1.57 
+            xmax = 1.56 
             text = "h" 
         intervals [6]:
-            xmin = 1.57 
+            xmin = 1.56 
             xmax = 1.67 
             text = "eː" 
         intervals [7]:

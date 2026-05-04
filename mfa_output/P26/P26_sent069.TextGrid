@@ -30,18 +30,18 @@ item []:
             text = "van" 
         intervals [5]:
             xmin = 2.2 
-            xmax = 2.33 
+            xmax = 2.32 
             text = "het" 
         intervals [6]:
-            xmin = 2.33 
+            xmin = 2.32 
             xmax = 2.97 
             text = "evenement" 
         intervals [7]:
             xmin = 2.97 
-            xmax = 3.02 
+            xmax = 3.05 
             text = "" 
         intervals [8]:
-            xmin = 3.02 
+            xmin = 3.05 
             xmax = 3.18 
             text = "is" 
         intervals [9]:
@@ -140,10 +140,10 @@ item []:
             text = "ɛ" 
         intervals [20]:
             xmin = 2.27 
-            xmax = 2.33 
+            xmax = 2.32 
             text = "t" 
         intervals [21]:
-            xmin = 2.33 
+            xmin = 2.32 
             xmax = 2.56 
             text = "eː" 
         intervals [22]:
@@ -152,10 +152,10 @@ item []:
             text = "v" 
         intervals [23]:
             xmin = 2.65 
-            xmax = 2.7 
+            xmax = 2.71 
             text = "ɛ" 
         intervals [24]:
-            xmin = 2.7 
+            xmin = 2.71 
             xmax = 2.77 
             text = "n" 
         intervals [25]:
@@ -180,10 +180,10 @@ item []:
             text = "t" 
         intervals [30]:
             xmin = 2.97 
-            xmax = 3.02 
+            xmax = 3.05 
             text = "" 
         intervals [31]:
-            xmin = 3.02 
+            xmin = 3.05 
             xmax = 3.08 
             text = "ɪ" 
         intervals [32]:
@@ -224,10 +224,10 @@ item []:
             text = "v" 
         intervals [41]:
             xmin = 3.62 
-            xmax = 3.66 
+            xmax = 3.67 
             text = "ɛ" 
         intervals [42]:
-            xmin = 3.66 
+            xmin = 3.67 
             xmax = 3.71 
             text = "r" 
         intervals [43]:

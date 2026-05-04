@@ -42,10 +42,10 @@ item []:
             text = "" 
         intervals [8]:
             xmin = 3.84 
-            xmax = 4.46 
+            xmax = 4.48 
             text = "straat" 
         intervals [9]:
-            xmin = 4.46 
+            xmin = 4.48 
             xmax = 4.63 
             text = "" 
         intervals [10]:
@@ -176,10 +176,10 @@ item []:
             text = "aː" 
         intervals [27]:
             xmin = 4.3 
-            xmax = 4.46 
+            xmax = 4.48 
             text = "t" 
         intervals [28]:
-            xmin = 4.46 
+            xmin = 4.48 
             xmax = 4.63 
             text = "" 
         intervals [29]:
@@ -192,10 +192,10 @@ item []:
             text = "n" 
         intervals [31]:
             xmin = 4.82 
-            xmax = 4.89 
+            xmax = 4.87 
             text = "ɔ" 
         intervals [32]:
-            xmin = 4.89 
+            xmin = 4.87 
             xmax = 5.01 
             text = "ŋ" 
         intervals [33]:

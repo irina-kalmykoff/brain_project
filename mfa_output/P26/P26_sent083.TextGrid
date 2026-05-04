@@ -22,10 +22,10 @@ item []:
             text = "kijk" 
         intervals [3]:
             xmin = 0.52 
-            xmax = 0.7 
+            xmax = 0.68 
             text = "je" 
         intervals [4]:
-            xmin = 0.7 
+            xmin = 0.68 
             xmax = 1.21 
             text = "" 
         intervals [5]:
@@ -88,10 +88,10 @@ item []:
             text = "j" 
         intervals [7]:
             xmin = 0.55 
-            xmax = 0.7 
+            xmax = 0.68 
             text = "eː" 
         intervals [8]:
-            xmin = 0.7 
+            xmin = 0.68 
             xmax = 1.21 
             text = "" 
         intervals [9]:
@@ -120,10 +120,10 @@ item []:
             text = "l" 
         intervals [15]:
             xmin = 1.44 
-            xmax = 1.53 
+            xmax = 1.52 
             text = "ɪ" 
         intervals [16]:
-            xmin = 1.53 
+            xmin = 1.52 
             xmax = 1.68 
             text = "k" 
         intervals [17]:
@@ -140,10 +140,10 @@ item []:
             text = "n" 
         intervals [20]:
             xmin = 1.81 
-            xmax = 1.9 
+            xmax = 1.87 
             text = "ɔ" 
         intervals [21]:
-            xmin = 1.9 
+            xmin = 1.87 
             xmax = 2.02 
             text = "p" 
         intervals [22]:

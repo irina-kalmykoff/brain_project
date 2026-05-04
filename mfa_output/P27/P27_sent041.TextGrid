@@ -22,10 +22,10 @@ item []:
             text = "laura" 
         intervals [3]:
             xmin = 2.04 
-            xmax = 2.15 
+            xmax = 2.14 
             text = "en" 
         intervals [4]:
-            xmin = 2.15 
+            xmin = 2.14 
             xmax = 2.68 
             text = "matthias" 
         intervals [5]:
@@ -92,10 +92,10 @@ item []:
             text = "ɛ" 
         intervals [9]:
             xmin = 2.07 
-            xmax = 2.15 
+            xmax = 2.14 
             text = "n" 
         intervals [10]:
-            xmin = 2.15 
+            xmin = 2.14 
             xmax = 2.2 
             text = "m" 
         intervals [11]:
@@ -124,10 +124,10 @@ item []:
             text = "s" 
         intervals [17]:
             xmin = 2.68 
-            xmax = 2.75 
+            xmax = 2.76 
             text = "s" 
         intervals [18]:
-            xmin = 2.75 
+            xmin = 2.76 
             xmax = 2.86 
             text = "p" 
         intervals [19]:
@@ -144,10 +144,10 @@ item []:
             text = "d" 
         intervals [22]:
             xmin = 3.11 
-            xmax = 3.18 
+            xmax = 3.17 
             text = "ɛ" 
         intervals [23]:
-            xmin = 3.18 
+            xmin = 3.17 
             xmax = 3.28 
             text = "n" 
         intervals [24]:

@@ -34,10 +34,10 @@ item []:
             text = "uitzondering" 
         intervals [6]:
             xmin = 2.53 
-            xmax = 2.61 
+            xmax = 2.6 
             text = "" 
         intervals [7]:
-            xmin = 2.61 
+            xmin = 2.6 
             xmax = 3.58 
             text = "aanvragen" 
         intervals [8]:
@@ -68,10 +68,10 @@ item []:
             text = "z" 
         intervals [5]:
             xmin = 1.49 
-            xmax = 1.56 
+            xmax = 1.58 
             text = "ɑ" 
         intervals [6]:
-            xmin = 1.56 
+            xmin = 1.58 
             xmax = 1.71 
             text = "l" 
         intervals [7]:
@@ -132,10 +132,10 @@ item []:
             text = "x" 
         intervals [21]:
             xmin = 2.53 
-            xmax = 2.61 
+            xmax = 2.6 
             text = "" 
         intervals [22]:
-            xmin = 2.61 
+            xmin = 2.6 
             xmax = 2.84 
             text = "aː" 
         intervals [23]:

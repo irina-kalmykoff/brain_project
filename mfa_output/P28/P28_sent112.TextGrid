@@ -38,10 +38,10 @@ item []:
             text = "op" 
         intervals [7]:
             xmin = 2.42 
-            xmax = 2.77 
+            xmax = 2.78 
             text = "vraag" 
         intervals [8]:
-            xmin = 2.77 
+            xmin = 2.78 
             xmax = 2.94 
             text = "en" 
         intervals [9]:
@@ -84,10 +84,10 @@ item []:
             text = "ɛ" 
         intervals [7]:
             xmin = 1.26 
-            xmax = 1.35 
+            xmax = 1.36 
             text = "j" 
         intervals [8]:
-            xmin = 1.35 
+            xmin = 1.36 
             xmax = 1.42 
             text = "s" 
         intervals [9]:
@@ -104,14 +104,14 @@ item []:
             text = "ɣ" 
         intervals [12]:
             xmin = 1.67 
-            xmax = 1.72 
+            xmax = 1.73 
             text = "eː" 
         intervals [13]:
-            xmin = 1.72 
-            xmax = 1.78 
+            xmin = 1.73 
+            xmax = 1.79 
             text = "b" 
         intervals [14]:
-            xmin = 1.78 
+            xmin = 1.79 
             xmax = 1.88 
             text = "aː" 
         intervals [15]:
@@ -140,10 +140,10 @@ item []:
             text = "p" 
         intervals [21]:
             xmin = 2.42 
-            xmax = 2.49 
+            xmax = 2.5 
             text = "v" 
         intervals [22]:
-            xmin = 2.49 
+            xmin = 2.5 
             xmax = 2.54 
             text = "r" 
         intervals [23]:
@@ -152,10 +152,10 @@ item []:
             text = "aː" 
         intervals [24]:
             xmin = 2.73 
-            xmax = 2.77 
+            xmax = 2.78 
             text = "x" 
         intervals [25]:
-            xmin = 2.77 
+            xmin = 2.78 
             xmax = 2.89 
             text = "ɛ" 
         intervals [26]:
@@ -172,10 +172,10 @@ item []:
             text = "n" 
         intervals [29]:
             xmin = 3.22 
-            xmax = 3.26 
+            xmax = 3.27 
             text = "b" 
         intervals [30]:
-            xmin = 3.26 
+            xmin = 3.27 
             xmax = 3.4 
             text = "ɔ" 
         intervals [31]:

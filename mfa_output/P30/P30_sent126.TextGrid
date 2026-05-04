@@ -116,10 +116,10 @@ item []:
             text = "m" 
         intervals [7]:
             xmin = 4.09 
-            xmax = 4.16 
+            xmax = 4.15 
             text = "ɪ" 
         intervals [8]:
-            xmin = 4.16 
+            xmin = 4.15 
             xmax = 4.19 
             text = "t" 
         intervals [9]:
@@ -152,10 +152,10 @@ item []:
             text = "r" 
         intervals [16]:
             xmin = 4.57 
-            xmax = 4.63 
+            xmax = 4.64 
             text = "ɑ" 
         intervals [17]:
-            xmin = 4.63 
+            xmin = 4.64 
             xmax = 4.85 
             text = "w" 
         intervals [18]:

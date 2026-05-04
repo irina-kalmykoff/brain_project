@@ -26,10 +26,10 @@ item []:
             text = "" 
         intervals [4]:
             xmin = 1.8 
-            xmax = 2.47 
+            xmax = 2.53 
             text = "gaat" 
         intervals [5]:
-            xmin = 2.47 
+            xmin = 2.53 
             xmax = 3.28 
             text = "" 
         intervals [6]:
@@ -92,14 +92,14 @@ item []:
             text = "ɣ" 
         intervals [7]:
             xmin = 1.99 
-            xmax = 2.24 
+            xmax = 2.25 
             text = "aː" 
         intervals [8]:
-            xmin = 2.24 
-            xmax = 2.47 
+            xmin = 2.25 
+            xmax = 2.53 
             text = "t" 
         intervals [9]:
-            xmin = 2.47 
+            xmin = 2.53 
             xmax = 3.28 
             text = "" 
         intervals [10]:
@@ -116,10 +116,10 @@ item []:
             text = "t" 
         intervals [13]:
             xmin = 3.62 
-            xmax = 3.71 
+            xmax = 3.7 
             text = "m" 
         intervals [14]:
-            xmin = 3.71 
+            xmin = 3.7 
             xmax = 3.85 
             text = "ɔ" 
         intervals [15]:
@@ -188,10 +188,10 @@ item []:
             text = "z" 
         intervals [31]:
             xmin = 4.91 
-            xmax = 4.95 
+            xmax = 4.96 
             text = "ɛ" 
         intervals [32]:
-            xmin = 4.95 
+            xmin = 4.96 
             xmax = 5.08 
             text = "j" 
         intervals [33]:
@@ -204,10 +204,10 @@ item []:
             text = "v" 
         intervals [35]:
             xmin = 5.19 
-            xmax = 5.23 
+            xmax = 5.24 
             text = "r" 
         intervals [36]:
-            xmin = 5.23 
+            xmin = 5.24 
             xmax = 5.33 
             text = "iː" 
         intervals [37]:

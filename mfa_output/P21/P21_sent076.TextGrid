@@ -34,10 +34,10 @@ item []:
             text = "puntjes" 
         intervals [6]:
             xmin = 2.16 
-            xmax = 2.37 
+            xmax = 2.34 
             text = "" 
         intervals [7]:
-            xmin = 2.37 
+            xmin = 2.34 
             xmax = 2.62 
             text = "voor" 
         intervals [8]:
@@ -50,10 +50,10 @@ item []:
             text = "" 
         intervals [10]:
             xmin = 3.19 
-            xmax = 3.66 
+            xmax = 3.67 
             text = "varia" 
         intervals [11]:
-            xmin = 3.66 
+            xmin = 3.67 
             xmax = 4.002 
             text = "onderdeel" 
     item [2]:
@@ -132,10 +132,10 @@ item []:
             text = "s" 
         intervals [18]:
             xmin = 2.16 
-            xmax = 2.37 
+            xmax = 2.34 
             text = "" 
         intervals [19]:
-            xmin = 2.37 
+            xmin = 2.34 
             xmax = 2.43 
             text = "v" 
         intervals [20]:
@@ -180,10 +180,10 @@ item []:
             text = "ɪ" 
         intervals [30]:
             xmin = 3.56 
-            xmax = 3.66 
+            xmax = 3.67 
             text = "aː" 
         intervals [31]:
-            xmin = 3.66 
+            xmin = 3.67 
             xmax = 3.75 
             text = "ɔ" 
         intervals [32]:

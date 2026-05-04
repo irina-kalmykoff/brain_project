@@ -30,10 +30,10 @@ item []:
             text = "systeemplafond" 
         intervals [5]:
             xmin = 5.37 
-            xmax = 5.54 
+            xmax = 5.53 
             text = "was" 
         intervals [6]:
-            xmin = 5.54 
+            xmin = 5.53 
             xmax = 6.06 
             text = "ingezakt" 
         intervals [7]:
@@ -42,22 +42,22 @@ item []:
             text = "door" 
         intervals [8]:
             xmin = 6.25 
-            xmax = 7.17 
+            xmax = 6.35 
             text = "de" 
         intervals [9]:
-            xmin = 7.17 
-            xmax = 7.75 
-            text = "" 
-        intervals [10]:
-            xmin = 7.75 
-            xmax = 7.799812 
+            xmin = 6.35 
+            xmax = 7.17 
             text = "waterschade" 
+        intervals [10]:
+            xmin = 7.17 
+            xmax = 7.799812 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 7.799812 
-        intervals: size = 34 
+        intervals: size = 44 
         intervals [1]:
             xmin = 0.0 
             xmax = 3.92 
@@ -140,10 +140,10 @@ item []:
             text = "ɑ" 
         intervals [21]:
             xmin = 5.46 
-            xmax = 5.54 
+            xmax = 5.53 
             text = "s" 
         intervals [22]:
-            xmin = 5.54 
+            xmin = 5.53 
             xmax = 5.64 
             text = "ɪ" 
         intervals [23]:
@@ -188,9 +188,49 @@ item []:
             text = "d" 
         intervals [33]:
             xmin = 6.29 
-            xmax = 7.17 
+            xmax = 6.35 
             text = "eː" 
         intervals [34]:
+            xmin = 6.35 
+            xmax = 6.44 
+            text = "ʋ" 
+        intervals [35]:
+            xmin = 6.44 
+            xmax = 6.58 
+            text = "aː" 
+        intervals [36]:
+            xmin = 6.58 
+            xmax = 6.63 
+            text = "t" 
+        intervals [37]:
+            xmin = 6.63 
+            xmax = 6.66 
+            text = "ɛ" 
+        intervals [38]:
+            xmin = 6.66 
+            xmax = 6.69 
+            text = "r" 
+        intervals [39]:
+            xmin = 6.69 
+            xmax = 6.73 
+            text = "s" 
+        intervals [40]:
+            xmin = 6.73 
+            xmax = 6.8 
+            text = "x" 
+        intervals [41]:
+            xmin = 6.8 
+            xmax = 6.98 
+            text = "aː" 
+        intervals [42]:
+            xmin = 6.98 
+            xmax = 7.03 
+            text = "d" 
+        intervals [43]:
+            xmin = 7.03 
+            xmax = 7.17 
+            text = "eː" 
+        intervals [44]:
             xmin = 7.17 
             xmax = 7.799812 
             text = "" 

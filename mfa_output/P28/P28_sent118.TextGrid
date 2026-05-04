@@ -108,10 +108,10 @@ item []:
             text = "ʋ" 
         intervals [14]:
             xmin = 1.71 
-            xmax = 1.81 
+            xmax = 1.82 
             text = "eː" 
         intervals [15]:
-            xmin = 1.81 
+            xmin = 1.82 
             xmax = 1.92 
             text = "r" 
         intervals [16]:

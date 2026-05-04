@@ -46,10 +46,10 @@ item []:
             text = "buik" 
         intervals [9]:
             xmin = 2.32 
-            xmax = 2.77 
+            xmax = 2.8 
             text = "schrijven" 
         intervals [10]:
-            xmin = 2.77 
+            xmin = 2.8 
             xmax = 3.182625 
             text = "" 
     item [2]:
@@ -80,10 +80,10 @@ item []:
             text = "k" 
         intervals [6]:
             xmin = 1.5 
-            xmax = 1.54 
+            xmax = 1.55 
             text = "ɑ" 
         intervals [7]:
-            xmin = 1.54 
+            xmin = 1.55 
             xmax = 1.6 
             text = "n" 
         intervals [8]:
@@ -164,9 +164,9 @@ item []:
             text = "ɛ" 
         intervals [27]:
             xmin = 2.65 
-            xmax = 2.77 
+            xmax = 2.8 
             text = "n" 
         intervals [28]:
-            xmin = 2.77 
+            xmin = 2.8 
             xmax = 3.182625 
             text = "" 

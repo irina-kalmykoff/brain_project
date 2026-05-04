@@ -22,10 +22,10 @@ item []:
             text = "het" 
         intervals [3]:
             xmin = 1.57 
-            xmax = 2.04 
+            xmax = 2.03 
             text = "zuur" 
         intervals [4]:
-            xmin = 2.04 
+            xmin = 2.03 
             xmax = 2.23 
             text = "van" 
         intervals [5]:
@@ -42,10 +42,10 @@ item []:
             text = "is" 
         intervals [8]:
             xmin = 3.09 
-            xmax = 3.65 
+            xmax = 3.64 
             text = "eigenlijk" 
         intervals [9]:
-            xmin = 3.65 
+            xmin = 3.64 
             xmax = 3.87 
             text = "heel" 
         intervals [10]:
@@ -88,18 +88,18 @@ item []:
             text = "yː" 
         intervals [7]:
             xmin = 1.94 
-            xmax = 2.04 
+            xmax = 2.03 
             text = "r" 
         intervals [8]:
-            xmin = 2.04 
+            xmin = 2.03 
             xmax = 2.1 
             text = "v" 
         intervals [9]:
             xmin = 2.1 
-            xmax = 2.15 
+            xmax = 2.16 
             text = "ɑ" 
         intervals [10]:
-            xmin = 2.15 
+            xmin = 2.16 
             xmax = 2.23 
             text = "n" 
         intervals [11]:
@@ -184,10 +184,10 @@ item []:
             text = "j" 
         intervals [31]:
             xmin = 3.59 
-            xmax = 3.65 
+            xmax = 3.64 
             text = "k" 
         intervals [32]:
-            xmin = 3.65 
+            xmin = 3.64 
             xmax = 3.7 
             text = "h" 
         intervals [33]:

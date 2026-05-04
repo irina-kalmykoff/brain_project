@@ -42,22 +42,22 @@ item []:
             text = "op" 
         intervals [8]:
             xmin = 2.64 
-            xmax = 3.83 
+            xmax = 2.72 
             text = "de" 
         intervals [9]:
-            xmin = 3.83 
-            xmax = 4.07 
-            text = "" 
-        intervals [10]:
-            xmin = 4.07 
-            xmax = 4.118188 
+            xmin = 2.72 
+            xmax = 3.84 
             text = "playstation" 
+        intervals [10]:
+            xmin = 3.84 
+            xmax = 4.118188 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 4.118188 
-        intervals: size = 24 
+        intervals: size = 35 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.32 
@@ -148,9 +148,53 @@ item []:
             text = "d" 
         intervals [23]:
             xmin = 2.68 
-            xmax = 3.83 
+            xmax = 2.72 
             text = "eː" 
         intervals [24]:
-            xmin = 3.83 
+            xmin = 2.72 
+            xmax = 2.81 
+            text = "p" 
+        intervals [25]:
+            xmin = 2.81 
+            xmax = 2.87 
+            text = "l" 
+        intervals [26]:
+            xmin = 2.87 
+            xmax = 2.9 
+            text = "ɑ" 
+        intervals [27]:
+            xmin = 2.9 
+            xmax = 3.02 
+            text = "j" 
+        intervals [28]:
+            xmin = 3.02 
+            xmax = 3.14 
+            text = "s" 
+        intervals [29]:
+            xmin = 3.14 
+            xmax = 3.21 
+            text = "t" 
+        intervals [30]:
+            xmin = 3.21 
+            xmax = 3.31 
+            text = "aː" 
+        intervals [31]:
+            xmin = 3.31 
+            xmax = 3.46 
+            text = "t" 
+        intervals [32]:
+            xmin = 3.46 
+            xmax = 3.52 
+            text = "ɪ" 
+        intervals [33]:
+            xmin = 3.52 
+            xmax = 3.57 
+            text = "ɔ" 
+        intervals [34]:
+            xmin = 3.57 
+            xmax = 3.84 
+            text = "n" 
+        intervals [35]:
+            xmin = 3.84 
             xmax = 4.118188 
             text = "" 

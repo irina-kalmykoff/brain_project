@@ -168,10 +168,10 @@ item []:
             text = "r" 
         intervals [27]:
             xmin = 3.71 
-            xmax = 3.83 
+            xmax = 3.82 
             text = "s" 
         intervals [28]:
-            xmin = 3.83 
+            xmin = 3.82 
             xmax = 3.92 
             text = "f" 
         intervals [29]:

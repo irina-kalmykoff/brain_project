@@ -42,10 +42,10 @@ item []:
             text = "de" 
         intervals [8]:
             xmin = 3.59 
-            xmax = 4.24 
+            xmax = 4.25 
             text = "parket" 
         intervals [9]:
-            xmin = 4.24 
+            xmin = 4.25 
             xmax = 4.49 
             text = "" 
         intervals [10]:
@@ -148,10 +148,10 @@ item []:
             text = "" 
         intervals [20]:
             xmin = 3.31 
-            xmax = 3.39 
+            xmax = 3.38 
             text = "h" 
         intervals [21]:
-            xmin = 3.39 
+            xmin = 3.38 
             xmax = 3.47 
             text = "ɑ" 
         intervals [22]:
@@ -188,10 +188,10 @@ item []:
             text = "ɛ" 
         intervals [30]:
             xmin = 4.21 
-            xmax = 4.24 
+            xmax = 4.25 
             text = "t" 
         intervals [31]:
-            xmin = 4.24 
+            xmin = 4.25 
             xmax = 4.49 
             text = "" 
         intervals [32]:
@@ -236,10 +236,10 @@ item []:
             text = "" 
         intervals [42]:
             xmin = 5.32 
-            xmax = 5.39 
+            xmax = 5.38 
             text = "b" 
         intervals [43]:
-            xmin = 5.39 
+            xmin = 5.38 
             xmax = 5.43 
             text = "ɛ" 
         intervals [44]:

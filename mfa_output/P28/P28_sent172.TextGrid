@@ -84,10 +84,10 @@ item []:
             text = "p" 
         intervals [8]:
             xmin = 1.18 
-            xmax = 1.22 
+            xmax = 1.21 
             text = "ɛ" 
         intervals [9]:
-            xmin = 1.22 
+            xmin = 1.21 
             xmax = 1.3 
             text = "n" 
         intervals [10]:

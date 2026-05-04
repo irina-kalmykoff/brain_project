@@ -34,10 +34,10 @@ item []:
             text = "zijn" 
         intervals [6]:
             xmin = 2.51 
-            xmax = 3.22 
+            xmax = 3.26 
             text = "ergonomisch" 
         intervals [7]:
-            xmin = 3.22 
+            xmin = 3.26 
             xmax = 3.31 
             text = "" 
         intervals [8]:
@@ -100,10 +100,10 @@ item []:
             text = "yː" 
         intervals [11]:
             xmin = 0.58 
-            xmax = 0.65 
+            xmax = 0.64 
             text = "r" 
         intervals [12]:
-            xmin = 0.65 
+            xmin = 0.64 
             xmax = 0.94 
             text = "ɛ" 
         intervals [13]:
@@ -196,10 +196,10 @@ item []:
             text = "ɪ" 
         intervals [35]:
             xmin = 3.07 
-            xmax = 3.22 
+            xmax = 3.26 
             text = "s" 
         intervals [36]:
-            xmin = 3.22 
+            xmin = 3.26 
             xmax = 3.31 
             text = "" 
         intervals [37]:

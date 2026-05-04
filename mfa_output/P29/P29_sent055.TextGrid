@@ -54,10 +54,10 @@ item []:
             text = "een" 
         intervals [11]:
             xmin = 4.71 
-            xmax = 5.41 
+            xmax = 5.4 
             text = "toetsenbord" 
         intervals [12]:
-            xmin = 5.41 
+            xmin = 5.4 
             xmax = 5.68 
             text = "" 
         intervals [13]:
@@ -66,10 +66,10 @@ item []:
             text = "en" 
         intervals [14]:
             xmin = 5.86 
-            xmax = 6.26 
+            xmax = 6.25 
             text = "muis" 
         intervals [15]:
-            xmin = 6.26 
+            xmin = 6.25 
             xmax = 6.582063 
             text = "" 
     item [2]:
@@ -196,10 +196,10 @@ item []:
             text = "t" 
         intervals [30]:
             xmin = 4.48 
-            xmax = 4.54 
+            xmax = 4.55 
             text = "eː" 
         intervals [31]:
-            xmin = 4.54 
+            xmin = 4.55 
             xmax = 4.71 
             text = "n" 
         intervals [32]:
@@ -240,10 +240,10 @@ item []:
             text = "r" 
         intervals [41]:
             xmin = 5.25 
-            xmax = 5.41 
+            xmax = 5.4 
             text = "t" 
         intervals [42]:
-            xmin = 5.41 
+            xmin = 5.4 
             xmax = 5.68 
             text = "" 
         intervals [43]:
@@ -268,9 +268,9 @@ item []:
             text = "ɥ" 
         intervals [48]:
             xmin = 6.09 
-            xmax = 6.26 
+            xmax = 6.25 
             text = "s" 
         intervals [49]:
-            xmin = 6.26 
+            xmin = 6.25 
             xmax = 6.582063 
             text = "" 

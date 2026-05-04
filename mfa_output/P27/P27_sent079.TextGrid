@@ -30,10 +30,10 @@ item []:
             text = "is" 
         intervals [5]:
             xmin = 1.77 
-            xmax = 1.87 
+            xmax = 1.86 
             text = "de" 
         intervals [6]:
-            xmin = 1.87 
+            xmin = 1.86 
             xmax = 2.3 
             text = "hoogste" 
         intervals [7]:
@@ -100,10 +100,10 @@ item []:
             text = "d" 
         intervals [11]:
             xmin = 1.83 
-            xmax = 1.87 
+            xmax = 1.86 
             text = "eː" 
         intervals [12]:
-            xmin = 1.87 
+            xmin = 1.86 
             xmax = 1.94 
             text = "h" 
         intervals [13]:

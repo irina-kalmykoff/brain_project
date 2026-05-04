@@ -54,14 +54,14 @@ item []:
             text = "van" 
         intervals [11]:
             xmin = 5.94 
-            xmax = 6.42 
+            xmax = 6.1 
             text = "het" 
         intervals [12]:
-            xmin = 6.42 
-            xmax = 6.45 
+            xmin = 6.1 
+            xmax = 6.86 
             text = "flatgebouw" 
         intervals [13]:
-            xmin = 6.45 
+            xmin = 6.86 
             xmax = 7.55175 
             text = "" 
     item [2]:
@@ -69,7 +69,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 7.55175 
-        intervals: size = 44 
+        intervals: size = 53 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.62 
@@ -240,9 +240,45 @@ item []:
             text = "ɛ" 
         intervals [43]:
             xmin = 6.04 
-            xmax = 6.42 
+            xmax = 6.1 
             text = "t" 
         intervals [44]:
-            xmin = 6.42 
+            xmin = 6.1 
+            xmax = 6.16 
+            text = "f" 
+        intervals [45]:
+            xmin = 6.16 
+            xmax = 6.21 
+            text = "l" 
+        intervals [46]:
+            xmin = 6.21 
+            xmax = 6.28 
+            text = "ɑ" 
+        intervals [47]:
+            xmin = 6.28 
+            xmax = 6.36 
+            text = "t" 
+        intervals [48]:
+            xmin = 6.36 
+            xmax = 6.41 
+            text = "ɣ" 
+        intervals [49]:
+            xmin = 6.41 
+            xmax = 6.45 
+            text = "eː" 
+        intervals [50]:
+            xmin = 6.45 
+            xmax = 6.49 
+            text = "b" 
+        intervals [51]:
+            xmin = 6.49 
+            xmax = 6.55 
+            text = "ɑ" 
+        intervals [52]:
+            xmin = 6.55 
+            xmax = 6.86 
+            text = "w" 
+        intervals [53]:
+            xmin = 6.86 
             xmax = 7.55175 
             text = "" 

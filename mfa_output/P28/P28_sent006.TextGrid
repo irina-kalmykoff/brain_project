@@ -38,10 +38,10 @@ item []:
             text = "" 
         intervals [7]:
             xmin = 2.88 
-            xmax = 4.38 
+            xmax = 4.4 
             text = "nacht" 
         intervals [8]:
-            xmin = 4.38 
+            xmin = 4.4 
             xmax = 4.703125 
             text = "" 
     item [2]:
@@ -96,14 +96,14 @@ item []:
             text = "ʋ" 
         intervals [12]:
             xmin = 1.68 
-            xmax = 1.76 
+            xmax = 1.83 
             text = "aː" 
         intervals [13]:
-            xmin = 1.76 
-            xmax = 1.79 
+            xmin = 1.83 
+            xmax = 2.04 
             text = "r" 
         intervals [14]:
-            xmin = 1.79 
+            xmin = 2.04 
             xmax = 2.37 
             text = "eː" 
         intervals [15]:
@@ -124,9 +124,9 @@ item []:
             text = "x" 
         intervals [19]:
             xmin = 3.28 
-            xmax = 4.38 
+            xmax = 4.4 
             text = "t" 
         intervals [20]:
-            xmin = 4.38 
+            xmin = 4.4 
             xmax = 4.703125 
             text = "" 

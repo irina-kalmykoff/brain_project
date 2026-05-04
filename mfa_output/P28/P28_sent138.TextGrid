@@ -14,14 +14,14 @@ item []:
         intervals: size = 11 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.15 
+            xmax = 1.14 
             text = "" 
         intervals [2]:
-            xmin = 1.15 
-            xmax = 1.42 
+            xmin = 1.14 
+            xmax = 1.41 
             text = "ze" 
         intervals [3]:
-            xmin = 1.42 
+            xmin = 1.41 
             xmax = 1.94 
             text = "betaalt" 
         intervals [4]:
@@ -30,10 +30,10 @@ item []:
             text = "niet" 
         intervals [5]:
             xmin = 2.16 
-            xmax = 2.36 
+            xmax = 2.35 
             text = "in" 
         intervals [6]:
-            xmin = 2.36 
+            xmin = 2.35 
             xmax = 2.81 
             text = "gulden" 
         intervals [7]:
@@ -46,40 +46,40 @@ item []:
             text = "in" 
         intervals [9]:
             xmin = 3.15 
-            xmax = 4.15 
+            xmax = 3.7 
             text = "belgische" 
         intervals [10]:
-            xmin = 4.15 
-            xmax = 4.73 
-            text = "" 
-        intervals [11]:
-            xmin = 4.73 
-            xmax = 4.775437 
+            xmin = 3.7 
+            xmax = 4.16 
             text = "frank" 
+        intervals [11]:
+            xmin = 4.16 
+            xmax = 4.775437 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 4.775437 
-        intervals: size = 34 
+        intervals: size = 39 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.15 
+            xmax = 1.14 
             text = "" 
         intervals [2]:
-            xmin = 1.15 
+            xmin = 1.14 
             xmax = 1.31 
             text = "z" 
         intervals [3]:
             xmin = 1.31 
-            xmax = 1.42 
+            xmax = 1.41 
             text = "eː" 
         intervals [4]:
-            xmin = 1.42 
-            xmax = 1.48 
+            xmin = 1.41 
+            xmax = 1.49 
             text = "b" 
         intervals [5]:
-            xmin = 1.48 
+            xmin = 1.49 
             xmax = 1.58 
             text = "eː" 
         intervals [6]:
@@ -88,10 +88,10 @@ item []:
             text = "t" 
         intervals [7]:
             xmin = 1.69 
-            xmax = 1.85 
+            xmax = 1.86 
             text = "aː" 
         intervals [8]:
-            xmin = 1.85 
+            xmin = 1.86 
             xmax = 1.91 
             text = "l" 
         intervals [9]:
@@ -116,10 +116,10 @@ item []:
             text = "ɪ" 
         intervals [14]:
             xmin = 2.23 
-            xmax = 2.36 
+            xmax = 2.35 
             text = "n" 
         intervals [15]:
-            xmin = 2.36 
+            xmin = 2.35 
             xmax = 2.42 
             text = "ɣ" 
         intervals [16]:
@@ -192,9 +192,29 @@ item []:
             text = "x" 
         intervals [33]:
             xmin = 3.63 
-            xmax = 4.15 
+            xmax = 3.7 
             text = "eː" 
         intervals [34]:
-            xmin = 4.15 
+            xmin = 3.7 
+            xmax = 3.8 
+            text = "f" 
+        intervals [35]:
+            xmin = 3.8 
+            xmax = 3.84 
+            text = "r" 
+        intervals [36]:
+            xmin = 3.84 
+            xmax = 3.9 
+            text = "ɑ" 
+        intervals [37]:
+            xmin = 3.9 
+            xmax = 4.04 
+            text = "n" 
+        intervals [38]:
+            xmin = 4.04 
+            xmax = 4.16 
+            text = "k" 
+        intervals [39]:
+            xmin = 4.16 
             xmax = 4.775437 
             text = "" 

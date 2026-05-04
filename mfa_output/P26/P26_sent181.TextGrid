@@ -11,7 +11,7 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 4.005875 
-        intervals: size = 11 
+        intervals: size = 10 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.2 
@@ -46,14 +46,10 @@ item []:
             text = "naar" 
         intervals [9]:
             xmin = 3.48 
-            xmax = 3.93 
+            xmax = 3.59 
             text = "de" 
         intervals [10]:
-            xmin = 3.93 
-            xmax = 3.96 
-            text = "" 
-        intervals [11]:
-            xmin = 3.96 
+            xmin = 3.59 
             xmax = 4.005875 
             text = "borrel" 
     item [2]:
@@ -61,7 +57,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 4.005875 
-        intervals: size = 33 
+        intervals: size = 38 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.2 
@@ -72,10 +68,10 @@ item []:
             text = "k" 
         intervals [3]:
             xmin = 1.27 
-            xmax = 1.35 
+            xmax = 1.36 
             text = "ɑ" 
         intervals [4]:
-            xmin = 1.35 
+            xmin = 1.36 
             xmax = 1.43 
             text = "n" 
         intervals [5]:
@@ -184,13 +180,33 @@ item []:
             text = "r" 
         intervals [31]:
             xmin = 3.48 
-            xmax = 3.53 
+            xmax = 3.52 
             text = "d" 
         intervals [32]:
-            xmin = 3.53 
-            xmax = 3.93 
+            xmin = 3.52 
+            xmax = 3.59 
             text = "eː" 
         intervals [33]:
+            xmin = 3.59 
+            xmax = 3.62 
+            text = "b" 
+        intervals [34]:
+            xmin = 3.62 
+            xmax = 3.87 
+            text = "ɔ" 
+        intervals [35]:
+            xmin = 3.87 
+            xmax = 3.9 
+            text = "r" 
+        intervals [36]:
+            xmin = 3.9 
+            xmax = 3.93 
+            text = "r" 
+        intervals [37]:
             xmin = 3.93 
+            xmax = 3.96 
+            text = "ɛ" 
+        intervals [38]:
+            xmin = 3.96 
             xmax = 4.005875 
-            text = "" 
+            text = "l" 

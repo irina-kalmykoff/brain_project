@@ -26,10 +26,10 @@ item []:
             text = "is" 
         intervals [4]:
             xmin = 2.78 
-            xmax = 3.06 
+            xmax = 3.08 
             text = "een" 
         intervals [5]:
-            xmin = 3.06 
+            xmin = 3.08 
             xmax = 3.14 
             text = "" 
         intervals [6]:
@@ -76,10 +76,10 @@ item []:
             text = "eː" 
         intervals [7]:
             xmin = 2.85 
-            xmax = 3.06 
+            xmax = 3.08 
             text = "n" 
         intervals [8]:
-            xmin = 3.06 
+            xmin = 3.08 
             xmax = 3.14 
             text = "" 
         intervals [9]:

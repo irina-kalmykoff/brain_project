@@ -26,18 +26,18 @@ item []:
             text = "studeer" 
         intervals [4]:
             xmin = 1.56 
-            xmax = 1.68 
+            xmax = 1.69 
             text = "op" 
         intervals [5]:
-            xmin = 1.68 
+            xmin = 1.69 
             xmax = 1.8 
             text = "" 
         intervals [6]:
             xmin = 1.8 
-            xmax = 1.97 
+            xmax = 1.99 
             text = "kot" 
         intervals [7]:
-            xmin = 1.97 
+            xmin = 1.99 
             xmax = 2.71 
             text = "" 
         intervals [8]:
@@ -108,10 +108,10 @@ item []:
             text = "ɔ" 
         intervals [11]:
             xmin = 1.6 
-            xmax = 1.68 
+            xmax = 1.69 
             text = "p" 
         intervals [12]:
-            xmin = 1.68 
+            xmin = 1.69 
             xmax = 1.8 
             text = "" 
         intervals [13]:
@@ -120,14 +120,14 @@ item []:
             text = "k" 
         intervals [14]:
             xmin = 1.86 
-            xmax = 1.92 
+            xmax = 1.96 
             text = "ɔ" 
         intervals [15]:
-            xmin = 1.92 
-            xmax = 1.97 
+            xmin = 1.96 
+            xmax = 1.99 
             text = "t" 
         intervals [16]:
-            xmin = 1.97 
+            xmin = 1.99 
             xmax = 2.71 
             text = "" 
         intervals [17]:
@@ -152,10 +152,10 @@ item []:
             text = "ɛ" 
         intervals [22]:
             xmin = 2.91 
-            xmax = 2.96 
+            xmax = 2.95 
             text = "n" 
         intervals [23]:
-            xmin = 2.96 
+            xmin = 2.95 
             xmax = 3.1 
             text = "s" 
         intervals [24]:

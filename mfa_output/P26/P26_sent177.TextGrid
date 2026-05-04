@@ -30,10 +30,10 @@ item []:
             text = "" 
         intervals [5]:
             xmin = 1.48 
-            xmax = 3.11 
+            xmax = 3.12 
             text = "beveiligingscamera" 
         intervals [6]:
-            xmin = 3.11 
+            xmin = 3.12 
             xmax = 3.32 
             text = "" 
         intervals [7]:
@@ -60,14 +60,14 @@ item []:
             text = "h" 
         intervals [3]:
             xmin = 0.84 
-            xmax = 0.93 
+            xmax = 0.92 
             text = "eː" 
         intervals [4]:
-            xmin = 0.93 
-            xmax = 0.99 
+            xmin = 0.92 
+            xmax = 0.98 
             text = "f" 
         intervals [5]:
-            xmin = 0.99 
+            xmin = 0.98 
             xmax = 1.06 
             text = "t" 
         intervals [6]:
@@ -88,10 +88,10 @@ item []:
             text = "b" 
         intervals [10]:
             xmin = 1.63 
-            xmax = 1.81 
+            xmax = 1.77 
             text = "eː" 
         intervals [11]:
-            xmin = 1.81 
+            xmin = 1.77 
             xmax = 1.86 
             text = "v" 
         intervals [12]:
@@ -156,10 +156,10 @@ item []:
             text = "r" 
         intervals [27]:
             xmin = 2.96 
-            xmax = 3.11 
+            xmax = 3.12 
             text = "aː" 
         intervals [28]:
-            xmin = 3.11 
+            xmin = 3.12 
             xmax = 3.32 
             text = "" 
         intervals [29]:

@@ -30,10 +30,10 @@ item []:
             text = "plaatsen" 
         intervals [5]:
             xmin = 2.83 
-            xmax = 3.04 
+            xmax = 3.03 
             text = "kan" 
         intervals [6]:
-            xmin = 3.04 
+            xmin = 3.03 
             xmax = 3.22 
             text = "je" 
         intervals [7]:
@@ -50,10 +50,10 @@ item []:
             text = "wagon" 
         intervals [10]:
             xmin = 4.28 
-            xmax = 4.83 
+            xmax = 4.85 
             text = "vijf" 
         intervals [11]:
-            xmin = 4.83 
+            xmin = 4.85 
             xmax = 5.357437 
             text = "" 
     item [2]:
@@ -132,10 +132,10 @@ item []:
             text = "l" 
         intervals [18]:
             xmin = 2.43 
-            xmax = 2.61 
+            xmax = 2.6 
             text = "aː" 
         intervals [19]:
-            xmin = 2.61 
+            xmin = 2.6 
             xmax = 2.66 
             text = "t" 
         intervals [20]:
@@ -144,10 +144,10 @@ item []:
             text = "s" 
         intervals [21]:
             xmin = 2.71 
-            xmax = 2.75 
+            xmax = 2.76 
             text = "ɛ" 
         intervals [22]:
-            xmin = 2.75 
+            xmin = 2.76 
             xmax = 2.83 
             text = "n" 
         intervals [23]:
@@ -160,10 +160,10 @@ item []:
             text = "ɑ" 
         intervals [25]:
             xmin = 2.93 
-            xmax = 3.04 
+            xmax = 3.03 
             text = "n" 
         intervals [26]:
-            xmin = 3.04 
+            xmin = 3.03 
             xmax = 3.09 
             text = "j" 
         intervals [27]:
@@ -236,9 +236,9 @@ item []:
             text = "j" 
         intervals [44]:
             xmin = 4.67 
-            xmax = 4.83 
+            xmax = 4.85 
             text = "f" 
         intervals [45]:
-            xmin = 4.83 
+            xmin = 4.85 
             xmax = 5.357437 
             text = "" 

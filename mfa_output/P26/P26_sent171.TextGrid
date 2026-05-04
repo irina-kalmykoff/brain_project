@@ -30,22 +30,22 @@ item []:
             text = "goed" 
         intervals [5]:
             xmin = 1.5 
-            xmax = 2.37 
+            xmax = 1.72 
             text = "in" 
         intervals [6]:
-            xmin = 2.37 
-            xmax = 3.95 
-            text = "" 
-        intervals [7]:
-            xmin = 3.95 
-            xmax = 4.002937 
+            xmin = 1.72 
+            xmax = 2.38 
             text = "honkbal" 
+        intervals [7]:
+            xmin = 2.38 
+            xmax = 4.002937 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 4.002937 
-        intervals: size = 11 
+        intervals: size = 18 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.97 
@@ -84,9 +84,37 @@ item []:
             text = "ɪ" 
         intervals [10]:
             xmin = 1.68 
-            xmax = 2.37 
+            xmax = 1.72 
             text = "n" 
         intervals [11]:
-            xmin = 2.37 
+            xmin = 1.72 
+            xmax = 1.78 
+            text = "h" 
+        intervals [12]:
+            xmin = 1.78 
+            xmax = 1.9 
+            text = "ɔ" 
+        intervals [13]:
+            xmin = 1.9 
+            xmax = 1.97 
+            text = "n" 
+        intervals [14]:
+            xmin = 1.97 
+            xmax = 2.0 
+            text = "k" 
+        intervals [15]:
+            xmin = 2.0 
+            xmax = 2.04 
+            text = "b" 
+        intervals [16]:
+            xmin = 2.04 
+            xmax = 2.2 
+            text = "ɑ" 
+        intervals [17]:
+            xmin = 2.2 
+            xmax = 2.38 
+            text = "l" 
+        intervals [18]:
+            xmin = 2.38 
             xmax = 4.002937 
             text = "" 

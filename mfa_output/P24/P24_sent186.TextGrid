@@ -42,22 +42,22 @@ item []:
             text = "of" 
         intervals [8]:
             xmin = 3.34 
-            xmax = 4.43 
+            xmax = 3.71 
             text = "zonder" 
         intervals [9]:
-            xmin = 4.43 
-            xmax = 4.95 
-            text = "" 
-        intervals [10]:
-            xmin = 4.95 
-            xmax = 5.003938 
+            xmin = 3.71 
+            xmax = 4.42 
             text = "trema" 
+        intervals [10]:
+            xmin = 4.42 
+            xmax = 5.003938 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 5.003938 
-        intervals: size = 27 
+        intervals: size = 32 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.3 
@@ -156,13 +156,33 @@ item []:
             text = "d" 
         intervals [25]:
             xmin = 3.61 
-            xmax = 4.25 
+            xmax = 3.65 
             text = "ɛ" 
         intervals [26]:
-            xmin = 4.25 
-            xmax = 4.43 
+            xmin = 3.65 
+            xmax = 3.71 
             text = "r" 
         intervals [27]:
-            xmin = 4.43 
+            xmin = 3.71 
+            xmax = 3.78 
+            text = "t" 
+        intervals [28]:
+            xmin = 3.78 
+            xmax = 3.82 
+            text = "r" 
+        intervals [29]:
+            xmin = 3.82 
+            xmax = 4.05 
+            text = "eː" 
+        intervals [30]:
+            xmin = 4.05 
+            xmax = 4.14 
+            text = "m" 
+        intervals [31]:
+            xmin = 4.14 
+            xmax = 4.42 
+            text = "aː" 
+        intervals [32]:
+            xmin = 4.42 
             xmax = 5.003938 
             text = "" 

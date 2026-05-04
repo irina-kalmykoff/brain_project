@@ -22,10 +22,10 @@ item []:
             text = "nederland" 
         intervals [3]:
             xmin = 1.76 
-            xmax = 2.02 
+            xmax = 2.03 
             text = "heeft" 
         intervals [4]:
-            xmin = 2.02 
+            xmin = 2.03 
             xmax = 2.44 
             text = "een" 
         intervals [5]:
@@ -76,10 +76,10 @@ item []:
             text = "r" 
         intervals [7]:
             xmin = 1.53 
-            xmax = 1.58 
+            xmax = 1.57 
             text = "l" 
         intervals [8]:
-            xmin = 1.58 
+            xmin = 1.57 
             xmax = 1.62 
             text = "ɑ" 
         intervals [9]:
@@ -104,14 +104,14 @@ item []:
             text = "f" 
         intervals [14]:
             xmin = 1.95 
-            xmax = 2.02 
+            xmax = 2.03 
             text = "t" 
         intervals [15]:
-            xmin = 2.02 
-            xmax = 2.14 
+            xmin = 2.03 
+            xmax = 2.15 
             text = "eː" 
         intervals [16]:
-            xmin = 2.14 
+            xmin = 2.15 
             xmax = 2.44 
             text = "n" 
         intervals [17]:
@@ -120,10 +120,10 @@ item []:
             text = "" 
         intervals [18]:
             xmin = 2.82 
-            xmax = 3.1 
+            xmax = 3.09 
             text = "m" 
         intervals [19]:
-            xmin = 3.1 
+            xmin = 3.09 
             xmax = 3.13 
             text = "ʏ" 
         intervals [20]:
@@ -144,10 +144,10 @@ item []:
             text = "c" 
         intervals [24]:
             xmin = 3.76 
-            xmax = 3.81 
+            xmax = 3.82 
             text = "ʏ" 
         intervals [25]:
-            xmin = 3.81 
+            xmin = 3.82 
             xmax = 3.89 
             text = "l" 
         intervals [26]:
@@ -184,22 +184,22 @@ item []:
             text = "aː" 
         intervals [34]:
             xmin = 4.79 
-            xmax = 4.85 
+            xmax = 4.84 
             text = "m" 
         intervals [35]:
-            xmin = 4.85 
-            xmax = 4.88 
+            xmin = 4.84 
+            xmax = 4.87 
             text = "ɛ" 
         intervals [36]:
-            xmin = 4.88 
-            xmax = 4.91 
+            xmin = 4.87 
+            xmax = 4.9 
             text = "n" 
         intervals [37]:
-            xmin = 4.91 
-            xmax = 4.94 
+            xmin = 4.9 
+            xmax = 4.93 
             text = "l" 
         intervals [38]:
-            xmin = 4.94 
+            xmin = 4.93 
             xmax = 5.05 
             text = "eː" 
         intervals [39]:

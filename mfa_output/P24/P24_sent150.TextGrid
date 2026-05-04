@@ -42,10 +42,10 @@ item []:
             text = "" 
         intervals [8]:
             xmin = 2.35 
-            xmax = 3.06 
+            xmax = 3.07 
             text = "chocolaterie" 
         intervals [9]:
-            xmin = 3.06 
+            xmin = 3.07 
             xmax = 3.14 
             text = "" 
         intervals [10]:
@@ -144,38 +144,38 @@ item []:
             text = "c" 
         intervals [19]:
             xmin = 2.8 
-            xmax = 2.84 
+            xmax = 2.86 
             text = "oː" 
         intervals [20]:
-            xmin = 2.84 
-            xmax = 2.87 
+            xmin = 2.86 
+            xmax = 2.89 
             text = "l" 
         intervals [21]:
-            xmin = 2.87 
-            xmax = 2.91 
+            xmin = 2.89 
+            xmax = 2.92 
             text = "aː" 
         intervals [22]:
-            xmin = 2.91 
-            xmax = 2.94 
+            xmin = 2.92 
+            xmax = 2.95 
             text = "t" 
         intervals [23]:
-            xmin = 2.94 
-            xmax = 2.97 
+            xmin = 2.95 
+            xmax = 2.98 
             text = "eː" 
         intervals [24]:
-            xmin = 2.97 
-            xmax = 3.0 
+            xmin = 2.98 
+            xmax = 3.01 
             text = "r" 
         intervals [25]:
-            xmin = 3.0 
-            xmax = 3.03 
+            xmin = 3.01 
+            xmax = 3.04 
             text = "iː" 
         intervals [26]:
-            xmin = 3.03 
-            xmax = 3.06 
+            xmin = 3.04 
+            xmax = 3.07 
             text = "eː" 
         intervals [27]:
-            xmin = 3.06 
+            xmin = 3.07 
             xmax = 3.14 
             text = "" 
         intervals [28]:
@@ -184,10 +184,10 @@ item []:
             text = "v" 
         intervals [29]:
             xmin = 3.36 
-            xmax = 3.39 
+            xmax = 3.44 
             text = "ɑ" 
         intervals [30]:
-            xmin = 3.39 
+            xmin = 3.44 
             xmax = 3.5 
             text = "n" 
         intervals [31]:

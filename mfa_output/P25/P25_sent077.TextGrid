@@ -26,10 +26,10 @@ item []:
             text = "volgende" 
         intervals [4]:
             xmin = 1.07 
-            xmax = 1.36 
+            xmax = 1.34 
             text = "halte" 
         intervals [5]:
-            xmin = 1.36 
+            xmin = 1.34 
             xmax = 1.45 
             text = "is" 
         intervals [6]:
@@ -68,10 +68,10 @@ item []:
             text = "eː" 
         intervals [4]:
             xmin = 0.75 
-            xmax = 0.8 
+            xmax = 0.79 
             text = "v" 
         intervals [5]:
-            xmin = 0.8 
+            xmin = 0.79 
             xmax = 0.89 
             text = "ɔ" 
         intervals [6]:
@@ -116,10 +116,10 @@ item []:
             text = "t" 
         intervals [16]:
             xmin = 1.29 
-            xmax = 1.36 
+            xmax = 1.34 
             text = "eː" 
         intervals [17]:
-            xmin = 1.36 
+            xmin = 1.34 
             xmax = 1.4 
             text = "ɪ" 
         intervals [18]:
@@ -148,10 +148,10 @@ item []:
             text = "z" 
         intervals [24]:
             xmin = 1.73 
-            xmax = 1.83 
+            xmax = 1.82 
             text = "ɛ" 
         intervals [25]:
-            xmin = 1.83 
+            xmin = 1.82 
             xmax = 1.87 
             text = "s" 
         intervals [26]:
@@ -188,10 +188,10 @@ item []:
             text = "t" 
         intervals [34]:
             xmin = 2.35 
-            xmax = 2.39 
+            xmax = 2.4 
             text = "ɛ" 
         intervals [35]:
-            xmin = 2.39 
+            xmin = 2.4 
             xmax = 2.48 
             text = "n" 
         intervals [36]:

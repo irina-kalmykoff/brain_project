@@ -108,26 +108,26 @@ item []:
             text = "n" 
         intervals [8]:
             xmin = 0.72 
-            xmax = 0.77 
+            xmax = 0.76 
             text = "p" 
         intervals [9]:
-            xmin = 0.77 
-            xmax = 0.8 
+            xmin = 0.76 
+            xmax = 0.79 
             text = "r" 
         intervals [10]:
-            xmin = 0.8 
-            xmax = 0.83 
+            xmin = 0.79 
+            xmax = 0.82 
             text = "ɔ" 
         intervals [11]:
-            xmin = 0.83 
-            xmax = 0.86 
+            xmin = 0.82 
+            xmax = 0.85 
             text = "p" 
         intervals [12]:
-            xmin = 0.86 
-            xmax = 0.89 
+            xmin = 0.85 
+            xmax = 0.88 
             text = "l" 
         intervals [13]:
-            xmin = 0.89 
+            xmin = 0.88 
             xmax = 1.02 
             text = "eː" 
         intervals [14]:
@@ -176,10 +176,10 @@ item []:
             text = "v" 
         intervals [25]:
             xmin = 3.91 
-            xmax = 4.08 
+            xmax = 4.09 
             text = "uː" 
         intervals [26]:
-            xmin = 4.08 
+            xmin = 4.09 
             xmax = 4.24 
             text = "r" 
         intervals [27]:

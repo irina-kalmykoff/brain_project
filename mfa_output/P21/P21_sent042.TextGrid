@@ -38,14 +38,14 @@ item []:
             text = "de" 
         intervals [7]:
             xmin = 2.46 
-            xmax = 2.88 
+            xmax = 2.91 
             text = "muur" 
         intervals [8]:
-            xmin = 2.88 
-            xmax = 2.91 
+            xmin = 2.91 
+            xmax = 2.94 
             text = "" 
         intervals [9]:
-            xmin = 2.91 
+            xmin = 2.94 
             xmax = 3.22 
             text = "met" 
         intervals [10]:
@@ -116,10 +116,10 @@ item []:
             text = "eː" 
         intervals [13]:
             xmin = 1.86 
-            xmax = 1.94 
+            xmax = 1.93 
             text = "h" 
         intervals [14]:
-            xmin = 1.94 
+            xmin = 1.93 
             xmax = 2.01 
             text = "ɑ" 
         intervals [15]:
@@ -160,14 +160,14 @@ item []:
             text = "yː" 
         intervals [24]:
             xmin = 2.68 
-            xmax = 2.88 
+            xmax = 2.91 
             text = "r" 
         intervals [25]:
-            xmin = 2.88 
-            xmax = 2.91 
+            xmin = 2.91 
+            xmax = 2.94 
             text = "" 
         intervals [26]:
-            xmin = 2.91 
+            xmin = 2.94 
             xmax = 3.06 
             text = "m" 
         intervals [27]:
@@ -196,10 +196,10 @@ item []:
             text = "øː" 
         intervals [33]:
             xmin = 3.56 
-            xmax = 3.61 
+            xmax = 3.62 
             text = "ʏ" 
         intervals [34]:
-            xmin = 3.61 
+            xmin = 3.62 
             xmax = 3.65 
             text = "ɣ" 
         intervals [35]:

@@ -50,10 +50,10 @@ item []:
             text = "koala" 
         intervals [10]:
             xmin = 3.18 
-            xmax = 3.68 
+            xmax = 3.72 
             text = "gezien" 
         intervals [11]:
-            xmin = 3.68 
+            xmin = 3.72 
             xmax = 4.001938 
             text = "" 
     item [2]:
@@ -76,10 +76,10 @@ item []:
             text = "n" 
         intervals [4]:
             xmin = 1.18 
-            xmax = 1.21 
+            xmax = 1.22 
             text = "d" 
         intervals [5]:
-            xmin = 1.21 
+            xmin = 1.22 
             xmax = 1.31 
             text = "eː" 
         intervals [6]:
@@ -112,10 +112,10 @@ item []:
             text = "t" 
         intervals [13]:
             xmin = 1.7 
-            xmax = 1.81 
+            xmax = 1.79 
             text = "œ" 
         intervals [14]:
-            xmin = 1.81 
+            xmin = 1.79 
             xmax = 1.84 
             text = "ɥ" 
         intervals [15]:
@@ -140,10 +140,10 @@ item []:
             text = "b" 
         intervals [20]:
             xmin = 2.12 
-            xmax = 2.16 
+            xmax = 2.17 
             text = "ɛ" 
         intervals [21]:
-            xmin = 2.16 
+            xmin = 2.17 
             xmax = 2.23 
             text = "n" 
         intervals [22]:
@@ -204,9 +204,9 @@ item []:
             text = "iː" 
         intervals [36]:
             xmin = 3.47 
-            xmax = 3.68 
+            xmax = 3.72 
             text = "n" 
         intervals [37]:
-            xmin = 3.68 
+            xmin = 3.72 
             xmax = 4.001938 
             text = "" 

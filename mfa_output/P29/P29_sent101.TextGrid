@@ -42,22 +42,22 @@ item []:
             text = "op" 
         intervals [8]:
             xmin = 3.61 
-            xmax = 4.11 
+            xmax = 3.69 
             text = "de" 
         intervals [9]:
-            xmin = 4.11 
-            xmax = 4.23 
-            text = "" 
-        intervals [10]:
-            xmin = 4.23 
-            xmax = 4.277375 
+            xmin = 3.69 
+            xmax = 4.12 
             text = "kruk" 
+        intervals [10]:
+            xmin = 4.12 
+            xmax = 4.277375 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 4.277375 
-        intervals: size = 19 
+        intervals: size = 23 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.84 
@@ -128,9 +128,25 @@ item []:
             text = "d" 
         intervals [18]:
             xmin = 3.65 
-            xmax = 4.11 
+            xmax = 3.69 
             text = "eː" 
         intervals [19]:
-            xmin = 4.11 
+            xmin = 3.69 
+            xmax = 3.75 
+            text = "k" 
+        intervals [20]:
+            xmin = 3.75 
+            xmax = 3.84 
+            text = "r" 
+        intervals [21]:
+            xmin = 3.84 
+            xmax = 3.94 
+            text = "ʏ" 
+        intervals [22]:
+            xmin = 3.94 
+            xmax = 4.12 
+            text = "k" 
+        intervals [23]:
+            xmin = 4.12 
             xmax = 4.277375 
             text = "" 

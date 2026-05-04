@@ -30,14 +30,14 @@ item []:
             text = "" 
         intervals [5]:
             xmin = 1.69 
-            xmax = 1.92 
+            xmax = 1.94 
             text = "zullen" 
         intervals [6]:
-            xmin = 1.92 
-            xmax = 2.46 
+            xmin = 1.94 
+            xmax = 2.45 
             text = "" 
         intervals [7]:
-            xmin = 2.46 
+            xmin = 2.45 
             xmax = 3.56 
             text = "moeten" 
         intervals [8]:
@@ -112,14 +112,14 @@ item []:
             text = "ɛ" 
         intervals [12]:
             xmin = 1.81 
-            xmax = 1.92 
+            xmax = 1.94 
             text = "n" 
         intervals [13]:
-            xmin = 1.92 
-            xmax = 2.46 
+            xmin = 1.94 
+            xmax = 2.45 
             text = "" 
         intervals [14]:
-            xmin = 2.46 
+            xmin = 2.45 
             xmax = 2.53 
             text = "m" 
         intervals [15]:
@@ -136,10 +136,10 @@ item []:
             text = "t" 
         intervals [18]:
             xmin = 2.66 
-            xmax = 2.9 
+            xmax = 2.87 
             text = "ɛ" 
         intervals [19]:
-            xmin = 2.9 
+            xmin = 2.87 
             xmax = 3.56 
             text = "n" 
         intervals [20]:

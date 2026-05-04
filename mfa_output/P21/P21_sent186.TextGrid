@@ -80,10 +80,10 @@ item []:
             text = "n" 
         intervals [5]:
             xmin = 1.06 
-            xmax = 1.09 
+            xmax = 1.1 
             text = "j" 
         intervals [6]:
-            xmin = 1.09 
+            xmin = 1.1 
             xmax = 1.19 
             text = "ʏ" 
         intervals [7]:
@@ -132,10 +132,10 @@ item []:
             text = "r" 
         intervals [18]:
             xmin = 1.76 
-            xmax = 1.82 
+            xmax = 1.81 
             text = "m" 
         intervals [19]:
-            xmin = 1.82 
+            xmin = 1.81 
             xmax = 1.85 
             text = "ɛ" 
         intervals [20]:
@@ -180,14 +180,14 @@ item []:
             text = "p" 
         intervals [30]:
             xmin = 2.45 
-            xmax = 2.51 
+            xmax = 2.52 
             text = "r" 
         intervals [31]:
-            xmin = 2.51 
-            xmax = 2.58 
+            xmin = 2.52 
+            xmax = 2.57 
             text = "ɛ" 
         intervals [32]:
-            xmin = 2.58 
+            xmin = 2.57 
             xmax = 2.68 
             text = "j" 
         intervals [33]:

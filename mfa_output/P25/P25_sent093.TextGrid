@@ -14,14 +14,14 @@ item []:
         intervals: size = 7 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.72 
+            xmax = 0.68 
             text = "" 
         intervals [2]:
-            xmin = 0.72 
-            xmax = 0.95 
+            xmin = 0.68 
+            xmax = 0.94 
             text = "hij" 
         intervals [3]:
-            xmin = 0.95 
+            xmin = 0.94 
             xmax = 1.11 
             text = "heeft" 
         intervals [4]:
@@ -48,10 +48,10 @@ item []:
         intervals: size = 36 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.72 
+            xmax = 0.68 
             text = "" 
         intervals [2]:
-            xmin = 0.72 
+            xmin = 0.68 
             xmax = 0.76 
             text = "h" 
         intervals [3]:
@@ -60,14 +60,14 @@ item []:
             text = "ɛ" 
         intervals [4]:
             xmin = 0.89 
-            xmax = 0.95 
+            xmax = 0.94 
             text = "j" 
         intervals [5]:
-            xmin = 0.95 
-            xmax = 0.98 
+            xmin = 0.94 
+            xmax = 0.97 
             text = "h" 
         intervals [6]:
-            xmin = 0.98 
+            xmin = 0.97 
             xmax = 1.04 
             text = "eː" 
         intervals [7]:
@@ -172,18 +172,18 @@ item []:
             text = "l" 
         intervals [32]:
             xmin = 2.41 
-            xmax = 2.61 
+            xmax = 2.66 
             text = "oː" 
         intervals [33]:
-            xmin = 2.61 
-            xmax = 2.64 
+            xmin = 2.66 
+            xmax = 2.69 
             text = "r" 
         intervals [34]:
-            xmin = 2.64 
-            xmax = 2.67 
+            xmin = 2.69 
+            xmax = 2.72 
             text = "ɛ" 
         intervals [35]:
-            xmin = 2.67 
+            xmin = 2.72 
             xmax = 2.78 
             text = "n" 
         intervals [36]:

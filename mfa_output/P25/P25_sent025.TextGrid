@@ -188,10 +188,10 @@ item []:
             text = "j" 
         intervals [34]:
             xmin = 2.54 
-            xmax = 2.58 
+            xmax = 2.59 
             text = "ɪ" 
         intervals [35]:
-            xmin = 2.58 
+            xmin = 2.59 
             xmax = 2.66 
             text = "k" 
         intervals [36]:
@@ -228,10 +228,10 @@ item []:
             text = "ɪ" 
         intervals [44]:
             xmin = 3.2 
-            xmax = 3.27 
+            xmax = 3.26 
             text = "s" 
         intervals [45]:
-            xmin = 3.27 
+            xmin = 3.26 
             xmax = 3.3 
             text = "t" 
         intervals [46]:

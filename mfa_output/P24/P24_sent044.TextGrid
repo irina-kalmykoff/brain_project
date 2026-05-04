@@ -14,10 +14,10 @@ item []:
         intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.09 
+            xmax = 0.04 
             text = "" 
         intervals [2]:
-            xmin = 0.09 
+            xmin = 0.04 
             xmax = 0.42 
             text = "ze" 
         intervals [3]:
@@ -34,18 +34,18 @@ item []:
             text = "door" 
         intervals [6]:
             xmin = 2.75 
-            xmax = 2.88 
+            xmax = 2.87 
             text = "het" 
         intervals [7]:
-            xmin = 2.88 
+            xmin = 2.87 
             xmax = 3.44 
             text = "ondiepe" 
         intervals [8]:
             xmin = 3.44 
-            xmax = 4.09 
+            xmax = 4.11 
             text = "water" 
         intervals [9]:
-            xmin = 4.09 
+            xmin = 4.11 
             xmax = 5.001 
             text = "" 
     item [2]:
@@ -56,10 +56,10 @@ item []:
         intervals: size = 28 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.09 
+            xmax = 0.04 
             text = "" 
         intervals [2]:
-            xmin = 0.09 
+            xmin = 0.04 
             xmax = 0.13 
             text = "z" 
         intervals [3]:
@@ -112,10 +112,10 @@ item []:
             text = "ɛ" 
         intervals [15]:
             xmin = 2.81 
-            xmax = 2.88 
+            xmax = 2.87 
             text = "t" 
         intervals [16]:
-            xmin = 2.88 
+            xmin = 2.87 
             xmax = 3.02 
             text = "ɔ" 
         intervals [17]:
@@ -160,9 +160,9 @@ item []:
             text = "ɛ" 
         intervals [27]:
             xmin = 3.81 
-            xmax = 4.09 
+            xmax = 4.11 
             text = "r" 
         intervals [28]:
-            xmin = 4.09 
+            xmin = 4.11 
             xmax = 5.001 
             text = "" 

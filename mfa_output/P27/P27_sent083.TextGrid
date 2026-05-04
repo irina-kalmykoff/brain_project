@@ -26,10 +26,10 @@ item []:
             text = "mijn" 
         intervals [4]:
             xmin = 1.64 
-            xmax = 2.17 
+            xmax = 2.13 
             text = "kamer" 
         intervals [5]:
-            xmin = 2.17 
+            xmin = 2.13 
             xmax = 2.34 
             text = "heb" 
         intervals [6]:
@@ -108,18 +108,18 @@ item []:
             text = "ɛ" 
         intervals [12]:
             xmin = 2.0 
-            xmax = 2.17 
+            xmax = 2.13 
             text = "r" 
         intervals [13]:
-            xmin = 2.17 
-            xmax = 2.2 
+            xmin = 2.13 
+            xmax = 2.16 
             text = "h" 
         intervals [14]:
-            xmin = 2.2 
-            xmax = 2.24 
+            xmin = 2.16 
+            xmax = 2.25 
             text = "ɛ" 
         intervals [15]:
-            xmin = 2.24 
+            xmin = 2.25 
             xmax = 2.34 
             text = "p" 
         intervals [16]:
@@ -164,10 +164,10 @@ item []:
             text = "ʋ" 
         intervals [26]:
             xmin = 3.03 
-            xmax = 3.11 
+            xmax = 3.1 
             text = "eː" 
         intervals [27]:
-            xmin = 3.11 
+            xmin = 3.1 
             xmax = 3.15 
             text = "r" 
         intervals [28]:
@@ -208,10 +208,10 @@ item []:
             text = "ɑ" 
         intervals [37]:
             xmin = 3.78 
-            xmax = 3.9 
+            xmax = 3.91 
             text = "ŋ" 
         intervals [38]:
-            xmin = 3.9 
+            xmin = 3.91 
             xmax = 3.94 
             text = "ɛ" 
         intervals [39]:

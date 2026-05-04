@@ -46,10 +46,10 @@ item []:
             text = "het" 
         intervals [9]:
             xmin = 3.82 
-            xmax = 4.14 
+            xmax = 4.15 
             text = "water" 
         intervals [10]:
-            xmin = 4.14 
+            xmin = 4.15 
             xmax = 4.48 
             text = "leven" 
         intervals [11]:
@@ -72,10 +72,10 @@ item []:
             text = "ʋ" 
         intervals [3]:
             xmin = 1.5 
-            xmax = 1.55 
+            xmax = 1.58 
             text = "ɑ" 
         intervals [4]:
-            xmin = 1.55 
+            xmin = 1.58 
             xmax = 1.68 
             text = "l" 
         intervals [5]:
@@ -196,10 +196,10 @@ item []:
             text = "ʋ" 
         intervals [34]:
             xmin = 3.88 
-            xmax = 4.02 
+            xmax = 4.0 
             text = "aː" 
         intervals [35]:
-            xmin = 4.02 
+            xmin = 4.0 
             xmax = 4.05 
             text = "t" 
         intervals [36]:
@@ -208,10 +208,10 @@ item []:
             text = "ɛ" 
         intervals [37]:
             xmin = 4.08 
-            xmax = 4.14 
+            xmax = 4.15 
             text = "r" 
         intervals [38]:
-            xmin = 4.14 
+            xmin = 4.15 
             xmax = 4.18 
             text = "l" 
         intervals [39]:

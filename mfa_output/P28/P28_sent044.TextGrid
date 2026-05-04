@@ -52,10 +52,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 1.16 
-            xmax = 1.24 
+            xmax = 1.23 
             text = "d" 
         intervals [3]:
-            xmin = 1.24 
+            xmin = 1.23 
             xmax = 1.33 
             text = "ɑ" 
         intervals [4]:
@@ -96,10 +96,10 @@ item []:
             text = "n" 
         intervals [13]:
             xmin = 2.4 
-            xmax = 2.56 
+            xmax = 2.57 
             text = "iː" 
         intervals [14]:
-            xmin = 2.56 
+            xmin = 2.57 
             xmax = 2.63 
             text = "ʏ" 
         intervals [15]:

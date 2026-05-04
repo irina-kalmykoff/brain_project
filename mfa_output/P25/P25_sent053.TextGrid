@@ -26,14 +26,14 @@ item []:
             text = "bokser" 
         intervals [4]:
             xmin = 1.13 
-            xmax = 1.4 
+            xmax = 1.41 
             text = "lag" 
         intervals [5]:
-            xmin = 1.4 
-            xmax = 1.92 
+            xmin = 1.41 
+            xmax = 1.91 
             text = "knock-out" 
         intervals [6]:
-            xmin = 1.92 
+            xmin = 1.91 
             xmax = 2.07 
             text = "op" 
         intervals [7]:
@@ -96,18 +96,18 @@ item []:
             text = "l" 
         intervals [11]:
             xmin = 1.19 
-            xmax = 1.37 
+            xmax = 1.38 
             text = "ɑ" 
         intervals [12]:
-            xmin = 1.37 
-            xmax = 1.4 
+            xmin = 1.38 
+            xmax = 1.41 
             text = "x" 
         intervals [13]:
-            xmin = 1.4 
-            xmax = 1.43 
+            xmin = 1.41 
+            xmax = 1.44 
             text = "k" 
         intervals [14]:
-            xmin = 1.43 
+            xmin = 1.44 
             xmax = 1.49 
             text = "n" 
         intervals [15]:
@@ -128,10 +128,10 @@ item []:
             text = "w" 
         intervals [19]:
             xmin = 1.83 
-            xmax = 1.92 
+            xmax = 1.91 
             text = "t" 
         intervals [20]:
-            xmin = 1.92 
+            xmin = 1.91 
             xmax = 2.0 
             text = "ɔ" 
         intervals [21]:

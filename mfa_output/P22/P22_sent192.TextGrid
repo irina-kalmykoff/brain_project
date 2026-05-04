@@ -14,10 +14,10 @@ item []:
         intervals: size = 10 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.96 
+            xmax = 0.95 
             text = "" 
         intervals [2]:
-            xmin = 0.96 
+            xmin = 0.95 
             xmax = 1.22 
             text = "er" 
         intervals [3]:
@@ -34,14 +34,14 @@ item []:
             text = "meubelzaak" 
         intervals [6]:
             xmin = 2.42 
-            xmax = 2.61 
+            xmax = 2.64 
             text = "op" 
         intervals [7]:
-            xmin = 2.61 
-            xmax = 2.64 
+            xmin = 2.64 
+            xmax = 2.67 
             text = "" 
         intervals [8]:
-            xmin = 2.64 
+            xmin = 2.67 
             xmax = 2.82 
             text = "die" 
         intervals [9]:
@@ -60,14 +60,14 @@ item []:
         intervals: size = 32 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.96 
+            xmax = 0.95 
             text = "" 
         intervals [2]:
-            xmin = 0.96 
-            xmax = 1.11 
+            xmin = 0.95 
+            xmax = 1.12 
             text = "ɛ" 
         intervals [3]:
-            xmin = 1.11 
+            xmin = 1.12 
             xmax = 1.22 
             text = "r" 
         intervals [4]:
@@ -136,14 +136,14 @@ item []:
             text = "ɔ" 
         intervals [20]:
             xmin = 2.51 
-            xmax = 2.61 
+            xmax = 2.64 
             text = "p" 
         intervals [21]:
-            xmin = 2.61 
-            xmax = 2.64 
+            xmin = 2.64 
+            xmax = 2.67 
             text = "" 
         intervals [22]:
-            xmin = 2.64 
+            xmin = 2.67 
             xmax = 2.73 
             text = "d" 
         intervals [23]:

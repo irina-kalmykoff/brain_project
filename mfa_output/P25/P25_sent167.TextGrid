@@ -30,22 +30,22 @@ item []:
             text = "urenlang" 
         intervals [5]:
             xmin = 1.47 
-            xmax = 2.18 
+            xmax = 2.08 
             text = "vastgezeten" 
         intervals [6]:
-            xmin = 2.18 
-            xmax = 2.43 
+            xmin = 2.08 
+            xmax = 2.15 
             text = "in" 
         intervals [7]:
-            xmin = 2.43 
-            xmax = 2.57 
+            xmin = 2.15 
+            xmax = 2.21 
             text = "de" 
         intervals [8]:
-            xmin = 2.57 
-            xmax = 2.6 
+            xmin = 2.21 
+            xmax = 2.74 
             text = "skilift" 
         intervals [9]:
-            xmin = 2.6 
+            xmin = 2.74 
             xmax = 4.002937 
             text = "" 
     item [2]:
@@ -53,7 +53,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 4.002937 
-        intervals: size = 33 
+        intervals: size = 40 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.64 
@@ -164,25 +164,53 @@ item []:
             text = "ɛ" 
         intervals [28]:
             xmin = 2.05 
-            xmax = 2.18 
+            xmax = 2.08 
             text = "n" 
         intervals [29]:
-            xmin = 2.18 
-            xmax = 2.4 
+            xmin = 2.08 
+            xmax = 2.11 
             text = "ɪ" 
         intervals [30]:
-            xmin = 2.4 
-            xmax = 2.43 
+            xmin = 2.11 
+            xmax = 2.15 
             text = "n" 
         intervals [31]:
-            xmin = 2.43 
-            xmax = 2.46 
+            xmin = 2.15 
+            xmax = 2.18 
             text = "d" 
         intervals [32]:
-            xmin = 2.46 
-            xmax = 2.57 
+            xmin = 2.18 
+            xmax = 2.21 
             text = "eː" 
         intervals [33]:
-            xmin = 2.57 
+            xmin = 2.21 
+            xmax = 2.26 
+            text = "s" 
+        intervals [34]:
+            xmin = 2.26 
+            xmax = 2.31 
+            text = "k" 
+        intervals [35]:
+            xmin = 2.31 
+            xmax = 2.42 
+            text = "iː" 
+        intervals [36]:
+            xmin = 2.42 
+            xmax = 2.45 
+            text = "l" 
+        intervals [37]:
+            xmin = 2.45 
+            xmax = 2.53 
+            text = "ɪ" 
+        intervals [38]:
+            xmin = 2.53 
+            xmax = 2.62 
+            text = "f" 
+        intervals [39]:
+            xmin = 2.62 
+            xmax = 2.74 
+            text = "t" 
+        intervals [40]:
+            xmin = 2.74 
             xmax = 4.002937 
             text = "" 

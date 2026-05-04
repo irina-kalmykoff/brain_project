@@ -62,10 +62,10 @@ item []:
             text = "te" 
         intervals [13]:
             xmin = 5.81 
-            xmax = 6.71 
+            xmax = 6.65 
             text = "vermijden" 
         intervals [14]:
-            xmin = 6.71 
+            xmin = 6.65 
             xmax = 10.002937 
             text = "" 
     item [2]:
@@ -136,10 +136,10 @@ item []:
             text = "t" 
         intervals [16]:
             xmin = 3.54 
-            xmax = 3.62 
+            xmax = 3.64 
             text = "j" 
         intervals [17]:
-            xmin = 3.62 
+            xmin = 3.64 
             xmax = 3.86 
             text = "eː" 
         intervals [18]:
@@ -184,10 +184,10 @@ item []:
             text = "ɛ" 
         intervals [28]:
             xmin = 5.14 
-            xmax = 5.25 
+            xmax = 5.26 
             text = "s" 
         intervals [29]:
-            xmin = 5.25 
+            xmin = 5.26 
             xmax = 5.29 
             text = "t" 
         intervals [30]:
@@ -216,10 +216,10 @@ item []:
             text = "ɛ" 
         intervals [36]:
             xmin = 5.91 
-            xmax = 5.96 
+            xmax = 5.97 
             text = "r" 
         intervals [37]:
-            xmin = 5.96 
+            xmin = 5.97 
             xmax = 6.04 
             text = "m" 
         intervals [38]:
@@ -236,13 +236,13 @@ item []:
             text = "d" 
         intervals [41]:
             xmin = 6.25 
-            xmax = 6.32 
+            xmax = 6.33 
             text = "ɛ" 
         intervals [42]:
-            xmin = 6.32 
-            xmax = 6.71 
+            xmin = 6.33 
+            xmax = 6.65 
             text = "n" 
         intervals [43]:
-            xmin = 6.71 
+            xmin = 6.65 
             xmax = 10.002937 
             text = "" 

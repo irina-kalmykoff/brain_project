@@ -18,10 +18,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 1.44 
-            xmax = 1.59 
+            xmax = 1.58 
             text = "om" 
         intervals [3]:
-            xmin = 1.59 
+            xmin = 1.58 
             xmax = 1.99 
             text = "half" 
         intervals [4]:
@@ -76,18 +76,18 @@ item []:
             text = "ɔ" 
         intervals [3]:
             xmin = 1.54 
-            xmax = 1.59 
+            xmax = 1.58 
             text = "m" 
         intervals [4]:
-            xmin = 1.59 
+            xmin = 1.58 
             xmax = 1.63 
             text = "h" 
         intervals [5]:
             xmin = 1.63 
-            xmax = 1.8 
+            xmax = 1.79 
             text = "ɑ" 
         intervals [6]:
-            xmin = 1.8 
+            xmin = 1.79 
             xmax = 1.93 
             text = "l" 
         intervals [7]:
@@ -176,10 +176,10 @@ item []:
             text = "b" 
         intervals [28]:
             xmin = 3.32 
-            xmax = 3.37 
+            xmax = 3.38 
             text = "ɛ" 
         intervals [29]:
-            xmin = 3.37 
+            xmin = 3.38 
             xmax = 3.43 
             text = "j" 
         intervals [30]:

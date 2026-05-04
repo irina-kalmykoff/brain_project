@@ -38,10 +38,10 @@ item []:
             text = "op" 
         intervals [7]:
             xmin = 2.02 
-            xmax = 2.18 
+            xmax = 2.19 
             text = "de" 
         intervals [8]:
-            xmin = 2.18 
+            xmin = 2.19 
             xmax = 2.48 
             text = "witte" 
         intervals [9]:
@@ -116,22 +116,22 @@ item []:
             text = "p" 
         intervals [15]:
             xmin = 2.02 
-            xmax = 2.07 
+            xmax = 2.08 
             text = "d" 
         intervals [16]:
-            xmin = 2.07 
-            xmax = 2.18 
+            xmin = 2.08 
+            xmax = 2.19 
             text = "eː" 
         intervals [17]:
-            xmin = 2.18 
+            xmin = 2.19 
             xmax = 2.25 
             text = "ʋ" 
         intervals [18]:
             xmin = 2.25 
-            xmax = 2.33 
+            xmax = 2.32 
             text = "ɪ" 
         intervals [19]:
-            xmin = 2.33 
+            xmin = 2.32 
             xmax = 2.37 
             text = "t" 
         intervals [20]:

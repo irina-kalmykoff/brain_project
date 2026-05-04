@@ -22,10 +22,10 @@ item []:
             text = "slangen" 
         intervals [3]:
             xmin = 1.39 
-            xmax = 1.7 
+            xmax = 1.69 
             text = "kunnen" 
         intervals [4]:
-            xmin = 1.7 
+            xmin = 1.69 
             xmax = 2.37 
             text = "venijnig" 
         intervals [5]:
@@ -100,10 +100,10 @@ item []:
             text = "ɛ" 
         intervals [13]:
             xmin = 1.64 
-            xmax = 1.7 
+            xmax = 1.69 
             text = "n" 
         intervals [14]:
-            xmin = 1.7 
+            xmin = 1.69 
             xmax = 1.8 
             text = "v" 
         intervals [15]:
@@ -176,10 +176,10 @@ item []:
             text = "ɛ" 
         intervals [32]:
             xmin = 3.41 
-            xmax = 3.49 
+            xmax = 3.5 
             text = "j" 
         intervals [33]:
-            xmin = 3.49 
+            xmin = 3.5 
             xmax = 3.68 
             text = "n" 
         intervals [34]:

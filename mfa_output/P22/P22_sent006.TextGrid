@@ -30,18 +30,18 @@ item []:
             text = "en" 
         intervals [5]:
             xmin = 2.45 
-            xmax = 2.59 
+            xmax = 2.63 
             text = "een" 
         intervals [6]:
-            xmin = 2.59 
+            xmin = 2.63 
             xmax = 3.2 
             text = "gelukkig" 
         intervals [7]:
             xmin = 3.2 
-            xmax = 4.02 
+            xmax = 4.04 
             text = "nieuwjaar" 
         intervals [8]:
-            xmin = 4.02 
+            xmin = 4.04 
             xmax = 5.002937 
             text = "" 
     item [2]:
@@ -124,10 +124,10 @@ item []:
             text = "eː" 
         intervals [19]:
             xmin = 2.51 
-            xmax = 2.59 
+            xmax = 2.63 
             text = "n" 
         intervals [20]:
-            xmin = 2.59 
+            xmin = 2.63 
             xmax = 2.71 
             text = "ɣ" 
         intervals [21]:
@@ -180,9 +180,9 @@ item []:
             text = "aː" 
         intervals [33]:
             xmin = 3.81 
-            xmax = 4.02 
+            xmax = 4.04 
             text = "r" 
         intervals [34]:
-            xmin = 4.02 
+            xmin = 4.04 
             xmax = 5.002937 
             text = "" 

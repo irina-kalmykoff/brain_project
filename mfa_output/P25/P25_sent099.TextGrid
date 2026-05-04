@@ -14,10 +14,10 @@ item []:
         intervals: size = 12 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.56 
+            xmax = 0.55 
             text = "" 
         intervals [2]:
-            xmin = 0.56 
+            xmin = 0.55 
             xmax = 0.71 
             text = "aan" 
         intervals [3]:
@@ -42,10 +42,10 @@ item []:
             text = "berg" 
         intervals [8]:
             xmin = 1.8 
-            xmax = 2.04 
+            xmax = 2.03 
             text = "ligt" 
         intervals [9]:
-            xmin = 2.04 
+            xmin = 2.03 
             xmax = 2.19 
             text = "een" 
         intervals [10]:
@@ -68,10 +68,10 @@ item []:
         intervals: size = 39 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.56 
+            xmax = 0.55 
             text = "" 
         intervals [2]:
-            xmin = 0.56 
+            xmin = 0.55 
             xmax = 0.68 
             text = "aː" 
         intervals [3]:
@@ -172,10 +172,10 @@ item []:
             text = "x" 
         intervals [27]:
             xmin = 1.96 
-            xmax = 2.04 
+            xmax = 2.03 
             text = "t" 
         intervals [28]:
-            xmin = 2.04 
+            xmin = 2.03 
             xmax = 2.12 
             text = "eː" 
         intervals [29]:

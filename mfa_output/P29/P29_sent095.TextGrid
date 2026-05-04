@@ -34,18 +34,18 @@ item []:
             text = "zin" 
         intervals [6]:
             xmin = 5.98 
-            xmax = 7.26 
+            xmax = 7.32 
             text = "eindigt" 
         intervals [7]:
-            xmin = 7.26 
-            xmax = 7.3 
+            xmin = 7.32 
+            xmax = 7.35 
             text = "" 
         intervals [8]:
-            xmin = 7.3 
-            xmax = 7.4 
+            xmin = 7.35 
+            xmax = 7.41 
             text = "op" 
         intervals [9]:
-            xmin = 7.4 
+            xmin = 7.41 
             xmax = 7.65 
             text = "een" 
         intervals [10]:
@@ -164,26 +164,26 @@ item []:
             text = "x" 
         intervals [25]:
             xmin = 7.04 
-            xmax = 7.26 
+            xmax = 7.32 
             text = "t" 
         intervals [26]:
-            xmin = 7.26 
-            xmax = 7.3 
+            xmin = 7.32 
+            xmax = 7.35 
             text = "" 
         intervals [27]:
-            xmin = 7.3 
-            xmax = 7.37 
+            xmin = 7.35 
+            xmax = 7.38 
             text = "ɔ" 
         intervals [28]:
-            xmin = 7.37 
-            xmax = 7.4 
+            xmin = 7.38 
+            xmax = 7.41 
             text = "p" 
         intervals [29]:
-            xmin = 7.4 
-            xmax = 7.43 
+            xmin = 7.41 
+            xmax = 7.44 
             text = "eː" 
         intervals [30]:
-            xmin = 7.43 
+            xmin = 7.44 
             xmax = 7.65 
             text = "n" 
         intervals [31]:
@@ -196,10 +196,10 @@ item []:
             text = "p" 
         intervals [33]:
             xmin = 7.84 
-            xmax = 8.08 
+            xmax = 7.95 
             text = "ʏ" 
         intervals [34]:
-            xmin = 8.08 
+            xmin = 7.95 
             xmax = 8.83 
             text = "n" 
         intervals [35]:

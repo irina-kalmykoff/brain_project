@@ -14,10 +14,10 @@ item []:
         intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.64 
+            xmax = 0.63 
             text = "" 
         intervals [2]:
-            xmin = 0.64 
+            xmin = 0.63 
             xmax = 0.82 
             text = "het" 
         intervals [3]:
@@ -56,10 +56,10 @@ item []:
         intervals: size = 38 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.64 
+            xmax = 0.63 
             text = "" 
         intervals [2]:
-            xmin = 0.64 
+            xmin = 0.63 
             xmax = 0.71 
             text = "h" 
         intervals [3]:
@@ -120,10 +120,10 @@ item []:
             text = "x" 
         intervals [17]:
             xmin = 1.38 
-            xmax = 1.47 
+            xmax = 1.48 
             text = "ɪ" 
         intervals [18]:
-            xmin = 1.47 
+            xmin = 1.48 
             xmax = 1.55 
             text = "p" 
         intervals [19]:
@@ -144,10 +144,10 @@ item []:
             text = "aː" 
         intervals [23]:
             xmin = 1.93 
-            xmax = 1.99 
+            xmax = 2.0 
             text = "ŋ" 
         intervals [24]:
-            xmin = 1.99 
+            xmin = 2.0 
             xmax = 2.06 
             text = "eː" 
         intervals [25]:
@@ -184,10 +184,10 @@ item []:
             text = "eː" 
         intervals [33]:
             xmin = 2.72 
-            xmax = 2.78 
+            xmax = 2.77 
             text = "h" 
         intervals [34]:
-            xmin = 2.78 
+            xmin = 2.77 
             xmax = 2.95 
             text = "aː" 
         intervals [35]:

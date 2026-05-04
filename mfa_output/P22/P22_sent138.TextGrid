@@ -30,10 +30,10 @@ item []:
             text = "duurde" 
         intervals [5]:
             xmin = 2.2 
-            xmax = 2.67 
+            xmax = 2.68 
             text = "langer" 
         intervals [6]:
-            xmin = 2.67 
+            xmin = 2.68 
             xmax = 2.91 
             text = "dan" 
         intervals [7]:
@@ -136,10 +136,10 @@ item []:
             text = "ɛ" 
         intervals [22]:
             xmin = 2.6 
-            xmax = 2.67 
+            xmax = 2.68 
             text = "r" 
         intervals [23]:
-            xmin = 2.67 
+            xmin = 2.68 
             xmax = 2.72 
             text = "d" 
         intervals [24]:

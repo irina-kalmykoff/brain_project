@@ -68,10 +68,10 @@ item []:
             text = "t" 
         intervals [5]:
             xmin = 1.47 
-            xmax = 1.51 
+            xmax = 1.5 
             text = "p" 
         intervals [6]:
-            xmin = 1.51 
+            xmin = 1.5 
             xmax = 1.57 
             text = "r" 
         intervals [7]:

@@ -38,10 +38,10 @@ item []:
             text = "oostenrijk" 
         intervals [7]:
             xmin = 2.64 
-            xmax = 2.94 
+            xmax = 3.01 
             text = "is" 
         intervals [8]:
-            xmin = 2.94 
+            xmin = 3.01 
             xmax = 3.44 
             text = "eigenlijk" 
         intervals [9]:
@@ -156,10 +156,10 @@ item []:
             text = "ɪ" 
         intervals [24]:
             xmin = 2.83 
-            xmax = 2.94 
+            xmax = 3.01 
             text = "s" 
         intervals [25]:
-            xmin = 2.94 
+            xmin = 3.01 
             xmax = 3.08 
             text = "ɛ" 
         intervals [26]:

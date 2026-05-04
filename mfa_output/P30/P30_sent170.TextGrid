@@ -30,14 +30,14 @@ item []:
             text = "drie" 
         intervals [5]:
             xmin = 1.96 
-            xmax = 2.37 
+            xmax = 2.36 
             text = "gemiste" 
         intervals [6]:
-            xmin = 2.37 
-            xmax = 2.97 
+            xmin = 2.36 
+            xmax = 3.0 
             text = "oproepen" 
         intervals [7]:
-            xmin = 2.97 
+            xmin = 3.0 
             xmax = 3.4375 
             text = "" 
     item [2]:
@@ -64,10 +64,10 @@ item []:
             text = "h" 
         intervals [5]:
             xmin = 1.57 
-            xmax = 1.64 
+            xmax = 1.65 
             text = "ɛ" 
         intervals [6]:
-            xmin = 1.64 
+            xmin = 1.65 
             xmax = 1.71 
             text = "p" 
         intervals [7]:
@@ -112,14 +112,14 @@ item []:
             text = "t" 
         intervals [17]:
             xmin = 2.31 
-            xmax = 2.37 
+            xmax = 2.36 
             text = "eː" 
         intervals [18]:
-            xmin = 2.37 
-            xmax = 2.45 
+            xmin = 2.36 
+            xmax = 2.44 
             text = "ɔ" 
         intervals [19]:
-            xmin = 2.45 
+            xmin = 2.44 
             xmax = 2.49 
             text = "p" 
         intervals [20]:
@@ -144,9 +144,9 @@ item []:
             text = "ɛ" 
         intervals [25]:
             xmin = 2.81 
-            xmax = 2.97 
+            xmax = 3.0 
             text = "n" 
         intervals [26]:
-            xmin = 2.97 
+            xmin = 3.0 
             xmax = 3.4375 
             text = "" 

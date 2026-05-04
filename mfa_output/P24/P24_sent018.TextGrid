@@ -88,10 +88,10 @@ item []:
             text = "d" 
         intervals [8]:
             xmin = 2.26 
-            xmax = 2.43 
+            xmax = 2.44 
             text = "ɑ" 
         intervals [9]:
-            xmin = 2.43 
+            xmin = 2.44 
             xmax = 2.49 
             text = "n" 
         intervals [10]:
@@ -128,10 +128,10 @@ item []:
             text = "ʋ" 
         intervals [18]:
             xmin = 3.37 
-            xmax = 3.53 
+            xmax = 3.7 
             text = "eː" 
         intervals [19]:
-            xmin = 3.53 
+            xmin = 3.7 
             xmax = 4.01 
             text = "r" 
         intervals [20]:

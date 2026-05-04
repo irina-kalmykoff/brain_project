@@ -144,14 +144,14 @@ item []:
             text = "ɔ" 
         intervals [21]:
             xmin = 3.75 
-            xmax = 3.85 
+            xmax = 3.79 
             text = "n" 
         intervals [22]:
-            xmin = 3.85 
-            xmax = 3.88 
+            xmin = 3.79 
+            xmax = 3.84 
             text = "n" 
         intervals [23]:
-            xmin = 3.88 
+            xmin = 3.84 
             xmax = 3.92 
             text = "ɪ" 
         intervals [24]:
@@ -184,10 +184,10 @@ item []:
             text = "ɛ" 
         intervals [31]:
             xmin = 4.41 
-            xmax = 4.48 
+            xmax = 4.49 
             text = "s" 
         intervals [32]:
-            xmin = 4.48 
+            xmin = 4.49 
             xmax = 4.55 
             text = "p" 
         intervals [33]:

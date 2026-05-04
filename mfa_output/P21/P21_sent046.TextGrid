@@ -38,10 +38,10 @@ item []:
             text = "" 
         intervals [7]:
             xmin = 2.35 
-            xmax = 2.69 
+            xmax = 2.71 
             text = "de" 
         intervals [8]:
-            xmin = 2.69 
+            xmin = 2.71 
             xmax = 3.31 
             text = "" 
         intervals [9]:
@@ -124,10 +124,10 @@ item []:
             text = "d" 
         intervals [17]:
             xmin = 2.39 
-            xmax = 2.69 
+            xmax = 2.71 
             text = "eː" 
         intervals [18]:
-            xmin = 2.69 
+            xmin = 2.71 
             xmax = 3.31 
             text = "" 
         intervals [19]:

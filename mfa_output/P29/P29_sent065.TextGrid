@@ -62,10 +62,10 @@ item []:
             text = "" 
         intervals [13]:
             xmin = 5.38 
-            xmax = 5.86 
+            xmax = 5.84 
             text = "twee" 
         intervals [14]:
-            xmin = 5.86 
+            xmin = 5.84 
             xmax = 6.41 
             text = "" 
         intervals [15]:
@@ -148,10 +148,10 @@ item []:
             text = "" 
         intervals [16]:
             xmin = 3.83 
-            xmax = 3.96 
+            xmax = 3.97 
             text = "eː" 
         intervals [17]:
-            xmin = 3.96 
+            xmin = 3.97 
             xmax = 4.07 
             text = "n" 
         intervals [18]:
@@ -224,10 +224,10 @@ item []:
             text = "eː" 
         intervals [35]:
             xmin = 5.72 
-            xmax = 5.86 
+            xmax = 5.84 
             text = "eː" 
         intervals [36]:
-            xmin = 5.86 
+            xmin = 5.84 
             xmax = 6.41 
             text = "" 
         intervals [37]:

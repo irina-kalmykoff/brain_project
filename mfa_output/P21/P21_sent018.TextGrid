@@ -56,10 +56,10 @@ item []:
             text = "d" 
         intervals [3]:
             xmin = 1.06 
-            xmax = 1.13 
+            xmax = 1.12 
             text = "ɑ" 
         intervals [4]:
-            xmin = 1.13 
+            xmin = 1.12 
             xmax = 1.19 
             text = "t" 
         intervals [5]:

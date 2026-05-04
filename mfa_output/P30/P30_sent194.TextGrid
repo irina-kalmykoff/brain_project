@@ -22,10 +22,10 @@ item []:
             text = "de" 
         intervals [3]:
             xmin = 2.59 
-            xmax = 2.93 
+            xmax = 2.91 
             text = "jurk" 
         intervals [4]:
-            xmin = 2.93 
+            xmin = 2.91 
             xmax = 3.1 
             text = "was" 
         intervals [5]:
@@ -76,10 +76,10 @@ item []:
             text = "r" 
         intervals [7]:
             xmin = 2.88 
-            xmax = 2.93 
+            xmax = 2.91 
             text = "k" 
         intervals [8]:
-            xmin = 2.93 
+            xmin = 2.91 
             xmax = 2.96 
             text = "ʋ" 
         intervals [9]:

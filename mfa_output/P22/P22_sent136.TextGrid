@@ -72,14 +72,14 @@ item []:
             text = "r" 
         intervals [5]:
             xmin = 1.34 
-            xmax = 1.45 
+            xmax = 1.43 
             text = "ɛ" 
         intervals [6]:
-            xmin = 1.45 
-            xmax = 1.55 
+            xmin = 1.43 
+            xmax = 1.57 
             text = "x" 
         intervals [7]:
-            xmin = 1.55 
+            xmin = 1.57 
             xmax = 1.62 
             text = "t" 
         intervals [8]:
@@ -96,10 +96,10 @@ item []:
             text = "ɛ" 
         intervals [11]:
             xmin = 2.08 
-            xmax = 2.13 
+            xmax = 2.15 
             text = "j" 
         intervals [12]:
-            xmin = 2.13 
+            xmin = 2.15 
             xmax = 2.2 
             text = "ɪ" 
         intervals [13]:

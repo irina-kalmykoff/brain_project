@@ -14,10 +14,10 @@ item []:
         intervals: size = 10 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.04 
+            xmax = 1.03 
             text = "" 
         intervals [2]:
-            xmin = 1.04 
+            xmin = 1.03 
             xmax = 1.59 
             text = "volgens" 
         intervals [3]:
@@ -46,10 +46,10 @@ item []:
             text = "niet" 
         intervals [9]:
             xmin = 2.96 
-            xmax = 3.35 
+            xmax = 3.36 
             text = "meer" 
         intervals [10]:
-            xmin = 3.35 
+            xmin = 3.36 
             xmax = 5.006875 
             text = "" 
     item [2]:
@@ -60,10 +60,10 @@ item []:
         intervals: size = 30 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.04 
+            xmax = 1.03 
             text = "" 
         intervals [2]:
-            xmin = 1.04 
+            xmin = 1.03 
             xmax = 1.17 
             text = "v" 
         intervals [3]:
@@ -156,10 +156,10 @@ item []:
             text = "n" 
         intervals [25]:
             xmin = 2.78 
-            xmax = 2.87 
+            xmax = 2.86 
             text = "iː" 
         intervals [26]:
-            xmin = 2.87 
+            xmin = 2.86 
             xmax = 2.96 
             text = "t" 
         intervals [27]:
@@ -172,9 +172,9 @@ item []:
             text = "eː" 
         intervals [29]:
             xmin = 3.16 
-            xmax = 3.35 
+            xmax = 3.36 
             text = "r" 
         intervals [30]:
-            xmin = 3.35 
+            xmin = 3.36 
             xmax = 5.006875 
             text = "" 

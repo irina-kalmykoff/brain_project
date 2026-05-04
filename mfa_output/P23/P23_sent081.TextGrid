@@ -22,10 +22,10 @@ item []:
             text = "is" 
         intervals [3]:
             xmin = 2.73 
-            xmax = 2.91 
+            xmax = 2.9 
             text = "het" 
         intervals [4]:
-            xmin = 2.91 
+            xmin = 2.9 
             xmax = 3.3 
             text = "echt" 
         intervals [5]:
@@ -88,10 +88,10 @@ item []:
             text = "ɛ" 
         intervals [6]:
             xmin = 2.82 
-            xmax = 2.91 
+            xmax = 2.9 
             text = "t" 
         intervals [7]:
-            xmin = 2.91 
+            xmin = 2.9 
             xmax = 3.04 
             text = "ɛ" 
         intervals [8]:
@@ -160,10 +160,10 @@ item []:
             text = "x" 
         intervals [24]:
             xmin = 4.52 
-            xmax = 4.59 
+            xmax = 4.6 
             text = "iː" 
         intervals [25]:
-            xmin = 4.59 
+            xmin = 4.6 
             xmax = 4.65 
             text = "n" 
         intervals [26]:
@@ -200,10 +200,10 @@ item []:
             text = "h" 
         intervals [34]:
             xmin = 5.31 
-            xmax = 5.37 
+            xmax = 5.38 
             text = "ɛ" 
         intervals [35]:
-            xmin = 5.37 
+            xmin = 5.38 
             xmax = 5.42 
             text = "p" 
         intervals [36]:

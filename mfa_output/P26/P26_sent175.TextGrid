@@ -11,7 +11,7 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 4.002937 
-        intervals: size = 9 
+        intervals: size = 10 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.31 
@@ -38,22 +38,26 @@ item []:
             text = "" 
         intervals [7]:
             xmin = 2.34 
-            xmax = 3.22 
+            xmax = 2.66 
             text = "van" 
         intervals [8]:
-            xmin = 3.22 
-            xmax = 3.95 
+            xmin = 2.66 
+            xmax = 2.69 
             text = "" 
         intervals [9]:
-            xmin = 3.95 
-            xmax = 4.002937 
+            xmin = 2.69 
+            xmax = 3.54 
             text = "bugatti" 
+        intervals [10]:
+            xmin = 3.54 
+            xmax = 4.002937 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 4.002937 
-        intervals: size = 14 
+        intervals: size = 22 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.04 
@@ -80,10 +84,10 @@ item []:
             text = "s" 
         intervals [7]:
             xmin = 1.58 
-            xmax = 1.62 
+            xmax = 1.63 
             text = "d" 
         intervals [8]:
-            xmin = 1.62 
+            xmin = 1.63 
             xmax = 2.18 
             text = "eː" 
         intervals [9]:
@@ -104,9 +108,41 @@ item []:
             text = "ɑ" 
         intervals [13]:
             xmin = 2.54 
-            xmax = 3.22 
+            xmax = 2.66 
             text = "n" 
         intervals [14]:
-            xmin = 3.22 
+            xmin = 2.66 
+            xmax = 2.69 
+            text = "" 
+        intervals [15]:
+            xmin = 2.69 
+            xmax = 2.87 
+            text = "b" 
+        intervals [16]:
+            xmin = 2.87 
+            xmax = 2.98 
+            text = "yː" 
+        intervals [17]:
+            xmin = 2.98 
+            xmax = 3.05 
+            text = "ɣ" 
+        intervals [18]:
+            xmin = 3.05 
+            xmax = 3.15 
+            text = "ɑ" 
+        intervals [19]:
+            xmin = 3.15 
+            xmax = 3.21 
+            text = "t" 
+        intervals [20]:
+            xmin = 3.21 
+            xmax = 3.27 
+            text = "t" 
+        intervals [21]:
+            xmin = 3.27 
+            xmax = 3.54 
+            text = "iː" 
+        intervals [22]:
+            xmin = 3.54 
             xmax = 4.002937 
             text = "" 

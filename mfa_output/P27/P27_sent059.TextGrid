@@ -14,18 +14,18 @@ item []:
         intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.19 
+            xmax = 1.15 
             text = "" 
         intervals [2]:
-            xmin = 1.19 
+            xmin = 1.15 
             xmax = 1.28 
             text = "de" 
         intervals [3]:
             xmin = 1.28 
-            xmax = 2.01 
+            xmax = 2.0 
             text = "kroonjuwelen" 
         intervals [4]:
-            xmin = 2.01 
+            xmin = 2.0 
             xmax = 2.16 
             text = "van" 
         intervals [5]:
@@ -56,10 +56,10 @@ item []:
         intervals: size = 39 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.19 
+            xmax = 1.15 
             text = "" 
         intervals [2]:
-            xmin = 1.19 
+            xmin = 1.15 
             xmax = 1.24 
             text = "d" 
         intervals [3]:
@@ -108,10 +108,10 @@ item []:
             text = "ɛ" 
         intervals [14]:
             xmin = 1.95 
-            xmax = 2.01 
+            xmax = 2.0 
             text = "n" 
         intervals [15]:
-            xmin = 2.01 
+            xmin = 2.0 
             xmax = 2.06 
             text = "v" 
         intervals [16]:

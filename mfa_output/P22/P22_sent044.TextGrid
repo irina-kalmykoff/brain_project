@@ -100,10 +100,10 @@ item []:
             text = "r" 
         intervals [13]:
             xmin = 2.57 
-            xmax = 2.64 
+            xmax = 2.63 
             text = "h" 
         intervals [14]:
-            xmin = 2.64 
+            xmin = 2.63 
             xmax = 2.68 
             text = "ɛ" 
         intervals [15]:
@@ -124,10 +124,10 @@ item []:
             text = "d" 
         intervals [19]:
             xmin = 3.05 
-            xmax = 3.08 
+            xmax = 3.09 
             text = "iː" 
         intervals [20]:
-            xmin = 3.08 
+            xmin = 3.09 
             xmax = 3.12 
             text = "ɛ" 
         intervals [21]:

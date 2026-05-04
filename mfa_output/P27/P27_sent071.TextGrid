@@ -180,10 +180,10 @@ item []:
             text = "s" 
         intervals [29]:
             xmin = 3.25 
-            xmax = 3.31 
+            xmax = 3.32 
             text = "s" 
         intervals [30]:
-            xmin = 3.31 
+            xmin = 3.32 
             xmax = 3.35 
             text = "ɛ" 
         intervals [31]:

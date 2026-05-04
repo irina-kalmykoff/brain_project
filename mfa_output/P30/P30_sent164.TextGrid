@@ -42,10 +42,10 @@ item []:
             text = "de" 
         intervals [8]:
             xmin = 3.39 
-            xmax = 5.23 
+            xmax = 5.24 
             text = "waddeneilanden" 
         intervals [9]:
-            xmin = 5.23 
+            xmin = 5.24 
             xmax = 5.766625 
             text = "" 
     item [2]:
@@ -200,9 +200,9 @@ item []:
             text = "ɛ" 
         intervals [37]:
             xmin = 4.83 
-            xmax = 5.23 
+            xmax = 5.24 
             text = "n" 
         intervals [38]:
-            xmin = 5.23 
+            xmin = 5.24 
             xmax = 5.766625 
             text = "" 

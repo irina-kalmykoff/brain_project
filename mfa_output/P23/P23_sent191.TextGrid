@@ -38,10 +38,10 @@ item []:
             text = "een" 
         intervals [7]:
             xmin = 2.72 
-            xmax = 3.49 
+            xmax = 3.55 
             text = "boswandeling" 
         intervals [8]:
-            xmin = 3.49 
+            xmin = 3.55 
             xmax = 9.999063 
             text = "" 
     item [2]:
@@ -112,10 +112,10 @@ item []:
             text = "aː" 
         intervals [16]:
             xmin = 2.39 
-            xmax = 2.51 
+            xmax = 2.46 
             text = "k" 
         intervals [17]:
-            xmin = 2.51 
+            xmin = 2.46 
             xmax = 2.55 
             text = "ɛ" 
         intervals [18]:
@@ -152,10 +152,10 @@ item []:
             text = "s" 
         intervals [26]:
             xmin = 2.91 
-            xmax = 2.97 
+            xmax = 2.96 
             text = "ʋ" 
         intervals [27]:
-            xmin = 2.97 
+            xmin = 2.96 
             xmax = 3.03 
             text = "ɑ" 
         intervals [28]:
@@ -184,9 +184,9 @@ item []:
             text = "n" 
         intervals [34]:
             xmin = 3.41 
-            xmax = 3.49 
+            xmax = 3.55 
             text = "x" 
         intervals [35]:
-            xmin = 3.49 
+            xmin = 3.55 
             xmax = 9.999063 
             text = "" 

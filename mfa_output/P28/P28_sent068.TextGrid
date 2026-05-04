@@ -22,10 +22,10 @@ item []:
             text = "dat" 
         intervals [3]:
             xmin = 1.12 
-            xmax = 1.24 
+            xmax = 1.25 
             text = "is" 
         intervals [4]:
-            xmin = 1.24 
+            xmin = 1.25 
             xmax = 1.51 
             text = "maar" 
         intervals [5]:
@@ -60,10 +60,10 @@ item []:
             text = "d" 
         intervals [3]:
             xmin = 0.96 
-            xmax = 1.04 
+            xmax = 1.03 
             text = "ɑ" 
         intervals [4]:
-            xmin = 1.04 
+            xmin = 1.03 
             xmax = 1.12 
             text = "t" 
         intervals [5]:
@@ -72,10 +72,10 @@ item []:
             text = "ɪ" 
         intervals [6]:
             xmin = 1.16 
-            xmax = 1.24 
+            xmax = 1.25 
             text = "s" 
         intervals [7]:
-            xmin = 1.24 
+            xmin = 1.25 
             xmax = 1.29 
             text = "m" 
         intervals [8]:

@@ -22,10 +22,10 @@ item []:
             text = "er" 
         intervals [3]:
             xmin = 1.07 
-            xmax = 1.24 
+            xmax = 1.25 
             text = "is" 
         intervals [4]:
-            xmin = 1.24 
+            xmin = 1.25 
             xmax = 1.78 
             text = "niets" 
         intervals [5]:
@@ -68,10 +68,10 @@ item []:
             text = "ɪ" 
         intervals [5]:
             xmin = 1.12 
-            xmax = 1.24 
+            xmax = 1.25 
             text = "s" 
         intervals [6]:
-            xmin = 1.24 
+            xmin = 1.25 
             xmax = 1.38 
             text = "n" 
         intervals [7]:
@@ -108,10 +108,10 @@ item []:
             text = "h" 
         intervals [15]:
             xmin = 2.15 
-            xmax = 2.24 
+            xmax = 2.25 
             text = "ɑ" 
         intervals [16]:
-            xmin = 2.24 
+            xmin = 2.25 
             xmax = 2.36 
             text = "n" 
         intervals [17]:

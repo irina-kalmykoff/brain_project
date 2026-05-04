@@ -14,10 +14,10 @@ item []:
         intervals: size = 7 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.35 
+            xmax = 1.33 
             text = "" 
         intervals [2]:
-            xmin = 1.35 
+            xmin = 1.33 
             xmax = 2.04 
             text = "vleermuizen" 
         intervals [3]:
@@ -34,10 +34,10 @@ item []:
             text = "zonder" 
         intervals [6]:
             xmin = 3.12 
-            xmax = 3.7 
+            xmax = 3.71 
             text = "licht" 
         intervals [7]:
-            xmin = 3.7 
+            xmin = 3.71 
             xmax = 4.003938 
             text = "" 
     item [2]:
@@ -48,10 +48,10 @@ item []:
         intervals: size = 36 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.35 
+            xmax = 1.33 
             text = "" 
         intervals [2]:
-            xmin = 1.35 
+            xmin = 1.33 
             xmax = 1.47 
             text = "v" 
         intervals [3]:
@@ -64,10 +64,10 @@ item []:
             text = "eː" 
         intervals [5]:
             xmin = 1.58 
-            xmax = 1.67 
+            xmax = 1.66 
             text = "r" 
         intervals [6]:
-            xmin = 1.67 
+            xmin = 1.66 
             xmax = 1.73 
             text = "m" 
         intervals [7]:
@@ -184,9 +184,9 @@ item []:
             text = "x" 
         intervals [35]:
             xmin = 3.43 
-            xmax = 3.7 
+            xmax = 3.71 
             text = "t" 
         intervals [36]:
-            xmin = 3.7 
+            xmin = 3.71 
             xmax = 4.003938 
             text = "" 

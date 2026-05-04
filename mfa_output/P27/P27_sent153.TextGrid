@@ -212,10 +212,10 @@ item []:
             text = "ʋ" 
         intervals [38]:
             xmin = 2.92 
-            xmax = 2.99 
+            xmax = 2.98 
             text = "ɪ" 
         intervals [39]:
-            xmin = 2.99 
+            xmin = 2.98 
             xmax = 3.11 
             text = "n" 
         intervals [40]:

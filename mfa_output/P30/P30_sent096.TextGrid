@@ -38,10 +38,10 @@ item []:
             text = "cent" 
         intervals [7]:
             xmin = 2.75 
-            xmax = 2.98 
+            xmax = 2.97 
             text = "meer" 
         intervals [8]:
-            xmin = 2.98 
+            xmin = 2.97 
             xmax = 3.56 
             text = "uitgeven" 
         intervals [9]:
@@ -152,10 +152,10 @@ item []:
             text = "eː" 
         intervals [22]:
             xmin = 2.9 
-            xmax = 2.98 
+            xmax = 2.97 
             text = "r" 
         intervals [23]:
-            xmin = 2.98 
+            xmin = 2.97 
             xmax = 3.11 
             text = "œ" 
         intervals [24]:

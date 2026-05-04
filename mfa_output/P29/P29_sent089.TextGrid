@@ -22,10 +22,10 @@ item []:
             text = "de" 
         intervals [3]:
             xmin = 1.78 
-            xmax = 2.27 
+            xmax = 2.26 
             text = "rijpe" 
         intervals [4]:
-            xmin = 2.27 
+            xmin = 2.26 
             xmax = 2.67 
             text = "" 
         intervals [5]:
@@ -92,10 +92,10 @@ item []:
             text = "p" 
         intervals [8]:
             xmin = 2.18 
-            xmax = 2.27 
+            xmax = 2.26 
             text = "eː" 
         intervals [9]:
-            xmin = 2.27 
+            xmin = 2.26 
             xmax = 2.67 
             text = "" 
         intervals [10]:
@@ -152,10 +152,10 @@ item []:
             text = "l" 
         intervals [23]:
             xmin = 3.62 
-            xmax = 3.67 
+            xmax = 3.68 
             text = "ɛ" 
         intervals [24]:
-            xmin = 3.67 
+            xmin = 3.68 
             xmax = 3.71 
             text = "n" 
         intervals [25]:
@@ -184,10 +184,10 @@ item []:
             text = "b" 
         intervals [31]:
             xmin = 4.04 
-            xmax = 4.16 
+            xmax = 4.17 
             text = "oː" 
         intervals [32]:
-            xmin = 4.16 
+            xmin = 4.17 
             xmax = 4.34 
             text = "m" 
         intervals [33]:

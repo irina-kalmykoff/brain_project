@@ -26,10 +26,10 @@ item []:
             text = "van" 
         intervals [4]:
             xmin = 1.32 
-            xmax = 1.4 
+            xmax = 1.39 
             text = "de" 
         intervals [5]:
-            xmin = 1.4 
+            xmin = 1.39 
             xmax = 2.09 
             text = "symptomen" 
         intervals [6]:
@@ -88,10 +88,10 @@ item []:
             text = "d" 
         intervals [8]:
             xmin = 1.35 
-            xmax = 1.4 
+            xmax = 1.39 
             text = "eː" 
         intervals [9]:
-            xmin = 1.4 
+            xmin = 1.39 
             xmax = 1.5 
             text = "s" 
         intervals [10]:

@@ -248,9 +248,9 @@ item []:
             text = "ɣ" 
         intervals [47]:
             xmin = 4.32 
-            xmax = 4.4 
+            xmax = 4.41 
             text = "ɛ" 
         intervals [48]:
-            xmin = 4.4 
+            xmin = 4.41 
             xmax = 5.0 
             text = "n" 

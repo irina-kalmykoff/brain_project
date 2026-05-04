@@ -34,18 +34,18 @@ item []:
             text = "is" 
         intervals [6]:
             xmin = 3.44 
-            xmax = 4.69 
-            text = "" 
-        intervals [7]:
-            xmin = 4.69 
-            xmax = 4.743188 
+            xmax = 4.03 
             text = "kriebelig" 
+        intervals [7]:
+            xmin = 4.03 
+            xmax = 4.743188 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 4.743188 
-        intervals: size = 18 
+        intervals: size = 27 
         intervals [1]:
             xmin = 0.0 
             xmax = 2.44 
@@ -96,10 +96,10 @@ item []:
             text = "r" 
         intervals [13]:
             xmin = 3.09 
-            xmax = 3.17 
+            xmax = 3.16 
             text = "œ" 
         intervals [14]:
-            xmin = 3.17 
+            xmin = 3.16 
             xmax = 3.2 
             text = "ɥ" 
         intervals [15]:
@@ -116,5 +116,41 @@ item []:
             text = "s" 
         intervals [18]:
             xmin = 3.44 
+            xmax = 3.5 
+            text = "k" 
+        intervals [19]:
+            xmin = 3.5 
+            xmax = 3.56 
+            text = "r" 
+        intervals [20]:
+            xmin = 3.56 
+            xmax = 3.6 
+            text = "iː" 
+        intervals [21]:
+            xmin = 3.6 
+            xmax = 3.64 
+            text = "ɛ" 
+        intervals [22]:
+            xmin = 3.64 
+            xmax = 3.67 
+            text = "b" 
+        intervals [23]:
+            xmin = 3.67 
+            xmax = 3.71 
+            text = "ɛ" 
+        intervals [24]:
+            xmin = 3.71 
+            xmax = 3.76 
+            text = "l" 
+        intervals [25]:
+            xmin = 3.76 
+            xmax = 3.87 
+            text = "ɪ" 
+        intervals [26]:
+            xmin = 3.87 
+            xmax = 4.03 
+            text = "x" 
+        intervals [27]:
+            xmin = 4.03 
             xmax = 4.743188 
             text = "" 

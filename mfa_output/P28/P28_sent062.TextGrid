@@ -26,10 +26,10 @@ item []:
             text = "zwem" 
         intervals [4]:
             xmin = 1.54 
-            xmax = 1.82 
+            xmax = 1.83 
             text = "twee" 
         intervals [5]:
-            xmin = 1.82 
+            xmin = 1.83 
             xmax = 1.95 
             text = "keer" 
         intervals [6]:
@@ -38,10 +38,10 @@ item []:
             text = "per" 
         intervals [7]:
             xmin = 2.13 
-            xmax = 2.64 
+            xmax = 2.65 
             text = "week" 
         intervals [8]:
-            xmin = 2.64 
+            xmin = 2.65 
             xmax = 2.934563 
             text = "" 
     item [2]:
@@ -72,10 +72,10 @@ item []:
             text = "ʋ" 
         intervals [6]:
             xmin = 1.37 
-            xmax = 1.47 
+            xmax = 1.48 
             text = "ɛ" 
         intervals [7]:
-            xmin = 1.47 
+            xmin = 1.48 
             xmax = 1.54 
             text = "m" 
         intervals [8]:
@@ -92,10 +92,10 @@ item []:
             text = "eː" 
         intervals [11]:
             xmin = 1.78 
-            xmax = 1.82 
+            xmax = 1.83 
             text = "eː" 
         intervals [12]:
-            xmin = 1.82 
+            xmin = 1.83 
             xmax = 1.89 
             text = "k" 
         intervals [13]:
@@ -128,9 +128,9 @@ item []:
             text = "eː" 
         intervals [20]:
             xmin = 2.36 
-            xmax = 2.64 
+            xmax = 2.65 
             text = "k" 
         intervals [21]:
-            xmin = 2.64 
+            xmin = 2.65 
             xmax = 2.934563 
             text = "" 

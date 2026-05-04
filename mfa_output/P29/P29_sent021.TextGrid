@@ -54,10 +54,10 @@ item []:
             text = "" 
         intervals [11]:
             xmin = 4.08 
-            xmax = 4.69 
+            xmax = 4.68 
             text = "even" 
         intervals [12]:
-            xmin = 4.69 
+            xmin = 4.68 
             xmax = 5.03 
             text = "langs" 
         intervals [13]:
@@ -184,10 +184,10 @@ item []:
             text = "" 
         intervals [28]:
             xmin = 4.08 
-            xmax = 4.36 
+            xmax = 4.39 
             text = "eː" 
         intervals [29]:
-            xmin = 4.36 
+            xmin = 4.39 
             xmax = 4.48 
             text = "v" 
         intervals [30]:
@@ -196,10 +196,10 @@ item []:
             text = "ɛ" 
         intervals [31]:
             xmin = 4.51 
-            xmax = 4.69 
+            xmax = 4.68 
             text = "n" 
         intervals [32]:
-            xmin = 4.69 
+            xmin = 4.68 
             xmax = 4.78 
             text = "l" 
         intervals [33]:

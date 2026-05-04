@@ -14,10 +14,10 @@ item []:
         intervals: size = 8 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.67 
+            xmax = 0.66 
             text = "" 
         intervals [2]:
-            xmin = 0.67 
+            xmin = 0.66 
             xmax = 0.88 
             text = "niet" 
         intervals [3]:
@@ -52,10 +52,10 @@ item []:
         intervals: size = 22 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.67 
+            xmax = 0.66 
             text = "" 
         intervals [2]:
-            xmin = 0.67 
+            xmin = 0.66 
             xmax = 0.75 
             text = "n" 
         intervals [3]:

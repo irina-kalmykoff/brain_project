@@ -46,10 +46,10 @@ item []:
             text = "behouden" 
         intervals [9]:
             xmin = 4.13 
-            xmax = 4.38 
+            xmax = 4.39 
             text = "" 
         intervals [10]:
-            xmin = 4.38 
+            xmin = 4.39 
             xmax = 4.51 
             text = "in" 
         intervals [11]:
@@ -164,10 +164,10 @@ item []:
             text = "n" 
         intervals [24]:
             xmin = 3.28 
-            xmax = 3.33 
+            xmax = 3.32 
             text = "k" 
         intervals [25]:
-            xmin = 3.33 
+            xmin = 3.32 
             xmax = 3.38 
             text = "ɛ" 
         intervals [26]:
@@ -176,10 +176,10 @@ item []:
             text = "l" 
         intervals [27]:
             xmin = 3.49 
-            xmax = 3.54 
+            xmax = 3.53 
             text = "b" 
         intervals [28]:
-            xmin = 3.54 
+            xmin = 3.53 
             xmax = 3.58 
             text = "eː" 
         intervals [29]:
@@ -212,10 +212,10 @@ item []:
             text = "n" 
         intervals [36]:
             xmin = 4.13 
-            xmax = 4.38 
+            xmax = 4.39 
             text = "" 
         intervals [37]:
-            xmin = 4.38 
+            xmin = 4.39 
             xmax = 4.47 
             text = "ɪ" 
         intervals [38]:
@@ -240,10 +240,10 @@ item []:
             text = "ʋ" 
         intervals [43]:
             xmin = 4.71 
-            xmax = 4.87 
+            xmax = 4.85 
             text = "aː" 
         intervals [44]:
-            xmin = 4.87 
+            xmin = 4.85 
             xmax = 4.91 
             text = "t" 
         intervals [45]:

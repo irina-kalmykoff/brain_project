@@ -18,10 +18,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.04 
-            xmax = 0.14 
+            xmax = 0.16 
             text = "het" 
         intervals [3]:
-            xmin = 0.14 
+            xmin = 0.16 
             xmax = 0.8 
             text = "zuur" 
         intervals [4]:
@@ -76,22 +76,22 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.04 
-            xmax = 0.08 
+            xmax = 0.1 
             text = "h" 
         intervals [3]:
-            xmin = 0.08 
-            xmax = 0.11 
+            xmin = 0.1 
+            xmax = 0.13 
             text = "ɛ" 
         intervals [4]:
-            xmin = 0.11 
-            xmax = 0.14 
+            xmin = 0.13 
+            xmax = 0.16 
             text = "t" 
         intervals [5]:
-            xmin = 0.14 
-            xmax = 0.17 
+            xmin = 0.16 
+            xmax = 0.19 
             text = "z" 
         intervals [6]:
-            xmin = 0.17 
+            xmin = 0.19 
             xmax = 0.31 
             text = "yː" 
         intervals [7]:
@@ -116,10 +116,10 @@ item []:
             text = "n" 
         intervals [12]:
             xmin = 1.3 
-            xmax = 1.34 
+            xmax = 1.35 
             text = "eː" 
         intervals [13]:
-            xmin = 1.34 
+            xmin = 1.35 
             xmax = 1.84 
             text = "n" 
         intervals [14]:
@@ -192,18 +192,18 @@ item []:
             text = "n" 
         intervals [31]:
             xmin = 4.04 
-            xmax = 4.1 
+            xmax = 4.11 
             text = "l" 
         intervals [32]:
-            xmin = 4.1 
-            xmax = 4.13 
+            xmin = 4.11 
+            xmax = 4.14 
             text = "ɛ" 
         intervals [33]:
-            xmin = 4.13 
-            xmax = 4.2 
+            xmin = 4.14 
+            xmax = 4.18 
             text = "j" 
         intervals [34]:
-            xmin = 4.2 
+            xmin = 4.18 
             xmax = 4.36 
             text = "k" 
         intervals [35]:

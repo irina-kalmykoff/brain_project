@@ -26,10 +26,10 @@ item []:
             text = "" 
         intervals [4]:
             xmin = 4.4 
-            xmax = 4.78 
+            xmax = 4.79 
             text = "kost" 
         intervals [5]:
-            xmin = 4.78 
+            xmin = 4.79 
             xmax = 5.18 
             text = "" 
         intervals [6]:
@@ -132,10 +132,10 @@ item []:
             text = "s" 
         intervals [19]:
             xmin = 4.7 
-            xmax = 4.78 
+            xmax = 4.79 
             text = "t" 
         intervals [20]:
-            xmin = 4.78 
+            xmin = 4.79 
             xmax = 5.18 
             text = "" 
         intervals [21]:
@@ -164,10 +164,10 @@ item []:
             text = "l" 
         intervals [27]:
             xmin = 5.78 
-            xmax = 5.92 
+            xmax = 5.91 
             text = "iː" 
         intervals [28]:
-            xmin = 5.92 
+            xmin = 5.91 
             xmax = 5.99 
             text = "r" 
         intervals [29]:
@@ -188,10 +188,10 @@ item []:
             text = "ɑ" 
         intervals [33]:
             xmin = 6.59 
-            xmax = 6.72 
+            xmax = 6.71 
             text = "n" 
         intervals [34]:
-            xmin = 6.72 
+            xmin = 6.71 
             xmax = 6.76 
             text = "d" 
         intervals [35]:
@@ -216,14 +216,14 @@ item []:
             text = "l" 
         intervals [40]:
             xmin = 7.05 
-            xmax = 7.1 
+            xmax = 7.09 
             text = "ɣ" 
         intervals [41]:
-            xmin = 7.1 
-            xmax = 7.18 
+            xmin = 7.09 
+            xmax = 7.2 
             text = "ɛ" 
         intervals [42]:
-            xmin = 7.18 
+            xmin = 7.2 
             xmax = 7.31 
             text = "l" 
         intervals [43]:

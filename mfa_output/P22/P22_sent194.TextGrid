@@ -30,14 +30,14 @@ item []:
             text = "een" 
         intervals [5]:
             xmin = 1.49 
-            xmax = 2.01 
+            xmax = 2.0 
             text = "bekend" 
         intervals [6]:
-            xmin = 2.01 
-            xmax = 2.55 
+            xmin = 2.0 
+            xmax = 2.58 
             text = "model" 
         intervals [7]:
-            xmin = 2.55 
+            xmin = 2.58 
             xmax = 5.003938 
             text = "" 
     item [2]:
@@ -96,10 +96,10 @@ item []:
             text = "n" 
         intervals [13]:
             xmin = 1.85 
-            xmax = 2.01 
+            xmax = 2.0 
             text = "t" 
         intervals [14]:
-            xmin = 2.01 
+            xmin = 2.0 
             xmax = 2.06 
             text = "m" 
         intervals [15]:
@@ -116,9 +116,9 @@ item []:
             text = "ɛ" 
         intervals [18]:
             xmin = 2.35 
-            xmax = 2.55 
+            xmax = 2.58 
             text = "l" 
         intervals [19]:
-            xmin = 2.55 
+            xmin = 2.58 
             xmax = 5.003938 
             text = "" 

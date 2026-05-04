@@ -2,6 +2,20 @@
 
 Brain-to-speech decoding pipeline for intracranial EEG (sEEG) recordings from Dutch patients. The goal is to detect phoneme/word boundaries and classify phonemes from neural signals, ultimately enabling speech reconstruction from brain activity.
 
+## Help & setup docs
+
+Long-form how-tos written during development live in **`help_files/`**:
+
+- `help_files/MFA_SETUP.md` — proven Montreal Forced Aligner workflow, including
+  the G2P-augmented-dictionary fix that lifted mean coverage from ~85% → >95%.
+- `help_files/WHISPERX_SETUP.md` — WhisperX boundary-detection setup (Path A).
+- `help_files/PHONEME_BOUNDARY_RECOMMENDATIONS.md` — design notes on boundary
+  detection approaches.
+
+When the user asks about MFA, WhisperX, or boundary-detection setup, look there
+first. The files at the repo root (`CLAUDE.md` and code) reference these by
+relative path so they're always findable.
+
 ## Project Overview
 
 Two datasets are supported:

@@ -22,10 +22,10 @@ item []:
             text = "je" 
         intervals [3]:
             xmin = 0.86 
-            xmax = 1.17 
+            xmax = 1.16 
             text = "moet" 
         intervals [4]:
-            xmin = 1.17 
+            xmin = 1.16 
             xmax = 1.34 
             text = "je" 
         intervals [5]:
@@ -72,10 +72,10 @@ item []:
             text = "uː" 
         intervals [6]:
             xmin = 1.02 
-            xmax = 1.17 
+            xmax = 1.16 
             text = "t" 
         intervals [7]:
-            xmin = 1.17 
+            xmin = 1.16 
             xmax = 1.22 
             text = "j" 
         intervals [8]:
@@ -100,10 +100,10 @@ item []:
             text = "" 
         intervals [13]:
             xmin = 1.86 
-            xmax = 2.02 
+            xmax = 2.03 
             text = "r" 
         intervals [14]:
-            xmin = 2.02 
+            xmin = 2.03 
             xmax = 2.11 
             text = "ɛ" 
         intervals [15]:

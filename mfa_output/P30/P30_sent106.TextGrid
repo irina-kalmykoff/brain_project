@@ -184,10 +184,10 @@ item []:
             text = "n" 
         intervals [32]:
             xmin = 4.2 
-            xmax = 4.3 
+            xmax = 4.31 
             text = "ɛ" 
         intervals [33]:
-            xmin = 4.3 
+            xmin = 4.31 
             xmax = 4.38 
             text = "n" 
         intervals [34]:

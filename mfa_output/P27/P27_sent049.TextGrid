@@ -14,10 +14,10 @@ item []:
         intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.47 
+            xmax = 1.46 
             text = "" 
         intervals [2]:
-            xmin = 1.47 
+            xmin = 1.46 
             xmax = 1.62 
             text = "wat" 
         intervals [3]:
@@ -56,10 +56,10 @@ item []:
         intervals: size = 31 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.47 
+            xmax = 1.46 
             text = "" 
         intervals [2]:
-            xmin = 1.47 
+            xmin = 1.46 
             xmax = 1.53 
             text = "ʋ" 
         intervals [3]:
@@ -108,10 +108,10 @@ item []:
             text = "n" 
         intervals [14]:
             xmin = 2.29 
-            xmax = 2.36 
+            xmax = 2.37 
             text = "ɛ" 
         intervals [15]:
-            xmin = 2.36 
+            xmin = 2.37 
             xmax = 2.45 
             text = "l" 
         intervals [16]:
@@ -132,14 +132,14 @@ item []:
             text = "t" 
         intervals [20]:
             xmin = 2.7 
-            xmax = 2.76 
+            xmax = 2.75 
             text = "v" 
         intervals [21]:
-            xmin = 2.76 
-            xmax = 2.79 
+            xmin = 2.75 
+            xmax = 2.8 
             text = "ɑ" 
         intervals [22]:
-            xmin = 2.79 
+            xmin = 2.8 
             xmax = 2.86 
             text = "n" 
         intervals [23]:

@@ -140,10 +140,10 @@ item []:
             text = "b" 
         intervals [22]:
             xmin = 3.17 
-            xmax = 3.21 
+            xmax = 3.2 
             text = "ɑ" 
         intervals [23]:
-            xmin = 3.21 
+            xmin = 3.2 
             xmax = 3.61 
             text = "w" 
         intervals [24]:

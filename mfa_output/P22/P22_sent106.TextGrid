@@ -50,10 +50,10 @@ item []:
             text = "het" 
         intervals [10]:
             xmin = 3.36 
-            xmax = 3.92 
+            xmax = 3.93 
             text = "kantoor" 
         intervals [11]:
-            xmin = 3.92 
+            xmin = 3.93 
             xmax = 4.35 
             text = "binnen" 
         intervals [12]:
@@ -200,10 +200,10 @@ item []:
             text = "oː" 
         intervals [34]:
             xmin = 3.79 
-            xmax = 3.92 
+            xmax = 3.93 
             text = "r" 
         intervals [35]:
-            xmin = 3.92 
+            xmin = 3.93 
             xmax = 3.98 
             text = "b" 
         intervals [36]:

@@ -26,10 +26,10 @@ item []:
             text = "verloor" 
         intervals [4]:
             xmin = 3.02 
-            xmax = 3.15 
+            xmax = 3.17 
             text = "haar" 
         intervals [5]:
-            xmin = 3.15 
+            xmin = 3.17 
             xmax = 3.72 
             text = "evenwicht" 
         intervals [6]:
@@ -60,10 +60,10 @@ item []:
             text = "z" 
         intervals [3]:
             xmin = 2.21 
-            xmax = 2.3 
+            xmax = 2.29 
             text = "ɛ" 
         intervals [4]:
-            xmin = 2.3 
+            xmin = 2.29 
             xmax = 2.55 
             text = "j" 
         intervals [5]:
@@ -96,14 +96,14 @@ item []:
             text = "h" 
         intervals [12]:
             xmin = 3.05 
-            xmax = 3.12 
+            xmax = 3.14 
             text = "aː" 
         intervals [13]:
-            xmin = 3.12 
-            xmax = 3.15 
+            xmin = 3.14 
+            xmax = 3.17 
             text = "r" 
         intervals [14]:
-            xmin = 3.15 
+            xmin = 3.17 
             xmax = 3.36 
             text = "eː" 
         intervals [15]:
@@ -112,14 +112,14 @@ item []:
             text = "v" 
         intervals [16]:
             xmin = 3.42 
-            xmax = 3.45 
+            xmax = 3.46 
             text = "ɛ" 
         intervals [17]:
-            xmin = 3.45 
-            xmax = 3.48 
+            xmin = 3.46 
+            xmax = 3.49 
             text = "n" 
         intervals [18]:
-            xmin = 3.48 
+            xmin = 3.49 
             xmax = 3.53 
             text = "ʋ" 
         intervals [19]:

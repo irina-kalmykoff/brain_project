@@ -14,18 +14,18 @@ item []:
         intervals: size = 12 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.78 
+            xmax = 0.77 
             text = "" 
         intervals [2]:
-            xmin = 0.78 
+            xmin = 0.77 
             xmax = 0.89 
             text = "de" 
         intervals [3]:
             xmin = 0.89 
-            xmax = 1.64 
+            xmax = 1.63 
             text = "politieagent" 
         intervals [4]:
-            xmin = 1.64 
+            xmin = 1.63 
             xmax = 2.03 
             text = "volgde" 
         intervals [5]:
@@ -50,10 +50,10 @@ item []:
             text = "op" 
         intervals [10]:
             xmin = 2.98 
-            xmax = 3.07 
+            xmax = 3.06 
             text = "de" 
         intervals [11]:
-            xmin = 3.07 
+            xmin = 3.06 
             xmax = 3.41 
             text = "letter" 
         intervals [12]:
@@ -68,14 +68,14 @@ item []:
         intervals: size = 40 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.78 
+            xmax = 0.77 
             text = "" 
         intervals [2]:
-            xmin = 0.78 
-            xmax = 0.84 
+            xmin = 0.77 
+            xmax = 0.83 
             text = "d" 
         intervals [3]:
-            xmin = 0.84 
+            xmin = 0.83 
             xmax = 0.89 
             text = "eː" 
         intervals [4]:
@@ -120,10 +120,10 @@ item []:
             text = "n" 
         intervals [14]:
             xmin = 1.56 
-            xmax = 1.64 
+            xmax = 1.63 
             text = "t" 
         intervals [15]:
-            xmin = 1.64 
+            xmin = 1.63 
             xmax = 1.71 
             text = "v" 
         intervals [16]:
@@ -196,10 +196,10 @@ item []:
             text = "d" 
         intervals [33]:
             xmin = 3.01 
-            xmax = 3.07 
+            xmax = 3.06 
             text = "eː" 
         intervals [34]:
-            xmin = 3.07 
+            xmin = 3.06 
             xmax = 3.1 
             text = "l" 
         intervals [35]:

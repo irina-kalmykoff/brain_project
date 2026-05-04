@@ -116,14 +116,14 @@ item []:
             text = "ɣ" 
         intervals [10]:
             xmin = 3.11 
-            xmax = 3.19 
+            xmax = 3.2 
             text = "ɔ" 
         intervals [11]:
-            xmin = 3.19 
-            xmax = 3.32 
+            xmin = 3.2 
+            xmax = 3.31 
             text = "l" 
         intervals [12]:
-            xmin = 3.32 
+            xmin = 3.31 
             xmax = 3.4 
             text = "f" 
         intervals [13]:
@@ -136,10 +136,10 @@ item []:
             text = "s" 
         intervals [15]:
             xmin = 3.56 
-            xmax = 3.64 
+            xmax = 3.67 
             text = "eː" 
         intervals [16]:
-            xmin = 3.64 
+            xmin = 3.67 
             xmax = 4.01 
             text = "n" 
         intervals [17]:

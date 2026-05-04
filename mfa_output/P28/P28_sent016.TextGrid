@@ -22,10 +22,10 @@ item []:
             text = "wat" 
         intervals [3]:
             xmin = 1.19 
-            xmax = 1.36 
+            xmax = 1.37 
             text = "voor" 
         intervals [4]:
-            xmin = 1.36 
+            xmin = 1.37 
             xmax = 1.52 
             text = "een" 
         intervals [5]:
@@ -42,10 +42,10 @@ item []:
             text = "je" 
         intervals [8]:
             xmin = 2.18 
-            xmax = 2.89 
+            xmax = 2.9 
             text = "gekocht" 
         intervals [9]:
-            xmin = 2.89 
+            xmin = 2.9 
             xmax = 3.36525 
             text = "" 
     item [2]:
@@ -80,10 +80,10 @@ item []:
             text = "oː" 
         intervals [7]:
             xmin = 1.29 
-            xmax = 1.36 
+            xmax = 1.37 
             text = "r" 
         intervals [8]:
-            xmin = 1.36 
+            xmin = 1.37 
             xmax = 1.49 
             text = "eː" 
         intervals [9]:
@@ -148,9 +148,9 @@ item []:
             text = "x" 
         intervals [24]:
             xmin = 2.68 
-            xmax = 2.89 
+            xmax = 2.9 
             text = "t" 
         intervals [25]:
-            xmin = 2.89 
+            xmin = 2.9 
             xmax = 3.36525 
             text = "" 

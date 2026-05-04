@@ -42,22 +42,22 @@ item []:
             text = "" 
         intervals [8]:
             xmin = 3.72 
-            xmax = 4.85 
+            xmax = 3.97 
             text = "met" 
         intervals [9]:
-            xmin = 4.85 
-            xmax = 4.95 
-            text = "" 
-        intervals [10]:
-            xmin = 4.95 
-            xmax = 4.997063 
+            xmin = 3.97 
+            xmax = 4.88 
             text = "silicone" 
+        intervals [10]:
+            xmin = 4.88 
+            xmax = 4.997063 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 4.997063 
-        intervals: size = 24 
+        intervals: size = 32 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.44 
@@ -148,9 +148,41 @@ item []:
             text = "ɛ" 
         intervals [23]:
             xmin = 3.89 
-            xmax = 4.85 
+            xmax = 3.97 
             text = "t" 
         intervals [24]:
-            xmin = 4.85 
+            xmin = 3.97 
+            xmax = 4.06 
+            text = "s" 
+        intervals [25]:
+            xmin = 4.06 
+            xmax = 4.18 
+            text = "iː" 
+        intervals [26]:
+            xmin = 4.18 
+            xmax = 4.21 
+            text = "l" 
+        intervals [27]:
+            xmin = 4.21 
+            xmax = 4.31 
+            text = "ɪ" 
+        intervals [28]:
+            xmin = 4.31 
+            xmax = 4.39 
+            text = "c" 
+        intervals [29]:
+            xmin = 4.39 
+            xmax = 4.58 
+            text = "oː" 
+        intervals [30]:
+            xmin = 4.58 
+            xmax = 4.67 
+            text = "n" 
+        intervals [31]:
+            xmin = 4.67 
+            xmax = 4.88 
+            text = "eː" 
+        intervals [32]:
+            xmin = 4.88 
             xmax = 4.997063 
             text = "" 

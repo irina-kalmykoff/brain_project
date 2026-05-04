@@ -56,10 +56,10 @@ item []:
             text = "ɛ" 
         intervals [3]:
             xmin = 1.44 
-            xmax = 1.58 
+            xmax = 1.55 
             text = "l" 
         intervals [4]:
-            xmin = 1.58 
+            xmin = 1.55 
             xmax = 1.61 
             text = "s" 
         intervals [5]:

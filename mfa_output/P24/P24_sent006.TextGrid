@@ -38,10 +38,10 @@ item []:
             text = "gelukkig" 
         intervals [7]:
             xmin = 3.35 
-            xmax = 3.5 
+            xmax = 3.49 
             text = "" 
         intervals [8]:
-            xmin = 3.5 
+            xmin = 3.49 
             xmax = 4.8 
             text = "nieuwjaar" 
         intervals [9]:
@@ -164,10 +164,10 @@ item []:
             text = "x" 
         intervals [28]:
             xmin = 3.35 
-            xmax = 3.5 
+            xmax = 3.49 
             text = "" 
         intervals [29]:
-            xmin = 3.5 
+            xmin = 3.49 
             xmax = 3.79 
             text = "n" 
         intervals [30]:

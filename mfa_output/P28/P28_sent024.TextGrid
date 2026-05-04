@@ -42,10 +42,10 @@ item []:
             text = "de" 
         intervals [8]:
             xmin = 3.76 
-            xmax = 4.96 
+            xmax = 4.95 
             text = "politieagenten" 
         intervals [9]:
-            xmin = 4.96 
+            xmin = 4.95 
             xmax = 5.311562 
             text = "" 
     item [2]:
@@ -200,10 +200,10 @@ item []:
             text = "ɣ" 
         intervals [37]:
             xmin = 4.43 
-            xmax = 4.5 
+            xmax = 4.52 
             text = "ɛ" 
         intervals [38]:
-            xmin = 4.5 
+            xmin = 4.52 
             xmax = 4.64 
             text = "n" 
         intervals [39]:
@@ -212,13 +212,13 @@ item []:
             text = "t" 
         intervals [40]:
             xmin = 4.74 
-            xmax = 4.8 
+            xmax = 4.81 
             text = "ɛ" 
         intervals [41]:
-            xmin = 4.8 
-            xmax = 4.96 
+            xmin = 4.81 
+            xmax = 4.95 
             text = "n" 
         intervals [42]:
-            xmin = 4.96 
+            xmin = 4.95 
             xmax = 5.311562 
             text = "" 

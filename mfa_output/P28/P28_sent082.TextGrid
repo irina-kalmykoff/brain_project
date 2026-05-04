@@ -30,10 +30,10 @@ item []:
             text = "kan" 
         intervals [5]:
             xmin = 1.97 
-            xmax = 2.11 
+            xmax = 2.1 
             text = "je" 
         intervals [6]:
-            xmin = 2.11 
+            xmin = 2.1 
             xmax = 3.01 
             text = "tegelijkertijd" 
         intervals [7]:
@@ -128,10 +128,10 @@ item []:
             text = "j" 
         intervals [17]:
             xmin = 2.05 
-            xmax = 2.11 
+            xmax = 2.1 
             text = "eː" 
         intervals [18]:
-            xmin = 2.11 
+            xmin = 2.1 
             xmax = 2.19 
             text = "t" 
         intervals [19]:

@@ -30,10 +30,10 @@ item []:
             text = "kwam" 
         intervals [5]:
             xmin = 2.66 
-            xmax = 3.1 
+            xmax = 3.09 
             text = "snel" 
         intervals [6]:
-            xmin = 3.1 
+            xmin = 3.09 
             xmax = 3.35 
             text = "om" 
         intervals [7]:
@@ -132,10 +132,10 @@ item []:
             text = "ɛ" 
         intervals [20]:
             xmin = 3.01 
-            xmax = 3.1 
+            xmax = 3.09 
             text = "l" 
         intervals [21]:
-            xmin = 3.1 
+            xmin = 3.09 
             xmax = 3.24 
             text = "ɔ" 
         intervals [22]:

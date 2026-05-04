@@ -58,10 +58,10 @@ item []:
             text = "na" 
         intervals [12]:
             xmin = 3.17 
-            xmax = 3.6 
+            xmax = 3.63 
             text = "apen" 
         intervals [13]:
-            xmin = 3.6 
+            xmin = 3.63 
             xmax = 4.03325 
             text = "" 
     item [2]:
@@ -168,13 +168,13 @@ item []:
             text = "p" 
         intervals [25]:
             xmin = 3.49 
-            xmax = 3.53 
+            xmax = 3.54 
             text = "ɛ" 
         intervals [26]:
-            xmin = 3.53 
-            xmax = 3.6 
+            xmin = 3.54 
+            xmax = 3.63 
             text = "n" 
         intervals [27]:
-            xmin = 3.6 
+            xmin = 3.63 
             xmax = 4.03325 
             text = "" 

@@ -30,10 +30,10 @@ item []:
             text = "momenteel" 
         intervals [5]:
             xmin = 2.53 
-            xmax = 3.02 
+            xmax = 3.03 
             text = "bezig" 
         intervals [6]:
-            xmin = 3.02 
+            xmin = 3.03 
             xmax = 3.23 
             text = "met" 
         intervals [7]:
@@ -50,10 +50,10 @@ item []:
             text = "van" 
         intervals [10]:
             xmin = 4.3 
-            xmax = 4.47 
+            xmax = 4.46 
             text = "het" 
         intervals [11]:
-            xmin = 4.47 
+            xmin = 4.46 
             xmax = 4.999062 
             text = "gebouw" 
     item [2]:
@@ -112,10 +112,10 @@ item []:
             text = "n" 
         intervals [13]:
             xmin = 2.27 
-            xmax = 2.33 
+            xmax = 2.32 
             text = "t" 
         intervals [14]:
-            xmin = 2.33 
+            xmin = 2.32 
             xmax = 2.39 
             text = "eː" 
         intervals [15]:
@@ -140,10 +140,10 @@ item []:
             text = "ɪ" 
         intervals [20]:
             xmin = 2.94 
-            xmax = 3.02 
+            xmax = 3.03 
             text = "x" 
         intervals [21]:
-            xmin = 3.02 
+            xmin = 3.03 
             xmax = 3.11 
             text = "m" 
         intervals [22]:
@@ -220,10 +220,10 @@ item []:
             text = "ɛ" 
         intervals [40]:
             xmin = 4.38 
-            xmax = 4.47 
+            xmax = 4.46 
             text = "t" 
         intervals [41]:
-            xmin = 4.47 
+            xmin = 4.46 
             xmax = 4.55 
             text = "ɣ" 
         intervals [42]:

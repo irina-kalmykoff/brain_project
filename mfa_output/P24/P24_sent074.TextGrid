@@ -14,10 +14,10 @@ item []:
         intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.43 
+            xmax = 1.45 
             text = "ik" 
         intervals [2]:
-            xmin = 1.43 
+            xmin = 1.45 
             xmax = 1.49 
             text = "" 
         intervals [3]:
@@ -38,32 +38,32 @@ item []:
             text = "" 
         intervals [7]:
             xmin = 3.1 
-            xmax = 3.63 
+            xmax = 3.52 
             text = "nog" 
         intervals [8]:
-            xmin = 3.63 
-            xmax = 4.95 
-            text = "" 
-        intervals [9]:
-            xmin = 4.95 
-            xmax = 5.0 
+            xmin = 3.52 
+            xmax = 4.15 
             text = "föhnen" 
+        intervals [9]:
+            xmin = 4.15 
+            xmax = 5.0 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 5.0 
-        intervals: size = 18 
+        intervals: size = 24 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.52 
             text = "ɪ" 
         intervals [2]:
             xmin = 0.52 
-            xmax = 1.43 
+            xmax = 1.45 
             text = "k" 
         intervals [3]:
-            xmin = 1.43 
+            xmin = 1.45 
             xmax = 1.49 
             text = "" 
         intervals [4]:
@@ -116,13 +116,37 @@ item []:
             text = "n" 
         intervals [16]:
             xmin = 3.23 
-            xmax = 3.45 
+            xmax = 3.44 
             text = "ɔ" 
         intervals [17]:
-            xmin = 3.45 
-            xmax = 3.63 
+            xmin = 3.44 
+            xmax = 3.52 
             text = "x" 
         intervals [18]:
+            xmin = 3.52 
+            xmax = 3.55 
+            text = "f" 
+        intervals [19]:
+            xmin = 3.55 
+            xmax = 3.6 
+            text = "ɔ̈" 
+        intervals [20]:
+            xmin = 3.6 
+            xmax = 3.63 
+            text = "h" 
+        intervals [21]:
             xmin = 3.63 
+            xmax = 3.66 
+            text = "n" 
+        intervals [22]:
+            xmin = 3.66 
+            xmax = 3.98 
+            text = "ɛ" 
+        intervals [23]:
+            xmin = 3.98 
+            xmax = 4.15 
+            text = "n" 
+        intervals [24]:
+            xmin = 4.15 
             xmax = 5.0 
             text = "" 

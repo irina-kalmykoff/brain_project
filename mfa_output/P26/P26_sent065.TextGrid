@@ -34,10 +34,10 @@ item []:
             text = "tomaten" 
         intervals [6]:
             xmin = 2.16 
-            xmax = 2.31 
+            xmax = 2.32 
             text = "te" 
         intervals [7]:
-            xmin = 2.31 
+            xmin = 2.32 
             xmax = 2.93 
             text = "kweken" 
         intervals [8]:
@@ -136,10 +136,10 @@ item []:
             text = "t" 
         intervals [19]:
             xmin = 2.22 
-            xmax = 2.31 
+            xmax = 2.32 
             text = "eː" 
         intervals [20]:
-            xmin = 2.31 
+            xmin = 2.32 
             xmax = 2.4 
             text = "k" 
         intervals [21]:
@@ -156,10 +156,10 @@ item []:
             text = "k" 
         intervals [24]:
             xmin = 2.7 
-            xmax = 2.83 
+            xmax = 2.81 
             text = "ɛ" 
         intervals [25]:
-            xmin = 2.83 
+            xmin = 2.81 
             xmax = 2.93 
             text = "n" 
         intervals [26]:
@@ -172,10 +172,10 @@ item []:
             text = "ɛ" 
         intervals [28]:
             xmin = 3.01 
-            xmax = 3.13 
+            xmax = 3.14 
             text = "s" 
         intervals [29]:
-            xmin = 3.13 
+            xmin = 3.14 
             xmax = 3.21 
             text = "p" 
         intervals [30]:

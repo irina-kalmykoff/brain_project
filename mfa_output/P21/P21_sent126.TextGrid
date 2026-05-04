@@ -26,14 +26,14 @@ item []:
             text = "zit" 
         intervals [4]:
             xmin = 1.38 
-            xmax = 1.48 
+            xmax = 1.47 
             text = "op" 
         intervals [5]:
-            xmin = 1.48 
-            xmax = 1.58 
+            xmin = 1.47 
+            xmax = 1.57 
             text = "de" 
         intervals [6]:
-            xmin = 1.58 
+            xmin = 1.57 
             xmax = 2.39 
             text = "achterbank" 
         intervals [7]:
@@ -52,10 +52,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.93 
-            xmax = 1.06 
+            xmax = 1.07 
             text = "z" 
         intervals [3]:
-            xmin = 1.06 
+            xmin = 1.07 
             xmax = 1.15 
             text = "eː" 
         intervals [4]:
@@ -76,18 +76,18 @@ item []:
             text = "ɔ" 
         intervals [8]:
             xmin = 1.41 
-            xmax = 1.48 
+            xmax = 1.47 
             text = "p" 
         intervals [9]:
-            xmin = 1.48 
+            xmin = 1.47 
             xmax = 1.51 
             text = "d" 
         intervals [10]:
             xmin = 1.51 
-            xmax = 1.58 
+            xmax = 1.57 
             text = "eː" 
         intervals [11]:
-            xmin = 1.58 
+            xmin = 1.57 
             xmax = 1.69 
             text = "ɑ" 
         intervals [12]:

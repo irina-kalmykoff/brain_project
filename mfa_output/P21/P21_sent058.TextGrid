@@ -30,18 +30,18 @@ item []:
             text = "team" 
         intervals [5]:
             xmin = 2.29 
-            xmax = 2.71 
+            xmax = 2.7 
             text = "heeft" 
         intervals [6]:
-            xmin = 2.71 
+            xmin = 2.7 
             xmax = 2.86 
             text = "dat" 
         intervals [7]:
             xmin = 2.86 
-            xmax = 3.35 
+            xmax = 3.36 
             text = "doelpunt" 
         intervals [8]:
-            xmin = 3.35 
+            xmin = 3.36 
             xmax = 4.005875 
             text = "afgedwongen" 
     item [2]:
@@ -120,18 +120,18 @@ item []:
             text = "f" 
         intervals [18]:
             xmin = 2.55 
-            xmax = 2.71 
+            xmax = 2.7 
             text = "t" 
         intervals [19]:
-            xmin = 2.71 
+            xmin = 2.7 
             xmax = 2.74 
             text = "d" 
         intervals [20]:
             xmin = 2.74 
-            xmax = 2.78 
+            xmax = 2.81 
             text = "ɑ" 
         intervals [21]:
-            xmin = 2.78 
+            xmin = 2.81 
             xmax = 2.86 
             text = "t" 
         intervals [22]:
@@ -160,10 +160,10 @@ item []:
             text = "n" 
         intervals [28]:
             xmin = 3.2 
-            xmax = 3.35 
+            xmax = 3.36 
             text = "t" 
         intervals [29]:
-            xmin = 3.35 
+            xmin = 3.36 
             xmax = 3.4 
             text = "ɑ" 
         intervals [30]:
@@ -188,10 +188,10 @@ item []:
             text = "ʋ" 
         intervals [35]:
             xmin = 3.65 
-            xmax = 3.73 
+            xmax = 3.72 
             text = "ɔ" 
         intervals [36]:
-            xmin = 3.73 
+            xmin = 3.72 
             xmax = 3.83 
             text = "ŋ" 
         intervals [37]:

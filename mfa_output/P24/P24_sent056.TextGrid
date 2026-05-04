@@ -11,7 +11,7 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 5.001 
-        intervals: size = 8 
+        intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.21 
@@ -22,10 +22,10 @@ item []:
             text = "het" 
         intervals [3]:
             xmin = 1.4 
-            xmax = 2.02 
+            xmax = 2.03 
             text = "ziekenhuis" 
         intervals [4]:
-            xmin = 2.02 
+            xmin = 2.03 
             xmax = 2.3 
             text = "zoekt" 
         intervals [5]:
@@ -34,14 +34,18 @@ item []:
             text = "naar" 
         intervals [6]:
             xmin = 2.45 
-            xmax = 2.82 
+            xmax = 2.91 
             text = "nieuwe" 
         intervals [7]:
-            xmin = 2.82 
-            xmax = 2.85 
-            text = "verpleegsters" 
+            xmin = 2.91 
+            xmax = 3.17 
+            text = "" 
         intervals [8]:
-            xmin = 2.85 
+            xmin = 3.17 
+            xmax = 4.33 
+            text = "verpleegsters" 
+        intervals [9]:
+            xmin = 4.33 
             xmax = 5.001 
             text = "" 
     item [2]:
@@ -49,7 +53,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 5.001 
-        intervals: size = 27 
+        intervals: size = 40 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.21 
@@ -104,10 +108,10 @@ item []:
             text = "ɥ" 
         intervals [14]:
             xmin = 1.89 
-            xmax = 2.02 
+            xmax = 2.03 
             text = "s" 
         intervals [15]:
-            xmin = 2.02 
+            xmin = 2.03 
             xmax = 2.08 
             text = "z" 
         intervals [16]:
@@ -152,9 +156,61 @@ item []:
             text = "ʋ" 
         intervals [26]:
             xmin = 2.73 
-            xmax = 2.82 
+            xmax = 2.91 
             text = "eː" 
         intervals [27]:
-            xmin = 2.82 
+            xmin = 2.91 
+            xmax = 3.17 
+            text = "" 
+        intervals [28]:
+            xmin = 3.17 
+            xmax = 3.33 
+            text = "v" 
+        intervals [29]:
+            xmin = 3.33 
+            xmax = 3.37 
+            text = "ɛ" 
+        intervals [30]:
+            xmin = 3.37 
+            xmax = 3.42 
+            text = "r" 
+        intervals [31]:
+            xmin = 3.42 
+            xmax = 3.5 
+            text = "p" 
+        intervals [32]:
+            xmin = 3.5 
+            xmax = 3.56 
+            text = "l" 
+        intervals [33]:
+            xmin = 3.56 
+            xmax = 3.69 
+            text = "eː" 
+        intervals [34]:
+            xmin = 3.69 
+            xmax = 3.76 
+            text = "x" 
+        intervals [35]:
+            xmin = 3.76 
+            xmax = 3.83 
+            text = "s" 
+        intervals [36]:
+            xmin = 3.83 
+            xmax = 3.91 
+            text = "t" 
+        intervals [37]:
+            xmin = 3.91 
+            xmax = 4.03 
+            text = "ɛ" 
+        intervals [38]:
+            xmin = 4.03 
+            xmax = 4.1 
+            text = "r" 
+        intervals [39]:
+            xmin = 4.1 
+            xmax = 4.33 
+            text = "s" 
+        intervals [40]:
+            xmin = 4.33 
             xmax = 5.001 
             text = "" 

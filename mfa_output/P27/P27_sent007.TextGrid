@@ -38,10 +38,10 @@ item []:
             text = "" 
         intervals [7]:
             xmin = 2.09 
-            xmax = 2.56 
+            xmax = 2.57 
             text = "niet" 
         intervals [8]:
-            xmin = 2.56 
+            xmin = 2.57 
             xmax = 3.559563 
             text = "" 
     item [2]:
@@ -60,10 +60,10 @@ item []:
             text = "n" 
         intervals [3]:
             xmin = 1.43 
-            xmax = 1.49 
+            xmax = 1.5 
             text = "eː" 
         intervals [4]:
-            xmin = 1.49 
+            xmin = 1.5 
             xmax = 1.54 
             text = "eː" 
         intervals [5]:
@@ -116,9 +116,9 @@ item []:
             text = "iː" 
         intervals [17]:
             xmin = 2.38 
-            xmax = 2.56 
+            xmax = 2.57 
             text = "t" 
         intervals [18]:
-            xmin = 2.56 
+            xmin = 2.57 
             xmax = 3.559563 
             text = "" 

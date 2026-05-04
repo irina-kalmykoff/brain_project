@@ -26,10 +26,10 @@ item []:
             text = "is" 
         intervals [4]:
             xmin = 0.94 
-            xmax = 1.26 
+            xmax = 1.25 
             text = "moeilijk" 
         intervals [5]:
-            xmin = 1.26 
+            xmin = 1.25 
             xmax = 1.37 
             text = "om" 
         intervals [6]:
@@ -120,10 +120,10 @@ item []:
             text = "j" 
         intervals [14]:
             xmin = 1.22 
-            xmax = 1.26 
+            xmax = 1.25 
             text = "k" 
         intervals [15]:
-            xmin = 1.26 
+            xmin = 1.25 
             xmax = 1.32 
             text = "ɔ" 
         intervals [16]:
@@ -236,10 +236,10 @@ item []:
             text = "ɑ" 
         intervals [43]:
             xmin = 2.83 
-            xmax = 2.89 
+            xmax = 2.88 
             text = "s" 
         intervals [44]:
-            xmin = 2.89 
+            xmin = 2.88 
             xmax = 2.92 
             text = "s" 
         intervals [45]:

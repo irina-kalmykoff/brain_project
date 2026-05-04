@@ -26,10 +26,10 @@ item []:
             text = "" 
         intervals [4]:
             xmin = 1.91 
-            xmax = 2.4 
+            xmax = 2.42 
             text = "irrigatie" 
         intervals [5]:
-            xmin = 2.4 
+            xmin = 2.42 
             xmax = 2.99 
             text = "" 
         intervals [6]:
@@ -120,22 +120,22 @@ item []:
             text = "ɣ" 
         intervals [11]:
             xmin = 2.27 
-            xmax = 2.31 
+            xmax = 2.32 
             text = "aː" 
         intervals [12]:
-            xmin = 2.31 
-            xmax = 2.34 
+            xmin = 2.32 
+            xmax = 2.36 
             text = "t" 
         intervals [13]:
-            xmin = 2.34 
-            xmax = 2.37 
+            xmin = 2.36 
+            xmax = 2.39 
             text = "iː" 
         intervals [14]:
-            xmin = 2.37 
-            xmax = 2.4 
+            xmin = 2.39 
+            xmax = 2.42 
             text = "eː" 
         intervals [15]:
-            xmin = 2.4 
+            xmin = 2.42 
             xmax = 2.99 
             text = "" 
         intervals [16]:
@@ -220,10 +220,10 @@ item []:
             text = "ʋ" 
         intervals [36]:
             xmin = 4.91 
-            xmax = 5.09 
+            xmax = 5.08 
             text = "eː" 
         intervals [37]:
-            xmin = 5.09 
+            xmin = 5.08 
             xmax = 5.16 
             text = "k" 
         intervals [38]:
@@ -244,10 +244,10 @@ item []:
             text = "d" 
         intervals [42]:
             xmin = 5.33 
-            xmax = 5.37 
+            xmax = 5.36 
             text = "ɛ" 
         intervals [43]:
-            xmin = 5.37 
+            xmin = 5.36 
             xmax = 5.41 
             text = "n" 
         intervals [44]:
@@ -260,10 +260,10 @@ item []:
             text = "eː" 
         intervals [46]:
             xmin = 5.55 
-            xmax = 5.62 
+            xmax = 5.63 
             text = "m" 
         intervals [47]:
-            xmin = 5.62 
+            xmin = 5.63 
             xmax = 5.81 
             text = "aː" 
         intervals [48]:

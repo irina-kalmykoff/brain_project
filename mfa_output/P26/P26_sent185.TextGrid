@@ -140,10 +140,10 @@ item []:
             text = "b" 
         intervals [23]:
             xmin = 2.27 
-            xmax = 2.32 
+            xmax = 2.33 
             text = "eː" 
         intervals [24]:
-            xmin = 2.32 
+            xmin = 2.33 
             xmax = 2.4 
             text = "ɣ" 
         intervals [25]:

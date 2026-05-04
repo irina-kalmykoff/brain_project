@@ -26,10 +26,10 @@ item []:
             text = "" 
         intervals [4]:
             xmin = 1.39 
-            xmax = 1.59 
+            xmax = 1.6 
             text = "kip" 
         intervals [5]:
-            xmin = 1.59 
+            xmin = 1.6 
             xmax = 1.7 
             text = "" 
         intervals [6]:
@@ -42,10 +42,10 @@ item []:
             text = "de" 
         intervals [8]:
             xmin = 2.07 
-            xmax = 2.71 
+            xmax = 2.7 
             text = "regenworm" 
         intervals [9]:
-            xmin = 2.71 
+            xmin = 2.7 
             xmax = 2.87 
             text = "op" 
         intervals [10]:
@@ -84,10 +84,10 @@ item []:
             text = "ɪ" 
         intervals [7]:
             xmin = 1.54 
-            xmax = 1.59 
+            xmax = 1.6 
             text = "p" 
         intervals [8]:
-            xmin = 1.59 
+            xmin = 1.6 
             xmax = 1.7 
             text = "" 
         intervals [9]:
@@ -140,10 +140,10 @@ item []:
             text = "r" 
         intervals [21]:
             xmin = 2.57 
-            xmax = 2.71 
+            xmax = 2.7 
             text = "m" 
         intervals [22]:
-            xmin = 2.71 
+            xmin = 2.7 
             xmax = 2.77 
             text = "ɔ" 
         intervals [23]:

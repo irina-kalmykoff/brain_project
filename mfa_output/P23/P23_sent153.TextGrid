@@ -30,14 +30,14 @@ item []:
             text = "voorouders" 
         intervals [5]:
             xmin = 3.07 
-            xmax = 4.74 
+            xmax = 3.56 
             text = "waren" 
         intervals [6]:
-            xmin = 4.74 
-            xmax = 4.77 
+            xmin = 3.56 
+            xmax = 4.57 
             text = "holbewoners" 
         intervals [7]:
-            xmin = 4.77 
+            xmin = 4.57 
             xmax = 10.0 
             text = "" 
     item [2]:
@@ -45,7 +45,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 10.0 
-        intervals: size = 27 
+        intervals: size = 38 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.66 
@@ -144,13 +144,57 @@ item []:
             text = "r" 
         intervals [25]:
             xmin = 3.48 
-            xmax = 4.36 
+            xmax = 3.53 
             text = "ɛ" 
         intervals [26]:
-            xmin = 4.36 
-            xmax = 4.74 
+            xmin = 3.53 
+            xmax = 3.56 
             text = "n" 
         intervals [27]:
-            xmin = 4.74 
+            xmin = 3.56 
+            xmax = 3.61 
+            text = "h" 
+        intervals [28]:
+            xmin = 3.61 
+            xmax = 3.71 
+            text = "ɔ" 
+        intervals [29]:
+            xmin = 3.71 
+            xmax = 3.86 
+            text = "l" 
+        intervals [30]:
+            xmin = 3.86 
+            xmax = 3.91 
+            text = "b" 
+        intervals [31]:
+            xmin = 3.91 
+            xmax = 3.97 
+            text = "eː" 
+        intervals [32]:
+            xmin = 3.97 
+            xmax = 4.05 
+            text = "ʋ" 
+        intervals [33]:
+            xmin = 4.05 
+            xmax = 4.17 
+            text = "oː" 
+        intervals [34]:
+            xmin = 4.17 
+            xmax = 4.21 
+            text = "n" 
+        intervals [35]:
+            xmin = 4.21 
+            xmax = 4.27 
+            text = "ɛ" 
+        intervals [36]:
+            xmin = 4.27 
+            xmax = 4.34 
+            text = "r" 
+        intervals [37]:
+            xmin = 4.34 
+            xmax = 4.57 
+            text = "s" 
+        intervals [38]:
+            xmin = 4.57 
             xmax = 10.0 
             text = "" 

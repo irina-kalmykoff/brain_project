@@ -38,10 +38,10 @@ item []:
             text = "laatste" 
         intervals [7]:
             xmin = 2.25 
-            xmax = 2.76 
+            xmax = 2.75 
             text = "schroef" 
         intervals [8]:
-            xmin = 2.76 
+            xmin = 2.75 
             xmax = 2.88 
             text = "" 
         intervals [9]:
@@ -144,18 +144,18 @@ item []:
             text = "s" 
         intervals [21]:
             xmin = 2.42 
-            xmax = 2.52 
+            xmax = 2.51 
             text = "r" 
         intervals [22]:
-            xmin = 2.52 
+            xmin = 2.51 
             xmax = 2.59 
             text = "uː" 
         intervals [23]:
             xmin = 2.59 
-            xmax = 2.76 
+            xmax = 2.75 
             text = "f" 
         intervals [24]:
-            xmin = 2.76 
+            xmin = 2.75 
             xmax = 2.88 
             text = "" 
         intervals [25]:

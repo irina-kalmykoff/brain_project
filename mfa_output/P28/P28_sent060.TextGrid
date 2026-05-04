@@ -26,18 +26,18 @@ item []:
             text = "mol" 
         intervals [4]:
             xmin = 1.53 
-            xmax = 2.04 
+            xmax = 2.05 
             text = "groef" 
         intervals [5]:
-            xmin = 2.04 
-            xmax = 2.2 
+            xmin = 2.05 
+            xmax = 2.19 
             text = "" 
         intervals [6]:
-            xmin = 2.2 
-            xmax = 2.68 
+            xmin = 2.19 
+            xmax = 2.69 
             text = "tunnels" 
         intervals [7]:
-            xmin = 2.68 
+            xmin = 2.69 
             xmax = 2.84 
             text = "in" 
         intervals [8]:
@@ -100,14 +100,14 @@ item []:
             text = "uː" 
         intervals [10]:
             xmin = 1.88 
-            xmax = 2.04 
+            xmax = 2.05 
             text = "f" 
         intervals [11]:
-            xmin = 2.04 
-            xmax = 2.2 
+            xmin = 2.05 
+            xmax = 2.19 
             text = "" 
         intervals [12]:
-            xmin = 2.2 
+            xmin = 2.19 
             xmax = 2.27 
             text = "t" 
         intervals [13]:
@@ -132,10 +132,10 @@ item []:
             text = "l" 
         intervals [18]:
             xmin = 2.57 
-            xmax = 2.68 
+            xmax = 2.69 
             text = "s" 
         intervals [19]:
-            xmin = 2.68 
+            xmin = 2.69 
             xmax = 2.79 
             text = "ɪ" 
         intervals [20]:

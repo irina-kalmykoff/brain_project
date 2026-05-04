@@ -120,10 +120,10 @@ item []:
             text = "n" 
         intervals [13]:
             xmin = 3.02 
-            xmax = 3.08 
+            xmax = 3.07 
             text = "m" 
         intervals [14]:
-            xmin = 3.08 
+            xmin = 3.07 
             xmax = 3.14 
             text = "uː" 
         intervals [15]:

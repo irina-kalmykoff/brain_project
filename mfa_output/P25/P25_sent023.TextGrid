@@ -96,10 +96,10 @@ item []:
             text = "ɑ" 
         intervals [9]:
             xmin = 1.08 
-            xmax = 1.13 
+            xmax = 1.12 
             text = "n" 
         intervals [10]:
-            xmin = 1.13 
+            xmin = 1.12 
             xmax = 1.19 
             text = "s" 
         intervals [11]:
@@ -196,10 +196,10 @@ item []:
             text = "ŋ" 
         intervals [34]:
             xmin = 2.44 
-            xmax = 2.48 
+            xmax = 2.49 
             text = "eː" 
         intervals [35]:
-            xmin = 2.48 
+            xmin = 2.49 
             xmax = 2.52 
             text = "r" 
         intervals [36]:

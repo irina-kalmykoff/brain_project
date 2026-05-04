@@ -14,10 +14,10 @@ item []:
         intervals: size = 11 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.19 
+            xmax = 1.18 
             text = "" 
         intervals [2]:
-            xmin = 1.19 
+            xmin = 1.18 
             xmax = 1.28 
             text = "we" 
         intervals [3]:
@@ -26,18 +26,18 @@ item []:
             text = "lossen" 
         intervals [4]:
             xmin = 1.56 
-            xmax = 1.76 
+            xmax = 1.77 
             text = "dat" 
         intervals [5]:
-            xmin = 1.76 
+            xmin = 1.77 
             xmax = 1.96 
             text = "wel" 
         intervals [6]:
             xmin = 1.96 
-            xmax = 2.21 
+            xmax = 2.2 
             text = "op" 
         intervals [7]:
-            xmin = 2.21 
+            xmin = 2.2 
             xmax = 2.27 
             text = "" 
         intervals [8]:
@@ -64,10 +64,10 @@ item []:
         intervals: size = 30 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.19 
+            xmax = 1.18 
             text = "" 
         intervals [2]:
-            xmin = 1.19 
+            xmin = 1.18 
             xmax = 1.25 
             text = "ʋ" 
         intervals [3]:
@@ -108,10 +108,10 @@ item []:
             text = "ɑ" 
         intervals [12]:
             xmin = 1.68 
-            xmax = 1.76 
+            xmax = 1.77 
             text = "t" 
         intervals [13]:
-            xmin = 1.76 
+            xmin = 1.77 
             xmax = 1.82 
             text = "ʋ" 
         intervals [14]:
@@ -128,10 +128,10 @@ item []:
             text = "ɔ" 
         intervals [17]:
             xmin = 2.01 
-            xmax = 2.21 
+            xmax = 2.2 
             text = "p" 
         intervals [18]:
-            xmin = 2.21 
+            xmin = 2.2 
             xmax = 2.27 
             text = "" 
         intervals [19]:
@@ -160,18 +160,18 @@ item []:
             text = "ɔ" 
         intervals [25]:
             xmin = 2.75 
-            xmax = 2.83 
+            xmax = 2.82 
             text = "n" 
         intervals [26]:
-            xmin = 2.83 
+            xmin = 2.82 
             xmax = 2.89 
             text = "t" 
         intervals [27]:
             xmin = 2.89 
-            xmax = 3.1 
+            xmax = 3.09 
             text = "aː" 
         intervals [28]:
-            xmin = 3.1 
+            xmin = 3.09 
             xmax = 3.19 
             text = "ɣ" 
         intervals [29]:

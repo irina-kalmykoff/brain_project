@@ -14,10 +14,10 @@ item []:
         intervals: size = 8 
         intervals [1]:
             xmin = 0.0 
-            xmax = 3.98 
+            xmax = 3.96 
             text = "" 
         intervals [2]:
-            xmin = 3.98 
+            xmin = 3.96 
             xmax = 4.48 
             text = "ze" 
         intervals [3]:
@@ -34,14 +34,14 @@ item []:
             text = "het" 
         intervals [6]:
             xmin = 5.65 
-            xmax = 6.1 
+            xmax = 6.07 
             text = "ondiepe" 
         intervals [7]:
-            xmin = 6.1 
-            xmax = 7.04 
+            xmin = 6.07 
+            xmax = 7.13 
             text = "water" 
         intervals [8]:
-            xmin = 7.04 
+            xmin = 7.13 
             xmax = 10.0 
             text = "" 
     item [2]:
@@ -52,10 +52,10 @@ item []:
         intervals: size = 27 
         intervals [1]:
             xmin = 0.0 
-            xmax = 3.98 
+            xmax = 3.96 
             text = "" 
         intervals [2]:
-            xmin = 3.98 
+            xmin = 3.96 
             xmax = 4.13 
             text = "z" 
         intervals [3]:
@@ -96,10 +96,10 @@ item []:
             text = "r" 
         intervals [12]:
             xmin = 5.38 
-            xmax = 5.53 
+            xmax = 5.52 
             text = "h" 
         intervals [13]:
-            xmin = 5.53 
+            xmin = 5.52 
             xmax = 5.58 
             text = "ɛ" 
         intervals [14]:
@@ -132,10 +132,10 @@ item []:
             text = "p" 
         intervals [21]:
             xmin = 6.01 
-            xmax = 6.1 
+            xmax = 6.07 
             text = "eː" 
         intervals [22]:
-            xmin = 6.1 
+            xmin = 6.07 
             xmax = 6.17 
             text = "ʋ" 
         intervals [23]:
@@ -148,13 +148,13 @@ item []:
             text = "t" 
         intervals [25]:
             xmin = 6.38 
-            xmax = 6.43 
+            xmax = 6.45 
             text = "ɛ" 
         intervals [26]:
-            xmin = 6.43 
-            xmax = 7.04 
+            xmin = 6.45 
+            xmax = 7.13 
             text = "r" 
         intervals [27]:
-            xmin = 7.04 
+            xmin = 7.13 
             xmax = 10.0 
             text = "" 

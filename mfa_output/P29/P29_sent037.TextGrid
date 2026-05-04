@@ -124,14 +124,14 @@ item []:
             text = "ɔ" 
         intervals [19]:
             xmin = 2.72 
-            xmax = 2.79 
+            xmax = 2.78 
             text = "p" 
         intervals [20]:
-            xmin = 2.79 
-            xmax = 2.82 
+            xmin = 2.78 
+            xmax = 2.81 
             text = "l" 
         intervals [21]:
-            xmin = 2.82 
+            xmin = 2.81 
             xmax = 2.94 
             text = "ɔ" 
         intervals [22]:

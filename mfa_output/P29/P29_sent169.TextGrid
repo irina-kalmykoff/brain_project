@@ -64,10 +64,10 @@ item []:
             text = "b" 
         intervals [5]:
             xmin = 1.3 
-            xmax = 1.39 
+            xmax = 1.4 
             text = "ɛ" 
         intervals [6]:
-            xmin = 1.39 
+            xmin = 1.4 
             xmax = 1.44 
             text = "n" 
         intervals [7]:
@@ -124,10 +124,10 @@ item []:
             text = "t" 
         intervals [20]:
             xmin = 2.34 
-            xmax = 2.37 
+            xmax = 2.38 
             text = "ɛ" 
         intervals [21]:
-            xmin = 2.37 
+            xmin = 2.38 
             xmax = 2.46 
             text = "n" 
         intervals [22]:

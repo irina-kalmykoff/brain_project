@@ -30,14 +30,14 @@ item []:
             text = "zijn" 
         intervals [5]:
             xmin = 2.3 
-            xmax = 2.46 
+            xmax = 2.49 
             text = "nog" 
         intervals [6]:
-            xmin = 2.46 
-            xmax = 2.54 
+            xmin = 2.49 
+            xmax = 2.53 
             text = "" 
         intervals [7]:
-            xmin = 2.54 
+            xmin = 2.53 
             xmax = 3.15 
             text = "dicht" 
         intervals [8]:
@@ -68,10 +68,10 @@ item []:
             text = "r" 
         intervals [5]:
             xmin = 1.51 
-            xmax = 1.65 
+            xmax = 1.57 
             text = "ɔ" 
         intervals [6]:
-            xmin = 1.65 
+            xmin = 1.57 
             xmax = 1.71 
             text = "j" 
         intervals [7]:
@@ -120,18 +120,18 @@ item []:
             text = "n" 
         intervals [18]:
             xmin = 2.34 
-            xmax = 2.41 
+            xmax = 2.39 
             text = "ɔ" 
         intervals [19]:
-            xmin = 2.41 
-            xmax = 2.46 
+            xmin = 2.39 
+            xmax = 2.49 
             text = "x" 
         intervals [20]:
-            xmin = 2.46 
-            xmax = 2.54 
+            xmin = 2.49 
+            xmax = 2.53 
             text = "" 
         intervals [21]:
-            xmin = 2.54 
+            xmin = 2.53 
             xmax = 2.6 
             text = "d" 
         intervals [22]:

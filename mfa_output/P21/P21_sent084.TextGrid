@@ -42,10 +42,10 @@ item []:
             text = "de" 
         intervals [8]:
             xmin = 2.3 
-            xmax = 2.73 
+            xmax = 2.72 
             text = "stoel" 
         intervals [9]:
-            xmin = 2.73 
+            xmin = 2.72 
             xmax = 3.998063 
             text = "" 
     item [2]:
@@ -164,9 +164,9 @@ item []:
             text = "uː" 
         intervals [28]:
             xmin = 2.58 
-            xmax = 2.73 
+            xmax = 2.72 
             text = "l" 
         intervals [29]:
-            xmin = 2.73 
+            xmin = 2.72 
             xmax = 3.998063 
             text = "" 

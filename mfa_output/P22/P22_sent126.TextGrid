@@ -50,10 +50,10 @@ item []:
             text = "kunnen" 
         intervals [10]:
             xmin = 3.17 
-            xmax = 3.79 
+            xmax = 3.72 
             text = "bewijzen" 
         intervals [11]:
-            xmin = 3.79 
+            xmin = 3.72 
             xmax = 5.002 
             text = "" 
     item [2]:
@@ -208,9 +208,9 @@ item []:
             text = "ɛ" 
         intervals [37]:
             xmin = 3.64 
-            xmax = 3.79 
+            xmax = 3.72 
             text = "n" 
         intervals [38]:
-            xmin = 3.79 
+            xmin = 3.72 
             xmax = 5.002 
             text = "" 

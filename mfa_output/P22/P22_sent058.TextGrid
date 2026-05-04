@@ -22,14 +22,14 @@ item []:
             text = "zij" 
         intervals [3]:
             xmin = 1.47 
-            xmax = 1.96 
+            xmax = 1.95 
             text = "heeft" 
         intervals [4]:
-            xmin = 1.96 
-            xmax = 2.02 
+            xmin = 1.95 
+            xmax = 2.03 
             text = "" 
         intervals [5]:
-            xmin = 2.02 
+            xmin = 2.03 
             xmax = 2.35 
             text = "het" 
         intervals [6]:
@@ -38,14 +38,14 @@ item []:
             text = "" 
         intervals [7]:
             xmin = 2.38 
-            xmax = 3.56 
+            xmax = 3.55 
             text = "wereldkampioenschap" 
         intervals [8]:
-            xmin = 3.56 
-            xmax = 3.59 
+            xmin = 3.55 
+            xmax = 3.58 
             text = "" 
         intervals [9]:
-            xmin = 3.59 
+            xmin = 3.58 
             xmax = 4.24 
             text = "snooker" 
         intervals [10]:
@@ -92,14 +92,14 @@ item []:
             text = "f" 
         intervals [8]:
             xmin = 1.78 
-            xmax = 1.96 
+            xmax = 1.95 
             text = "t" 
         intervals [9]:
-            xmin = 1.96 
-            xmax = 2.02 
+            xmin = 1.95 
+            xmax = 2.03 
             text = "" 
         intervals [10]:
-            xmin = 2.02 
+            xmin = 2.03 
             xmax = 2.15 
             text = "h" 
         intervals [11]:
@@ -116,10 +116,10 @@ item []:
             text = "" 
         intervals [14]:
             xmin = 2.38 
-            xmax = 2.55 
+            xmax = 2.54 
             text = "ʋ" 
         intervals [15]:
-            xmin = 2.55 
+            xmin = 2.54 
             xmax = 2.6 
             text = "eː" 
         intervals [16]:
@@ -180,14 +180,14 @@ item []:
             text = "ɑ" 
         intervals [30]:
             xmin = 3.43 
-            xmax = 3.56 
+            xmax = 3.55 
             text = "p" 
         intervals [31]:
-            xmin = 3.56 
-            xmax = 3.59 
+            xmin = 3.55 
+            xmax = 3.58 
             text = "" 
         intervals [32]:
-            xmin = 3.59 
+            xmin = 3.58 
             xmax = 3.76 
             text = "s" 
         intervals [33]:
@@ -236,10 +236,10 @@ item []:
             text = "n" 
         intervals [44]:
             xmin = 4.62 
-            xmax = 4.65 
+            xmax = 4.66 
             text = "n" 
         intervals [45]:
-            xmin = 4.65 
+            xmin = 4.66 
             xmax = 4.69 
             text = "ɛ" 
         intervals [46]:

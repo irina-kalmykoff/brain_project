@@ -188,10 +188,10 @@ item []:
             text = "ɣ" 
         intervals [35]:
             xmin = 4.47 
-            xmax = 4.51 
+            xmax = 4.53 
             text = "eː" 
         intervals [36]:
-            xmin = 4.51 
+            xmin = 4.53 
             xmax = 4.61 
             text = "m" 
         intervals [37]:

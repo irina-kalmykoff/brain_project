@@ -54,18 +54,18 @@ item []:
             text = "heel" 
         intervals [11]:
             xmin = 2.85 
-            xmax = 3.37 
+            xmax = 3.36 
             text = "aardige" 
         intervals [12]:
-            xmin = 3.37 
-            xmax = 3.4 
+            xmin = 3.36 
+            xmax = 3.39 
             text = "" 
         intervals [13]:
-            xmin = 3.4 
-            xmax = 3.98 
+            xmin = 3.39 
+            xmax = 4.05 
             text = "verpleger" 
         intervals [14]:
-            xmin = 3.98 
+            xmin = 4.05 
             xmax = 4.49 
             text = "" 
         intervals [15]:
@@ -224,14 +224,14 @@ item []:
             text = "ɣ" 
         intervals [36]:
             xmin = 3.25 
-            xmax = 3.37 
+            xmax = 3.36 
             text = "eː" 
         intervals [37]:
-            xmin = 3.37 
-            xmax = 3.4 
+            xmin = 3.36 
+            xmax = 3.39 
             text = "" 
         intervals [38]:
-            xmin = 3.4 
+            xmin = 3.39 
             xmax = 3.51 
             text = "v" 
         intervals [39]:
@@ -256,18 +256,18 @@ item []:
             text = "eː" 
         intervals [44]:
             xmin = 3.83 
-            xmax = 3.92 
+            xmax = 3.96 
             text = "ɣ" 
         intervals [45]:
-            xmin = 3.92 
-            xmax = 3.95 
+            xmin = 3.96 
+            xmax = 4.0 
             text = "ɛ" 
         intervals [46]:
-            xmin = 3.95 
-            xmax = 3.98 
+            xmin = 4.0 
+            xmax = 4.05 
             text = "r" 
         intervals [47]:
-            xmin = 3.98 
+            xmin = 4.05 
             xmax = 4.49 
             text = "" 
         intervals [48]:

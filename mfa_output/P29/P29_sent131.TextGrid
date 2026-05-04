@@ -38,10 +38,10 @@ item []:
             text = "sigaret" 
         intervals [7]:
             xmin = 2.99 
-            xmax = 3.11 
+            xmax = 3.1 
             text = "" 
         intervals [8]:
-            xmin = 3.11 
+            xmin = 3.1 
             xmax = 3.44 
             text = "en" 
         intervals [9]:
@@ -70,10 +70,10 @@ item []:
             text = "haar" 
         intervals [15]:
             xmin = 5.12 
-            xmax = 5.46 
+            xmax = 5.47 
             text = "mond" 
         intervals [16]:
-            xmin = 5.46 
+            xmin = 5.47 
             xmax = 5.588875 
             text = "" 
     item [2]:
@@ -116,10 +116,10 @@ item []:
             text = "p" 
         intervals [9]:
             xmin = 1.61 
-            xmax = 1.66 
+            xmax = 1.67 
             text = "ɑ" 
         intervals [10]:
-            xmin = 1.66 
+            xmin = 1.67 
             xmax = 1.75 
             text = "k" 
         intervals [11]:
@@ -172,10 +172,10 @@ item []:
             text = "t" 
         intervals [23]:
             xmin = 2.99 
-            xmax = 3.11 
+            xmax = 3.1 
             text = "" 
         intervals [24]:
-            xmin = 3.11 
+            xmin = 3.1 
             xmax = 3.25 
             text = "ɛ" 
         intervals [25]:
@@ -196,10 +196,10 @@ item []:
             text = "l" 
         intervals [29]:
             xmin = 4.11 
-            xmax = 4.22 
+            xmax = 4.21 
             text = "aː" 
         intervals [30]:
-            xmin = 4.22 
+            xmin = 4.21 
             xmax = 4.28 
             text = "t" 
         intervals [31]:
@@ -264,9 +264,9 @@ item []:
             text = "n" 
         intervals [46]:
             xmin = 5.33 
-            xmax = 5.46 
+            xmax = 5.47 
             text = "t" 
         intervals [47]:
-            xmin = 5.46 
+            xmin = 5.47 
             xmax = 5.588875 
             text = "" 

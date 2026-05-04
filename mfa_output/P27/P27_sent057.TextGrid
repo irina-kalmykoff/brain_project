@@ -42,14 +42,14 @@ item []:
             text = "je" 
         intervals [8]:
             xmin = 2.45 
-            xmax = 2.81 
+            xmax = 2.83 
             text = "enkel" 
         intervals [9]:
-            xmin = 2.81 
-            xmax = 2.98 
+            xmin = 2.83 
+            xmax = 2.97 
             text = "op" 
         intervals [10]:
-            xmin = 2.98 
+            xmin = 2.97 
             xmax = 3.44 
             text = "jezelf" 
         intervals [11]:
@@ -108,10 +108,10 @@ item []:
             text = "ʋ" 
         intervals [11]:
             xmin = 1.95 
-            xmax = 2.02 
+            xmax = 2.03 
             text = "ɑ" 
         intervals [12]:
-            xmin = 2.02 
+            xmin = 2.03 
             xmax = 2.13 
             text = "w" 
         intervals [13]:
@@ -144,10 +144,10 @@ item []:
             text = "ɛ" 
         intervals [20]:
             xmin = 2.56 
-            xmax = 2.65 
+            xmax = 2.66 
             text = "n" 
         intervals [21]:
-            xmin = 2.65 
+            xmin = 2.66 
             xmax = 2.7 
             text = "k" 
         intervals [22]:
@@ -156,18 +156,18 @@ item []:
             text = "ɛ" 
         intervals [23]:
             xmin = 2.75 
-            xmax = 2.81 
+            xmax = 2.83 
             text = "l" 
         intervals [24]:
-            xmin = 2.81 
+            xmin = 2.83 
             xmax = 2.88 
             text = "ɔ" 
         intervals [25]:
             xmin = 2.88 
-            xmax = 2.98 
+            xmax = 2.97 
             text = "p" 
         intervals [26]:
-            xmin = 2.98 
+            xmin = 2.97 
             xmax = 3.01 
             text = "j" 
         intervals [27]:

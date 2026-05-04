@@ -30,18 +30,18 @@ item []:
             text = "dertig" 
         intervals [5]:
             xmin = 2.17 
-            xmax = 2.81 
+            xmax = 2.8 
             text = "seconden" 
         intervals [6]:
-            xmin = 2.81 
-            xmax = 3.57 
+            xmin = 2.8 
+            xmax = 2.99 
             text = "" 
         intervals [7]:
-            xmin = 3.57 
-            xmax = 3.6 
+            xmin = 2.99 
+            xmax = 4.14 
             text = "terugspoelen" 
         intervals [8]:
-            xmin = 3.6 
+            xmin = 4.14 
             xmax = 4.805688 
             text = "" 
     item [2]:
@@ -49,7 +49,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 4.805688 
-        intervals: size = 21 
+        intervals: size = 34 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.53 
@@ -92,10 +92,10 @@ item []:
             text = "t" 
         intervals [11]:
             xmin = 2.04 
-            xmax = 2.1 
+            xmax = 2.09 
             text = "ɪ" 
         intervals [12]:
-            xmin = 2.1 
+            xmin = 2.09 
             xmax = 2.17 
             text = "x" 
         intervals [13]:
@@ -128,9 +128,61 @@ item []:
             text = "ɛ" 
         intervals [20]:
             xmin = 2.68 
-            xmax = 2.81 
+            xmax = 2.8 
             text = "n" 
         intervals [21]:
-            xmin = 2.81 
+            xmin = 2.8 
+            xmax = 2.99 
+            text = "" 
+        intervals [22]:
+            xmin = 2.99 
+            xmax = 3.05 
+            text = "t" 
+        intervals [23]:
+            xmin = 3.05 
+            xmax = 3.08 
+            text = "eː" 
+        intervals [24]:
+            xmin = 3.08 
+            xmax = 3.11 
+            text = "r" 
+        intervals [25]:
+            xmin = 3.11 
+            xmax = 3.16 
+            text = "ʏ" 
+        intervals [26]:
+            xmin = 3.16 
+            xmax = 3.22 
+            text = "x" 
+        intervals [27]:
+            xmin = 3.22 
+            xmax = 3.32 
+            text = "s" 
+        intervals [28]:
+            xmin = 3.32 
+            xmax = 3.79 
+            text = "p" 
+        intervals [29]:
+            xmin = 3.79 
+            xmax = 3.87 
+            text = "uː" 
+        intervals [30]:
+            xmin = 3.87 
+            xmax = 3.93 
+            text = "ɛ" 
+        intervals [31]:
+            xmin = 3.93 
+            xmax = 3.96 
+            text = "l" 
+        intervals [32]:
+            xmin = 3.96 
+            xmax = 4.06 
+            text = "ɛ" 
+        intervals [33]:
+            xmin = 4.06 
+            xmax = 4.14 
+            text = "n" 
+        intervals [34]:
+            xmin = 4.14 
             xmax = 4.805688 
             text = "" 

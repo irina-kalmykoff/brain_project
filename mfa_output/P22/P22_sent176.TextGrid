@@ -38,10 +38,10 @@ item []:
             text = "zonet" 
         intervals [7]:
             xmin = 3.31 
-            xmax = 4.07 
+            xmax = 4.04 
             text = "groen" 
         intervals [8]:
-            xmin = 4.07 
+            xmin = 4.04 
             xmax = 4.13 
             text = "" 
         intervals [9]:
@@ -68,10 +68,10 @@ item []:
             text = "h" 
         intervals [3]:
             xmin = 1.19 
-            xmax = 1.23 
+            xmax = 1.24 
             text = "ɛ" 
         intervals [4]:
-            xmin = 1.23 
+            xmin = 1.24 
             xmax = 1.39 
             text = "t" 
         intervals [5]:
@@ -152,10 +152,10 @@ item []:
             text = "oː" 
         intervals [24]:
             xmin = 3.02 
-            xmax = 3.13 
+            xmax = 3.12 
             text = "n" 
         intervals [25]:
-            xmin = 3.13 
+            xmin = 3.12 
             xmax = 3.22 
             text = "ɛ" 
         intervals [26]:
@@ -176,10 +176,10 @@ item []:
             text = "uː" 
         intervals [30]:
             xmin = 3.87 
-            xmax = 4.07 
+            xmax = 4.04 
             text = "n" 
         intervals [31]:
-            xmin = 4.07 
+            xmin = 4.04 
             xmax = 4.13 
             text = "" 
         intervals [32]:

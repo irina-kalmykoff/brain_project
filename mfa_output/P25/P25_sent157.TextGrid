@@ -14,14 +14,14 @@ item []:
         intervals: size = 10 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.63 
+            xmax = 0.62 
             text = "" 
         intervals [2]:
-            xmin = 0.63 
-            xmax = 0.79 
+            xmin = 0.62 
+            xmax = 0.81 
             text = "hij" 
         intervals [3]:
-            xmin = 0.79 
+            xmin = 0.81 
             xmax = 1.15 
             text = "kreeg" 
         intervals [4]:
@@ -46,10 +46,10 @@ item []:
             text = "de" 
         intervals [9]:
             xmin = 2.29 
-            xmax = 2.79 
+            xmax = 2.8 
             text = "hangbrug" 
         intervals [10]:
-            xmin = 2.79 
+            xmin = 2.8 
             xmax = 4.002 
             text = "" 
     item [2]:
@@ -60,10 +60,10 @@ item []:
         intervals: size = 37 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.63 
+            xmax = 0.62 
             text = "" 
         intervals [2]:
-            xmin = 0.63 
+            xmin = 0.62 
             xmax = 0.7 
             text = "h" 
         intervals [3]:
@@ -72,10 +72,10 @@ item []:
             text = "ɛ" 
         intervals [4]:
             xmin = 0.74 
-            xmax = 0.79 
+            xmax = 0.81 
             text = "j" 
         intervals [5]:
-            xmin = 0.79 
+            xmin = 0.81 
             xmax = 0.88 
             text = "k" 
         intervals [6]:
@@ -200,9 +200,9 @@ item []:
             text = "ʏ" 
         intervals [36]:
             xmin = 2.69 
-            xmax = 2.79 
+            xmax = 2.8 
             text = "x" 
         intervals [37]:
-            xmin = 2.79 
+            xmin = 2.8 
             xmax = 4.002 
             text = "" 

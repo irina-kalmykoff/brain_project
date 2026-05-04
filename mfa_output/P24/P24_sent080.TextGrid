@@ -136,10 +136,10 @@ item []:
             text = "ʏ" 
         intervals [18]:
             xmin = 2.56 
-            xmax = 2.64 
+            xmax = 2.63 
             text = "j" 
         intervals [19]:
-            xmin = 2.64 
+            xmin = 2.63 
             xmax = 2.7 
             text = "iː" 
         intervals [20]:

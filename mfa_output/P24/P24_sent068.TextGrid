@@ -80,10 +80,10 @@ item []:
             text = "b" 
         intervals [6]:
             xmin = 1.4 
-            xmax = 1.44 
+            xmax = 1.43 
             text = "ɛ" 
         intervals [7]:
-            xmin = 1.44 
+            xmin = 1.43 
             xmax = 1.49 
             text = "n" 
         intervals [8]:
@@ -176,10 +176,10 @@ item []:
             text = "eː" 
         intervals [30]:
             xmin = 3.31 
-            xmax = 3.42 
+            xmax = 3.41 
             text = "k" 
         intervals [31]:
-            xmin = 3.42 
+            xmin = 3.41 
             xmax = 3.52 
             text = "ɔ" 
         intervals [32]:

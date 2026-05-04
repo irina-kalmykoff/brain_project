@@ -54,10 +54,10 @@ item []:
             text = "" 
         intervals [11]:
             xmin = 4.12 
-            xmax = 4.93 
+            xmax = 5.02 
             text = "inbraken" 
         intervals [12]:
-            xmin = 4.93 
+            xmin = 5.02 
             xmax = 6.46 
             text = "geteisterd" 
         intervals [13]:
@@ -176,10 +176,10 @@ item []:
             text = "d" 
         intervals [27]:
             xmin = 2.99 
-            xmax = 3.03 
+            xmax = 3.04 
             text = "oː" 
         intervals [28]:
-            xmin = 3.03 
+            xmin = 3.04 
             xmax = 3.2 
             text = "r" 
         intervals [29]:
@@ -204,10 +204,10 @@ item []:
             text = "r" 
         intervals [34]:
             xmin = 4.65 
-            xmax = 4.77 
+            xmax = 4.76 
             text = "aː" 
         intervals [35]:
-            xmin = 4.77 
+            xmin = 4.76 
             xmax = 4.83 
             text = "k" 
         intervals [36]:
@@ -216,22 +216,22 @@ item []:
             text = "ɛ" 
         intervals [37]:
             xmin = 4.9 
-            xmax = 4.93 
+            xmax = 5.02 
             text = "n" 
         intervals [38]:
-            xmin = 4.93 
-            xmax = 4.96 
+            xmin = 5.02 
+            xmax = 5.05 
             text = "ɣ" 
         intervals [39]:
-            xmin = 4.96 
-            xmax = 5.03 
+            xmin = 5.05 
+            xmax = 5.09 
             text = "eː" 
         intervals [40]:
-            xmin = 5.03 
-            xmax = 5.06 
+            xmin = 5.09 
+            xmax = 5.12 
             text = "t" 
         intervals [41]:
-            xmin = 5.06 
+            xmin = 5.12 
             xmax = 5.18 
             text = "ɛ" 
         intervals [42]:

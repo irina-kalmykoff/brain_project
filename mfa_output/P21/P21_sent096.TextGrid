@@ -64,10 +64,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.96 
-            xmax = 1.06 
+            xmax = 1.05 
             text = "ɪ" 
         intervals [3]:
-            xmin = 1.06 
+            xmin = 1.05 
             xmax = 1.16 
             text = "k" 
         intervals [4]:
@@ -116,10 +116,10 @@ item []:
             text = "n" 
         intervals [15]:
             xmin = 1.96 
-            xmax = 2.03 
+            xmax = 2.02 
             text = "ɔ" 
         intervals [16]:
-            xmin = 2.03 
+            xmin = 2.02 
             xmax = 2.11 
             text = "p" 
         intervals [17]:

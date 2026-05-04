@@ -30,10 +30,10 @@ item []:
             text = "keelpijn" 
         intervals [5]:
             xmin = 1.63 
-            xmax = 1.84 
+            xmax = 1.83 
             text = "deed" 
         intervals [6]:
-            xmin = 1.84 
+            xmin = 1.83 
             xmax = 2.16 
             text = "slikken" 
         intervals [7]:
@@ -116,10 +116,10 @@ item []:
             text = "eː" 
         intervals [16]:
             xmin = 1.76 
-            xmax = 1.84 
+            xmax = 1.83 
             text = "t" 
         intervals [17]:
-            xmin = 1.84 
+            xmin = 1.83 
             xmax = 1.88 
             text = "s" 
         intervals [18]:
@@ -148,10 +148,10 @@ item []:
             text = "n" 
         intervals [24]:
             xmin = 2.16 
-            xmax = 2.21 
+            xmax = 2.2 
             text = "v" 
         intervals [25]:
-            xmin = 2.21 
+            xmin = 2.2 
             xmax = 2.31 
             text = "eː" 
         intervals [26]:

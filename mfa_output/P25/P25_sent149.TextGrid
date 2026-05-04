@@ -26,10 +26,10 @@ item []:
             text = "ben" 
         intervals [4]:
             xmin = 0.91 
-            xmax = 1.01 
+            xmax = 1.0 
             text = "het" 
         intervals [5]:
-            xmin = 1.01 
+            xmin = 1.0 
             xmax = 1.35 
             text = "grootste" 
         intervals [6]:
@@ -50,10 +50,10 @@ item []:
             text = "niet" 
         intervals [10]:
             xmin = 2.17 
-            xmax = 2.6 
+            xmax = 2.61 
             text = "thuis" 
         intervals [11]:
-            xmin = 2.6 
+            xmin = 2.61 
             xmax = 4.005875 
             text = "" 
     item [2]:
@@ -96,10 +96,10 @@ item []:
             text = "ɛ" 
         intervals [9]:
             xmin = 0.97 
-            xmax = 1.01 
+            xmax = 1.0 
             text = "t" 
         intervals [10]:
-            xmin = 1.01 
+            xmin = 1.0 
             xmax = 1.05 
             text = "x" 
         intervals [11]:
@@ -132,10 +132,10 @@ item []:
             text = "d" 
         intervals [18]:
             xmin = 1.39 
-            xmax = 1.45 
+            xmax = 1.44 
             text = "eː" 
         intervals [19]:
-            xmin = 1.45 
+            xmin = 1.44 
             xmax = 1.56 
             text = "l" 
         intervals [20]:
@@ -192,9 +192,9 @@ item []:
             text = "ɥ" 
         intervals [33]:
             xmin = 2.39 
-            xmax = 2.6 
+            xmax = 2.61 
             text = "s" 
         intervals [34]:
-            xmin = 2.6 
+            xmin = 2.61 
             xmax = 4.005875 
             text = "" 

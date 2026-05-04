@@ -42,10 +42,10 @@ item []:
             text = "waren" 
         intervals [8]:
             xmin = 5.05 
-            xmax = 5.31 
+            xmax = 5.32 
             text = "er" 
         intervals [9]:
-            xmin = 5.31 
+            xmin = 5.32 
             xmax = 5.36 
             text = "" 
         intervals [10]:
@@ -108,10 +108,10 @@ item []:
             text = "ɛ" 
         intervals [8]:
             xmin = 3.34 
-            xmax = 3.39 
+            xmax = 3.38 
             text = "r" 
         intervals [9]:
-            xmin = 3.39 
+            xmin = 3.38 
             xmax = 3.47 
             text = "s" 
         intervals [10]:
@@ -168,14 +168,14 @@ item []:
             text = "n" 
         intervals [23]:
             xmin = 5.05 
-            xmax = 5.22 
+            xmax = 5.23 
             text = "ɛ" 
         intervals [24]:
-            xmin = 5.22 
-            xmax = 5.31 
+            xmin = 5.23 
+            xmax = 5.32 
             text = "r" 
         intervals [25]:
-            xmin = 5.31 
+            xmin = 5.32 
             xmax = 5.36 
             text = "" 
         intervals [26]:

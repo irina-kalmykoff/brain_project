@@ -112,10 +112,10 @@ item []:
             text = "ɣ" 
         intervals [12]:
             xmin = 5.18 
-            xmax = 5.29 
+            xmax = 5.3 
             text = "aː" 
         intervals [13]:
-            xmin = 5.29 
+            xmin = 5.3 
             xmax = 5.44 
             text = "n" 
         intervals [14]:

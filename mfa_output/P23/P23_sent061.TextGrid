@@ -38,22 +38,22 @@ item []:
             text = "van" 
         intervals [7]:
             xmin = 3.63 
-            xmax = 3.8 
+            xmax = 3.78 
             text = "" 
         intervals [8]:
-            xmin = 3.8 
+            xmin = 3.78 
             xmax = 4.37 
             text = "philips" 
         intervals [9]:
             xmin = 4.37 
-            xmax = 4.69 
+            xmax = 4.86 
             text = "hue" 
         intervals [10]:
-            xmin = 4.69 
-            xmax = 5.46 
+            xmin = 4.86 
+            xmax = 4.99 
             text = "" 
         intervals [11]:
-            xmin = 5.46 
+            xmin = 4.99 
             xmax = 6.42 
             text = "gekocht" 
         intervals [12]:
@@ -152,10 +152,10 @@ item []:
             text = "n" 
         intervals [22]:
             xmin = 3.63 
-            xmax = 3.8 
+            xmax = 3.78 
             text = "" 
         intervals [23]:
-            xmin = 3.8 
+            xmin = 3.78 
             xmax = 4.01 
             text = "f" 
         intervals [24]:
@@ -180,42 +180,42 @@ item []:
             text = "s" 
         intervals [29]:
             xmin = 4.37 
-            xmax = 4.4 
+            xmax = 4.41 
             text = "h" 
         intervals [30]:
-            xmin = 4.4 
+            xmin = 4.41 
             xmax = 4.46 
             text = "ʏ" 
         intervals [31]:
             xmin = 4.46 
-            xmax = 4.69 
+            xmax = 4.86 
             text = "eː" 
         intervals [32]:
-            xmin = 4.69 
-            xmax = 5.46 
+            xmin = 4.86 
+            xmax = 4.99 
             text = "" 
         intervals [33]:
-            xmin = 5.46 
-            xmax = 5.49 
+            xmin = 4.99 
+            xmax = 5.02 
             text = "ɣ" 
         intervals [34]:
-            xmin = 5.49 
-            xmax = 5.69 
+            xmin = 5.02 
+            xmax = 5.11 
             text = "eː" 
         intervals [35]:
-            xmin = 5.69 
-            xmax = 6.0 
+            xmin = 5.11 
+            xmax = 5.49 
             text = "k" 
         intervals [36]:
-            xmin = 6.0 
-            xmax = 6.13 
+            xmin = 5.49 
+            xmax = 5.69 
             text = "ɔ" 
         intervals [37]:
-            xmin = 6.13 
-            xmax = 6.24 
+            xmin = 5.69 
+            xmax = 6.25 
             text = "x" 
         intervals [38]:
-            xmin = 6.24 
+            xmin = 6.25 
             xmax = 6.42 
             text = "t" 
         intervals [39]:

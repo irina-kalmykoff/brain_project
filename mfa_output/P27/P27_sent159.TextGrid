@@ -58,10 +58,10 @@ item []:
             text = "een" 
         intervals [12]:
             xmin = 3.86 
-            xmax = 4.66 
+            xmax = 4.67 
             text = "vacuüm" 
         intervals [13]:
-            xmin = 4.66 
+            xmin = 4.67 
             xmax = 5.182625 
             text = "" 
     item [2]:
@@ -144,10 +144,10 @@ item []:
             text = "n" 
         intervals [19]:
             xmin = 2.39 
-            xmax = 2.47 
+            xmax = 2.46 
             text = "yː" 
         intervals [20]:
-            xmin = 2.47 
+            xmin = 2.46 
             xmax = 2.53 
             text = "t" 
         intervals [21]:
@@ -224,17 +224,17 @@ item []:
             text = "ɑ" 
         intervals [39]:
             xmin = 4.09 
-            xmax = 4.22 
+            xmax = 4.23 
             text = "c" 
         intervals [40]:
-            xmin = 4.22 
+            xmin = 4.23 
             xmax = 4.37 
             text = "yː" 
         intervals [41]:
             xmin = 4.37 
-            xmax = 4.66 
+            xmax = 4.67 
             text = "m" 
         intervals [42]:
-            xmin = 4.66 
+            xmin = 4.67 
             xmax = 5.182625 
             text = "" 

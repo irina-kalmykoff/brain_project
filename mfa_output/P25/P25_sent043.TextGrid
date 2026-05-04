@@ -34,10 +34,10 @@ item []:
             text = "kwam" 
         intervals [6]:
             xmin = 1.75 
-            xmax = 1.83 
+            xmax = 1.82 
             text = "ik" 
         intervals [7]:
-            xmin = 1.83 
+            xmin = 1.82 
             xmax = 1.91 
             text = "een" 
         intervals [8]:
@@ -156,10 +156,10 @@ item []:
             text = "ɪ" 
         intervals [23]:
             xmin = 1.78 
-            xmax = 1.83 
+            xmax = 1.82 
             text = "k" 
         intervals [24]:
-            xmin = 1.83 
+            xmin = 1.82 
             xmax = 1.86 
             text = "eː" 
         intervals [25]:
@@ -244,10 +244,10 @@ item []:
             text = "t" 
         intervals [45]:
             xmin = 2.98 
-            xmax = 3.08 
+            xmax = 3.13 
             text = "eː" 
         intervals [46]:
-            xmin = 3.08 
+            xmin = 3.13 
             xmax = 3.16 
             text = "ɣ" 
         intervals [47]:

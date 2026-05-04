@@ -34,18 +34,18 @@ item []:
             text = "zachtjes" 
         intervals [6]:
             xmin = 2.81 
-            xmax = 2.95 
+            xmax = 2.94 
             text = "op" 
         intervals [7]:
-            xmin = 2.95 
+            xmin = 2.94 
             xmax = 3.01 
             text = "de" 
         intervals [8]:
             xmin = 3.01 
-            xmax = 3.89 
+            xmax = 3.88 
             text = "achtergrond" 
         intervals [9]:
-            xmin = 3.89 
+            xmin = 3.88 
             xmax = 4.399438 
             text = "" 
     item [2]:
@@ -88,10 +88,10 @@ item []:
             text = "r" 
         intervals [9]:
             xmin = 1.9 
-            xmax = 1.93 
+            xmax = 1.94 
             text = "p" 
         intervals [10]:
-            xmin = 1.93 
+            xmin = 1.94 
             xmax = 1.99 
             text = "r" 
         intervals [11]:
@@ -132,10 +132,10 @@ item []:
             text = "j" 
         intervals [20]:
             xmin = 2.66 
-            xmax = 2.71 
+            xmax = 2.7 
             text = "ɛ" 
         intervals [21]:
-            xmin = 2.71 
+            xmin = 2.7 
             xmax = 2.81 
             text = "s" 
         intervals [22]:
@@ -144,10 +144,10 @@ item []:
             text = "ɔ" 
         intervals [23]:
             xmin = 2.89 
-            xmax = 2.95 
+            xmax = 2.94 
             text = "p" 
         intervals [24]:
-            xmin = 2.95 
+            xmin = 2.94 
             xmax = 2.98 
             text = "d" 
         intervals [25]:
@@ -192,9 +192,9 @@ item []:
             text = "n" 
         intervals [35]:
             xmin = 3.71 
-            xmax = 3.89 
+            xmax = 3.88 
             text = "t" 
         intervals [36]:
-            xmin = 3.89 
+            xmin = 3.88 
             xmax = 4.399438 
             text = "" 

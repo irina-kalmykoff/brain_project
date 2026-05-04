@@ -26,10 +26,10 @@ item []:
             text = "moet" 
         intervals [4]:
             xmin = 1.58 
-            xmax = 1.72 
+            xmax = 1.73 
             text = "nog" 
         intervals [5]:
-            xmin = 1.72 
+            xmin = 1.73 
             xmax = 2.19 
             text = "boodschappen" 
         intervals [6]:
@@ -38,10 +38,10 @@ item []:
             text = "doen" 
         intervals [7]:
             xmin = 2.37 
-            xmax = 3.14 
+            xmax = 3.13 
             text = "vanavond" 
         intervals [8]:
-            xmin = 3.14 
+            xmin = 3.13 
             xmax = 3.710938 
             text = "" 
     item [2]:
@@ -84,10 +84,10 @@ item []:
             text = "ɔ" 
         intervals [9]:
             xmin = 1.67 
-            xmax = 1.72 
+            xmax = 1.73 
             text = "x" 
         intervals [10]:
-            xmin = 1.72 
+            xmin = 1.73 
             xmax = 1.78 
             text = "b" 
         intervals [11]:
@@ -168,9 +168,9 @@ item []:
             text = "n" 
         intervals [30]:
             xmin = 2.93 
-            xmax = 3.14 
+            xmax = 3.13 
             text = "t" 
         intervals [31]:
-            xmin = 3.14 
+            xmin = 3.13 
             xmax = 3.710938 
             text = "" 

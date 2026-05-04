@@ -22,10 +22,10 @@ item []:
             text = "ze" 
         intervals [3]:
             xmin = 1.45 
-            xmax = 1.86 
+            xmax = 1.87 
             text = "moet" 
         intervals [4]:
-            xmin = 1.86 
+            xmin = 1.87 
             xmax = 2.22 
             text = "" 
         intervals [5]:
@@ -72,18 +72,18 @@ item []:
             text = "eː" 
         intervals [4]:
             xmin = 1.45 
-            xmax = 1.56 
+            xmax = 1.57 
             text = "m" 
         intervals [5]:
-            xmin = 1.56 
-            xmax = 1.66 
+            xmin = 1.57 
+            xmax = 1.65 
             text = "uː" 
         intervals [6]:
-            xmin = 1.66 
-            xmax = 1.86 
+            xmin = 1.65 
+            xmax = 1.87 
             text = "t" 
         intervals [7]:
-            xmin = 1.86 
+            xmin = 1.87 
             xmax = 2.22 
             text = "" 
         intervals [8]:

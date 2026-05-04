@@ -369,7 +369,7 @@ def split_by_sentence(full_dataset,
 
 
 if 'pipeline' not in dir():
-    print("\n  ⚠ `pipeline` not found in scope. Build it first via run_path_b.")
+    print("\n  WARNING: `pipeline` not found in scope. Build it first via run_path_b.")
 else:
     print("\n  Building joint dataset (audio MFCCs + iEEG features)...")
     full_ds = build_joint_dataset(pipeline, ALL_PIDS)

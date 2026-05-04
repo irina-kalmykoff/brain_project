@@ -30,14 +30,14 @@ item []:
             text = "van" 
         intervals [5]:
             xmin = 1.9 
-            xmax = 2.43 
+            xmax = 3.1 
             text = "de" 
         intervals [6]:
-            xmin = 2.43 
-            xmax = 2.52 
+            xmin = 3.1 
+            xmax = 3.13 
             text = "" 
         intervals [7]:
-            xmin = 2.52 
+            xmin = 3.13 
             xmax = 3.36 
             text = "nmbs" 
         intervals [8]:
@@ -112,18 +112,18 @@ item []:
             text = "d" 
         intervals [13]:
             xmin = 1.93 
-            xmax = 2.43 
+            xmax = 3.1 
             text = "eː" 
         intervals [14]:
-            xmin = 2.43 
-            xmax = 2.52 
+            xmin = 3.1 
+            xmax = 3.13 
             text = "" 
         intervals [15]:
-            xmin = 2.52 
-            xmax = 2.87 
+            xmin = 3.13 
+            xmax = 3.16 
             text = "n" 
         intervals [16]:
-            xmin = 2.87 
+            xmin = 3.16 
             xmax = 3.19 
             text = "m" 
         intervals [17]:
@@ -172,18 +172,18 @@ item []:
             text = "r" 
         intervals [28]:
             xmin = 3.9 
-            xmax = 3.94 
+            xmax = 3.95 
             text = "t" 
         intervals [29]:
-            xmin = 3.94 
+            xmin = 3.95 
             xmax = 4.02 
             text = "r" 
         intervals [30]:
             xmin = 4.02 
-            xmax = 4.26 
+            xmax = 4.27 
             text = "aː" 
         intervals [31]:
-            xmin = 4.26 
+            xmin = 4.27 
             xmax = 4.34 
             text = "ɣ" 
         intervals [32]:

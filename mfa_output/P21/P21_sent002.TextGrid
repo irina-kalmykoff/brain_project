@@ -26,34 +26,34 @@ item []:
             text = "de" 
         intervals [4]:
             xmin = 1.5 
-            xmax = 1.62 
+            xmax = 1.63 
             text = "" 
         intervals [5]:
-            xmin = 1.62 
-            xmax = 2.47 
+            xmin = 1.63 
+            xmax = 2.48 
             text = "straatnaam" 
         intervals [6]:
-            xmin = 2.47 
-            xmax = 2.61 
+            xmin = 2.48 
+            xmax = 2.6 
             text = "" 
         intervals [7]:
-            xmin = 2.61 
-            xmax = 3.73 
+            xmin = 2.6 
+            xmax = 2.9 
             text = "hier" 
         intervals [8]:
-            xmin = 3.73 
-            xmax = 3.95 
-            text = "" 
-        intervals [9]:
-            xmin = 3.95 
-            xmax = 3.998063 
+            xmin = 2.9 
+            xmax = 3.73 
             text = "bleumerstraat" 
+        intervals [9]:
+            xmin = 3.73 
+            xmax = 3.998063 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 3.998063 
-        intervals: size = 19 
+        intervals: size = 31 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.06 
@@ -76,10 +76,10 @@ item []:
             text = "eː" 
         intervals [6]:
             xmin = 1.5 
-            xmax = 1.62 
+            xmax = 1.63 
             text = "" 
         intervals [7]:
-            xmin = 1.62 
+            xmin = 1.63 
             xmax = 1.8 
             text = "s" 
         intervals [8]:
@@ -108,14 +108,14 @@ item []:
             text = "aː" 
         intervals [14]:
             xmin = 2.26 
-            xmax = 2.47 
+            xmax = 2.48 
             text = "m" 
         intervals [15]:
-            xmin = 2.47 
-            xmax = 2.61 
+            xmin = 2.48 
+            xmax = 2.6 
             text = "" 
         intervals [16]:
-            xmin = 2.61 
+            xmin = 2.6 
             xmax = 2.68 
             text = "h" 
         intervals [17]:
@@ -124,9 +124,57 @@ item []:
             text = "iː" 
         intervals [18]:
             xmin = 2.82 
-            xmax = 3.73 
+            xmax = 2.9 
             text = "r" 
         intervals [19]:
+            xmin = 2.9 
+            xmax = 3.04 
+            text = "p" 
+        intervals [20]:
+            xmin = 3.04 
+            xmax = 3.07 
+            text = "l" 
+        intervals [21]:
+            xmin = 3.07 
+            xmax = 3.1 
+            text = "øː" 
+        intervals [22]:
+            xmin = 3.1 
+            xmax = 3.13 
+            text = "ʏ" 
+        intervals [23]:
+            xmin = 3.13 
+            xmax = 3.16 
+            text = "m" 
+        intervals [24]:
+            xmin = 3.16 
+            xmax = 3.19 
+            text = "ɛ" 
+        intervals [25]:
+            xmin = 3.19 
+            xmax = 3.24 
+            text = "r" 
+        intervals [26]:
+            xmin = 3.24 
+            xmax = 3.29 
+            text = "s" 
+        intervals [27]:
+            xmin = 3.29 
+            xmax = 3.35 
+            text = "t" 
+        intervals [28]:
+            xmin = 3.35 
+            xmax = 3.4 
+            text = "r" 
+        intervals [29]:
+            xmin = 3.4 
+            xmax = 3.53 
+            text = "aː" 
+        intervals [30]:
+            xmin = 3.53 
+            xmax = 3.73 
+            text = "t" 
+        intervals [31]:
             xmin = 3.73 
             xmax = 3.998063 
             text = "" 

@@ -42,10 +42,10 @@ item []:
             text = "de" 
         intervals [8]:
             xmin = 4.84 
-            xmax = 5.21 
+            xmax = 5.2 
             text = "kinderen" 
         intervals [9]:
-            xmin = 5.21 
+            xmin = 5.2 
             xmax = 5.45 
             text = "gingen" 
         intervals [10]:
@@ -192,10 +192,10 @@ item []:
             text = "ɛ" 
         intervals [31]:
             xmin = 5.17 
-            xmax = 5.21 
+            xmax = 5.2 
             text = "n" 
         intervals [32]:
-            xmin = 5.21 
+            xmin = 5.2 
             xmax = 5.26 
             text = "ɣ" 
         intervals [33]:
@@ -248,10 +248,10 @@ item []:
             text = "x" 
         intervals [45]:
             xmin = 5.83 
-            xmax = 6.08 
+            xmax = 6.09 
             text = "oː" 
         intervals [46]:
-            xmin = 6.08 
+            xmin = 6.09 
             xmax = 6.18 
             text = "l" 
         intervals [47]:

@@ -46,10 +46,10 @@ item []:
             text = "" 
         intervals [9]:
             xmin = 3.52 
-            xmax = 4.29 
+            xmax = 4.28 
             text = "gehouden" 
         intervals [10]:
-            xmin = 4.29 
+            xmin = 4.28 
             xmax = 4.51 
             text = "" 
         intervals [11]:
@@ -58,10 +58,10 @@ item []:
             text = "om" 
         intervals [12]:
             xmin = 4.69 
-            xmax = 4.97 
+            xmax = 4.96 
             text = "het" 
         intervals [13]:
-            xmin = 4.97 
+            xmin = 4.96 
             xmax = 5.03 
             text = "" 
         intervals [14]:
@@ -140,10 +140,10 @@ item []:
             text = "n" 
         intervals [13]:
             xmin = 1.82 
-            xmax = 1.92 
+            xmax = 1.94 
             text = "ɛ" 
         intervals [14]:
-            xmin = 1.92 
+            xmin = 1.94 
             xmax = 2.07 
             text = "n" 
         intervals [15]:
@@ -168,10 +168,10 @@ item []:
             text = "d" 
         intervals [20]:
             xmin = 2.43 
-            xmax = 2.51 
+            xmax = 2.5 
             text = "ɛ" 
         intervals [21]:
-            xmin = 2.51 
+            xmin = 2.5 
             xmax = 2.58 
             text = "n" 
         intervals [22]:
@@ -236,10 +236,10 @@ item []:
             text = "ɛ" 
         intervals [37]:
             xmin = 4.15 
-            xmax = 4.29 
+            xmax = 4.28 
             text = "n" 
         intervals [38]:
-            xmin = 4.29 
+            xmin = 4.28 
             xmax = 4.51 
             text = "" 
         intervals [39]:
@@ -260,10 +260,10 @@ item []:
             text = "ɛ" 
         intervals [43]:
             xmin = 4.82 
-            xmax = 4.97 
+            xmax = 4.96 
             text = "t" 
         intervals [44]:
-            xmin = 4.97 
+            xmin = 4.96 
             xmax = 5.03 
             text = "" 
         intervals [45]:
@@ -316,10 +316,10 @@ item []:
             text = "t" 
         intervals [57]:
             xmin = 6.13 
-            xmax = 6.16 
+            xmax = 6.17 
             text = "ɛ" 
         intervals [58]:
-            xmin = 6.16 
+            xmin = 6.17 
             xmax = 6.28 
             text = "n" 
         intervals [59]:

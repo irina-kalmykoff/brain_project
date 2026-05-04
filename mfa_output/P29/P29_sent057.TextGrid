@@ -34,10 +34,10 @@ item []:
             text = "crisis" 
         intervals [6]:
             xmin = 2.67 
-            xmax = 2.74 
+            xmax = 2.73 
             text = "" 
         intervals [7]:
-            xmin = 2.74 
+            xmin = 2.73 
             xmax = 2.95 
             text = "kon" 
         intervals [8]:
@@ -70,10 +70,10 @@ item []:
             text = "amper" 
         intervals [15]:
             xmin = 4.94 
-            xmax = 5.53 
+            xmax = 5.52 
             text = "verkopen" 
         intervals [16]:
-            xmin = 5.53 
+            xmin = 5.52 
             xmax = 6.01275 
             text = "" 
     item [2]:
@@ -132,10 +132,10 @@ item []:
             text = "c" 
         intervals [13]:
             xmin = 2.15 
-            xmax = 2.21 
+            xmax = 2.22 
             text = "r" 
         intervals [14]:
-            xmin = 2.21 
+            xmin = 2.22 
             xmax = 2.3 
             text = "iː" 
         intervals [15]:
@@ -152,10 +152,10 @@ item []:
             text = "s" 
         intervals [18]:
             xmin = 2.67 
-            xmax = 2.74 
+            xmax = 2.73 
             text = "" 
         intervals [19]:
-            xmin = 2.74 
+            xmin = 2.73 
             xmax = 2.8 
             text = "k" 
         intervals [20]:
@@ -228,10 +228,10 @@ item []:
             text = "ɑ" 
         intervals [37]:
             xmin = 4.65 
-            xmax = 4.71 
+            xmax = 4.7 
             text = "m" 
         intervals [38]:
-            xmin = 4.71 
+            xmin = 4.7 
             xmax = 4.76 
             text = "p" 
         intervals [39]:
@@ -260,10 +260,10 @@ item []:
             text = "k" 
         intervals [45]:
             xmin = 5.16 
-            xmax = 5.29 
+            xmax = 5.31 
             text = "oː" 
         intervals [46]:
-            xmin = 5.29 
+            xmin = 5.31 
             xmax = 5.38 
             text = "p" 
         intervals [47]:
@@ -272,9 +272,9 @@ item []:
             text = "ɛ" 
         intervals [48]:
             xmin = 5.45 
-            xmax = 5.53 
+            xmax = 5.52 
             text = "n" 
         intervals [49]:
-            xmin = 5.53 
+            xmin = 5.52 
             xmax = 6.01275 
             text = "" 

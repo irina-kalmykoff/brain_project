@@ -38,22 +38,22 @@ item []:
             text = "naar" 
         intervals [7]:
             xmin = 2.17 
-            xmax = 2.98 
+            xmax = 2.25 
             text = "de" 
         intervals [8]:
-            xmin = 2.98 
-            xmax = 3.21 
-            text = "" 
-        intervals [9]:
-            xmin = 3.21 
-            xmax = 3.262688 
+            xmin = 2.25 
+            xmax = 2.97 
             text = "disco" 
+        intervals [9]:
+            xmin = 2.97 
+            xmax = 3.262688 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 3.262688 
-        intervals: size = 27 
+        intervals: size = 32 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.92 
@@ -68,10 +68,10 @@ item []:
             text = "p" 
         intervals [4]:
             xmin = 1.06 
-            xmax = 1.1 
+            xmax = 1.11 
             text = "v" 
         intervals [5]:
-            xmin = 1.1 
+            xmin = 1.11 
             xmax = 1.16 
             text = "r" 
         intervals [6]:
@@ -152,13 +152,33 @@ item []:
             text = "r" 
         intervals [25]:
             xmin = 2.17 
-            xmax = 2.21 
+            xmax = 2.22 
             text = "d" 
         intervals [26]:
-            xmin = 2.21 
-            xmax = 2.98 
+            xmin = 2.22 
+            xmax = 2.25 
             text = "eː" 
         intervals [27]:
-            xmin = 2.98 
+            xmin = 2.25 
+            xmax = 2.36 
+            text = "d" 
+        intervals [28]:
+            xmin = 2.36 
+            xmax = 2.48 
+            text = "ɪ" 
+        intervals [29]:
+            xmin = 2.48 
+            xmax = 2.63 
+            text = "s" 
+        intervals [30]:
+            xmin = 2.63 
+            xmax = 2.69 
+            text = "c" 
+        intervals [31]:
+            xmin = 2.69 
+            xmax = 2.97 
+            text = "oː" 
+        intervals [32]:
+            xmin = 2.97 
             xmax = 3.262688 
             text = "" 

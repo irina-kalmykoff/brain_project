@@ -22,10 +22,10 @@ item []:
             text = "hoeveel" 
         intervals [3]:
             xmin = 1.74 
-            xmax = 2.32 
+            xmax = 2.33 
             text = "verschillende" 
         intervals [4]:
-            xmin = 2.32 
+            xmin = 2.33 
             xmax = 2.78 
             text = "woorden" 
         intervals [5]:
@@ -124,10 +124,10 @@ item []:
             text = "d" 
         intervals [18]:
             xmin = 2.27 
-            xmax = 2.32 
+            xmax = 2.33 
             text = "eː" 
         intervals [19]:
-            xmin = 2.32 
+            xmin = 2.33 
             xmax = 2.42 
             text = "ʋ" 
         intervals [20]:
@@ -156,10 +156,10 @@ item []:
             text = "z" 
         intervals [26]:
             xmin = 2.86 
-            xmax = 2.91 
+            xmax = 2.92 
             text = "ɑ" 
         intervals [27]:
-            xmin = 2.91 
+            xmin = 2.92 
             xmax = 3.05 
             text = "w" 
         intervals [28]:

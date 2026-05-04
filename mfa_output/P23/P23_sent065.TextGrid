@@ -38,10 +38,10 @@ item []:
             text = "bij" 
         intervals [7]:
             xmin = 3.17 
-            xmax = 3.72 
+            xmax = 3.7 
             text = "elkaar" 
         intervals [8]:
-            xmin = 3.72 
+            xmin = 3.7 
             xmax = 10.002937 
             text = "" 
     item [2]:
@@ -156,9 +156,9 @@ item []:
             text = "aː" 
         intervals [27]:
             xmin = 3.4 
-            xmax = 3.72 
+            xmax = 3.7 
             text = "r" 
         intervals [28]:
-            xmin = 3.72 
+            xmin = 3.7 
             xmax = 10.002937 
             text = "" 

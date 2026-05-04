@@ -26,10 +26,10 @@ item []:
             text = "" 
         intervals [4]:
             xmin = 1.69 
-            xmax = 2.44 
+            xmax = 2.42 
             text = "topsnelheid" 
         intervals [5]:
-            xmin = 2.44 
+            xmin = 2.42 
             xmax = 2.83 
             text = "is" 
         intervals [6]:
@@ -54,10 +54,10 @@ item []:
             text = "per" 
         intervals [11]:
             xmin = 4.69 
-            xmax = 5.15 
+            xmax = 5.16 
             text = "uur" 
         intervals [12]:
-            xmin = 5.15 
+            xmin = 5.16 
             xmax = 10.003937 
             text = "" 
     item [2]:
@@ -124,10 +124,10 @@ item []:
             text = "j" 
         intervals [15]:
             xmin = 2.38 
-            xmax = 2.44 
+            xmax = 2.42 
             text = "t" 
         intervals [16]:
-            xmin = 2.44 
+            xmin = 2.42 
             xmax = 2.6 
             text = "ɪ" 
         intervals [17]:
@@ -256,9 +256,9 @@ item []:
             text = "yː" 
         intervals [48]:
             xmin = 4.96 
-            xmax = 5.15 
+            xmax = 5.16 
             text = "r" 
         intervals [49]:
-            xmin = 5.15 
+            xmin = 5.16 
             xmax = 10.003937 
             text = "" 

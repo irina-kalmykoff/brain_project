@@ -18,10 +18,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.88 
-            xmax = 1.08 
+            xmax = 1.07 
             text = "in" 
         intervals [3]:
-            xmin = 1.08 
+            xmin = 1.07 
             xmax = 1.66 
             text = "canada" 
         intervals [4]:
@@ -30,10 +30,10 @@ item []:
             text = "hebben" 
         intervals [5]:
             xmin = 1.98 
-            xmax = 2.06 
+            xmax = 2.07 
             text = "we" 
         intervals [6]:
-            xmin = 2.06 
+            xmin = 2.07 
             xmax = 2.96 
             text = "ijsberen" 
         intervals [7]:
@@ -60,18 +60,18 @@ item []:
             text = "ɪ" 
         intervals [3]:
             xmin = 0.95 
-            xmax = 1.08 
+            xmax = 1.07 
             text = "n" 
         intervals [4]:
-            xmin = 1.08 
+            xmin = 1.07 
             xmax = 1.15 
             text = "c" 
         intervals [5]:
             xmin = 1.15 
-            xmax = 1.24 
+            xmax = 1.25 
             text = "aː" 
         intervals [6]:
-            xmin = 1.24 
+            xmin = 1.25 
             xmax = 1.3 
             text = "n" 
         intervals [7]:
@@ -116,10 +116,10 @@ item []:
             text = "ʋ" 
         intervals [17]:
             xmin = 2.01 
-            xmax = 2.06 
+            xmax = 2.07 
             text = "eː" 
         intervals [18]:
-            xmin = 2.06 
+            xmin = 2.07 
             xmax = 2.19 
             text = "ɛ" 
         intervals [19]:

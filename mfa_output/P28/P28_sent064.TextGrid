@@ -11,7 +11,7 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 4.935562 
-        intervals: size = 11 
+        intervals: size = 10 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.91 
@@ -38,22 +38,18 @@ item []:
             text = "staat" 
         intervals [7]:
             xmin = 3.5 
-            xmax = 4.0 
+            xmax = 3.99 
             text = "eindelijk" 
         intervals [8]:
-            xmin = 4.0 
-            xmax = 4.4 
+            xmin = 3.99 
+            xmax = 4.09 
             text = "te" 
         intervals [9]:
-            xmin = 4.4 
-            xmax = 4.43 
-            text = "" 
-        intervals [10]:
-            xmin = 4.43 
-            xmax = 4.46 
+            xmin = 4.09 
+            xmax = 4.51 
             text = "koop" 
-        intervals [11]:
-            xmin = 4.46 
+        intervals [10]:
+            xmin = 4.51 
             xmax = 4.935562 
             text = "" 
     item [2]:
@@ -61,7 +57,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 4.935562 
-        intervals: size = 36 
+        intervals: size = 39 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.91 
@@ -72,10 +68,10 @@ item []:
             text = "d" 
         intervals [3]:
             xmin = 1.0 
-            xmax = 1.08 
+            xmax = 1.09 
             text = "ɑ" 
         intervals [4]:
-            xmin = 1.08 
+            xmin = 1.09 
             xmax = 1.21 
             text = "t" 
         intervals [5]:
@@ -168,18 +164,18 @@ item []:
             text = "j" 
         intervals [27]:
             xmin = 3.69 
-            xmax = 3.73 
+            xmax = 3.72 
             text = "n" 
         intervals [28]:
-            xmin = 3.73 
-            xmax = 3.76 
+            xmin = 3.72 
+            xmax = 3.75 
             text = "d" 
         intervals [29]:
-            xmin = 3.76 
-            xmax = 3.79 
+            xmin = 3.75 
+            xmax = 3.78 
             text = "eː" 
         intervals [30]:
-            xmin = 3.79 
+            xmin = 3.78 
             xmax = 3.84 
             text = "l" 
         intervals [31]:
@@ -188,21 +184,33 @@ item []:
             text = "ɛ" 
         intervals [32]:
             xmin = 3.88 
-            xmax = 3.93 
+            xmax = 3.92 
             text = "j" 
         intervals [33]:
-            xmin = 3.93 
-            xmax = 4.0 
+            xmin = 3.92 
+            xmax = 3.99 
             text = "k" 
         intervals [34]:
-            xmin = 4.0 
+            xmin = 3.99 
             xmax = 4.05 
             text = "t" 
         intervals [35]:
             xmin = 4.05 
-            xmax = 4.4 
+            xmax = 4.09 
             text = "eː" 
         intervals [36]:
+            xmin = 4.09 
+            xmax = 4.2 
+            text = "k" 
+        intervals [37]:
+            xmin = 4.2 
+            xmax = 4.4 
+            text = "oː" 
+        intervals [38]:
             xmin = 4.4 
+            xmax = 4.51 
+            text = "p" 
+        intervals [39]:
+            xmin = 4.51 
             xmax = 4.935562 
             text = "" 

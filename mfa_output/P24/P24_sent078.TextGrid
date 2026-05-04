@@ -140,14 +140,14 @@ item []:
             text = "t" 
         intervals [20]:
             xmin = 2.88 
-            xmax = 3.16 
+            xmax = 3.18 
             text = "ɔ" 
         intervals [21]:
-            xmin = 3.16 
-            xmax = 3.19 
+            xmin = 3.18 
+            xmax = 3.21 
             text = "r" 
         intervals [22]:
-            xmin = 3.19 
+            xmin = 3.21 
             xmax = 3.25 
             text = "ɛ" 
         intervals [23]:

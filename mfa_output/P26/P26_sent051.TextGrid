@@ -42,10 +42,10 @@ item []:
             text = "niet" 
         intervals [8]:
             xmin = 2.15 
-            xmax = 2.35 
+            xmax = 2.44 
             text = "zo" 
         intervals [9]:
-            xmin = 2.35 
+            xmin = 2.44 
             xmax = 2.75 
             text = "na" 
         intervals [10]:
@@ -120,10 +120,10 @@ item []:
             text = "n" 
         intervals [15]:
             xmin = 2.03 
-            xmax = 2.11 
+            xmax = 2.1 
             text = "iː" 
         intervals [16]:
-            xmin = 2.11 
+            xmin = 2.1 
             xmax = 2.15 
             text = "t" 
         intervals [17]:
@@ -132,10 +132,10 @@ item []:
             text = "z" 
         intervals [18]:
             xmin = 2.24 
-            xmax = 2.35 
+            xmax = 2.44 
             text = "oː" 
         intervals [19]:
-            xmin = 2.35 
+            xmin = 2.44 
             xmax = 2.5 
             text = "n" 
         intervals [20]:

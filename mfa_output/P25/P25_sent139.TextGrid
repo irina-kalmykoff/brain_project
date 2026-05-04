@@ -112,10 +112,10 @@ item []:
             text = "m" 
         intervals [14]:
             xmin = 1.42 
-            xmax = 1.46 
+            xmax = 1.45 
             text = "m" 
         intervals [15]:
-            xmin = 1.46 
+            xmin = 1.45 
             xmax = 1.49 
             text = "yː" 
         intervals [16]:
@@ -184,10 +184,10 @@ item []:
             text = "r" 
         intervals [32]:
             xmin = 2.38 
-            xmax = 2.57 
+            xmax = 2.56 
             text = "ɛ" 
         intervals [33]:
-            xmin = 2.57 
+            xmin = 2.56 
             xmax = 2.6 
             text = "n" 
         intervals [34]:
@@ -264,10 +264,10 @@ item []:
             text = "s" 
         intervals [52]:
             xmin = 3.62 
-            xmax = 3.72 
+            xmax = 3.73 
             text = "oː" 
         intervals [53]:
-            xmin = 3.72 
+            xmin = 3.73 
             xmax = 3.81 
             text = "n" 
         intervals [54]:

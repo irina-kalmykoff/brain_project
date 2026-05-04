@@ -38,22 +38,22 @@ item []:
             text = "" 
         intervals [7]:
             xmin = 2.42 
-            xmax = 3.73 
+            xmax = 3.01 
             text = "programma" 
         intervals [8]:
-            xmin = 3.73 
-            xmax = 4.95 
-            text = "" 
-        intervals [9]:
-            xmin = 4.95 
-            xmax = 5.003938 
+            xmin = 3.01 
+            xmax = 3.76 
             text = "hervatten" 
+        intervals [9]:
+            xmin = 3.76 
+            xmax = 5.003938 
+            text = "" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 5.003938 
-        intervals: size = 22 
+        intervals: size = 31 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.96 
@@ -116,10 +116,10 @@ item []:
             text = "ɔ" 
         intervals [16]:
             xmin = 2.6 
-            xmax = 2.67 
+            xmax = 2.68 
             text = "x" 
         intervals [17]:
-            xmin = 2.67 
+            xmin = 2.68 
             xmax = 2.72 
             text = "r" 
         intervals [18]:
@@ -136,9 +136,45 @@ item []:
             text = "m" 
         intervals [21]:
             xmin = 2.93 
-            xmax = 3.73 
+            xmax = 3.01 
             text = "aː" 
         intervals [22]:
-            xmin = 3.73 
+            xmin = 3.01 
+            xmax = 3.07 
+            text = "h" 
+        intervals [23]:
+            xmin = 3.07 
+            xmax = 3.2 
+            text = "ɛ" 
+        intervals [24]:
+            xmin = 3.2 
+            xmax = 3.26 
+            text = "r" 
+        intervals [25]:
+            xmin = 3.26 
+            xmax = 3.31 
+            text = "v" 
+        intervals [26]:
+            xmin = 3.31 
+            xmax = 3.43 
+            text = "ɑ" 
+        intervals [27]:
+            xmin = 3.43 
+            xmax = 3.47 
+            text = "t" 
+        intervals [28]:
+            xmin = 3.47 
+            xmax = 3.5 
+            text = "t" 
+        intervals [29]:
+            xmin = 3.5 
+            xmax = 3.55 
+            text = "ɛ" 
+        intervals [30]:
+            xmin = 3.55 
+            xmax = 3.76 
+            text = "n" 
+        intervals [31]:
+            xmin = 3.76 
             xmax = 5.003938 
             text = "" 

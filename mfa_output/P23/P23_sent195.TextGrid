@@ -18,10 +18,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.84 
-            xmax = 1.21 
+            xmax = 1.06 
             text = "ze" 
         intervals [3]:
-            xmin = 1.21 
+            xmin = 1.06 
             xmax = 2.13 
             text = "" 
         intervals [4]:
@@ -42,10 +42,10 @@ item []:
             text = "bekend" 
         intervals [8]:
             xmin = 3.48 
-            xmax = 4.32 
+            xmax = 4.3 
             text = "model" 
         intervals [9]:
-            xmin = 4.32 
+            xmin = 4.3 
             xmax = 10.005875 
             text = "" 
     item [2]:
@@ -64,10 +64,10 @@ item []:
             text = "z" 
         intervals [3]:
             xmin = 0.9 
-            xmax = 1.21 
+            xmax = 1.06 
             text = "eː" 
         intervals [4]:
-            xmin = 1.21 
+            xmin = 1.06 
             xmax = 2.13 
             text = "" 
         intervals [5]:
@@ -132,9 +132,9 @@ item []:
             text = "ɛ" 
         intervals [20]:
             xmin = 3.88 
-            xmax = 4.32 
+            xmax = 4.3 
             text = "l" 
         intervals [21]:
-            xmin = 4.32 
+            xmin = 4.3 
             xmax = 10.005875 
             text = "" 

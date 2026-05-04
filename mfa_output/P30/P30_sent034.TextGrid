@@ -60,14 +60,14 @@ item []:
             text = "ʋ" 
         intervals [3]:
             xmin = 1.55 
-            xmax = 1.69 
+            xmax = 1.68 
             text = "ɛ" 
         intervals [4]:
-            xmin = 1.69 
-            xmax = 1.77 
+            xmin = 1.68 
+            xmax = 1.79 
             text = "l" 
         intervals [5]:
-            xmin = 1.77 
+            xmin = 1.79 
             xmax = 1.87 
             text = "k" 
         intervals [6]:
@@ -84,10 +84,10 @@ item []:
             text = "r" 
         intervals [9]:
             xmin = 2.08 
-            xmax = 2.21 
+            xmax = 2.22 
             text = "ʏ" 
         intervals [10]:
-            xmin = 2.21 
+            xmin = 2.22 
             xmax = 2.43 
             text = "x" 
         intervals [11]:

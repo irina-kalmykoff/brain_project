@@ -116,10 +116,10 @@ item []:
             text = "ɛ" 
         intervals [14]:
             xmin = 2.45 
-            xmax = 2.51 
+            xmax = 2.52 
             text = "r" 
         intervals [15]:
-            xmin = 2.51 
+            xmin = 2.52 
             xmax = 2.68 
             text = "s" 
         intervals [16]:

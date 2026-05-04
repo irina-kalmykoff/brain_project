@@ -34,14 +34,14 @@ item []:
             text = "in" 
         intervals [6]:
             xmin = 1.77 
-            xmax = 1.84 
+            xmax = 1.87 
             text = "de" 
         intervals [7]:
-            xmin = 1.84 
-            xmax = 2.43 
+            xmin = 1.87 
+            xmax = 2.45 
             text = "verte" 
         intervals [8]:
-            xmin = 2.43 
+            xmin = 2.45 
             xmax = 4.003938 
             text = "" 
     item [2]:
@@ -100,10 +100,10 @@ item []:
             text = "ɑ" 
         intervals [13]:
             xmin = 1.5 
-            xmax = 1.57 
+            xmax = 1.58 
             text = "f" 
         intervals [14]:
-            xmin = 1.57 
+            xmin = 1.58 
             xmax = 1.62 
             text = "f" 
         intervals [15]:
@@ -128,10 +128,10 @@ item []:
             text = "d" 
         intervals [20]:
             xmin = 1.8 
-            xmax = 1.84 
+            xmax = 1.87 
             text = "eː" 
         intervals [21]:
-            xmin = 1.84 
+            xmin = 1.87 
             xmax = 1.92 
             text = "v" 
         intervals [22]:
@@ -148,9 +148,9 @@ item []:
             text = "t" 
         intervals [25]:
             xmin = 2.22 
-            xmax = 2.43 
+            xmax = 2.45 
             text = "eː" 
         intervals [26]:
-            xmin = 2.43 
+            xmin = 2.45 
             xmax = 4.003938 
             text = "" 

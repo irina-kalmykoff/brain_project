@@ -14,10 +14,10 @@ item []:
         intervals: size = 11 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.33 
+            xmax = 1.32 
             text = "" 
         intervals [2]:
-            xmin = 1.33 
+            xmin = 1.32 
             xmax = 1.71 
             text = "hij" 
         intervals [3]:
@@ -50,10 +50,10 @@ item []:
             text = "zijn" 
         intervals [10]:
             xmin = 3.7 
-            xmax = 5.66 
+            xmax = 5.7 
             text = "graf" 
         intervals [11]:
-            xmin = 5.66 
+            xmin = 5.7 
             xmax = 6.049812 
             text = "" 
     item [2]:
@@ -64,10 +64,10 @@ item []:
         intervals: size = 32 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.33 
+            xmax = 1.32 
             text = "" 
         intervals [2]:
-            xmin = 1.33 
+            xmin = 1.32 
             xmax = 1.37 
             text = "h" 
         intervals [3]:
@@ -136,10 +136,10 @@ item []:
             text = "j" 
         intervals [19]:
             xmin = 2.69 
-            xmax = 2.74 
+            xmax = 2.77 
             text = "ɛ" 
         intervals [20]:
-            xmin = 2.74 
+            xmin = 2.77 
             xmax = 2.83 
             text = "n" 
         intervals [21]:
@@ -172,21 +172,21 @@ item []:
             text = "n" 
         intervals [28]:
             xmin = 3.7 
-            xmax = 4.41 
+            xmax = 4.18 
             text = "x" 
         intervals [29]:
-            xmin = 4.41 
-            xmax = 4.48 
+            xmin = 4.18 
+            xmax = 4.23 
             text = "r" 
         intervals [30]:
-            xmin = 4.48 
+            xmin = 4.23 
             xmax = 5.5 
             text = "ɑ" 
         intervals [31]:
             xmin = 5.5 
-            xmax = 5.66 
+            xmax = 5.7 
             text = "f" 
         intervals [32]:
-            xmin = 5.66 
+            xmin = 5.7 
             xmax = 6.049812 
             text = "" 

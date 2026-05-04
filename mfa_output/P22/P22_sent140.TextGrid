@@ -14,10 +14,10 @@ item []:
         intervals: size = 10 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.9 
+            xmax = 0.89 
             text = "" 
         intervals [2]:
-            xmin = 0.9 
+            xmin = 0.89 
             xmax = 1.33 
             text = "tijdens" 
         intervals [3]:
@@ -46,10 +46,10 @@ item []:
             text = "winkels" 
         intervals [9]:
             xmin = 3.96 
-            xmax = 4.57 
+            xmax = 4.61 
             text = "open" 
         intervals [10]:
-            xmin = 4.57 
+            xmin = 4.61 
             xmax = 4.998062 
             text = "" 
     item [2]:
@@ -60,10 +60,10 @@ item []:
         intervals: size = 49 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.9 
+            xmax = 0.89 
             text = "" 
         intervals [2]:
-            xmin = 0.9 
+            xmin = 0.89 
             xmax = 0.96 
             text = "t" 
         intervals [3]:
@@ -72,10 +72,10 @@ item []:
             text = "ɛ" 
         intervals [4]:
             xmin = 1.0 
-            xmax = 1.08 
+            xmax = 1.07 
             text = "j" 
         intervals [5]:
-            xmin = 1.08 
+            xmin = 1.07 
             xmax = 1.12 
             text = "d" 
         intervals [6]:
@@ -104,10 +104,10 @@ item []:
             text = "r" 
         intervals [12]:
             xmin = 1.5 
-            xmax = 1.58 
+            xmax = 1.59 
             text = "s" 
         intervals [13]:
-            xmin = 1.58 
+            xmin = 1.59 
             xmax = 1.65 
             text = "t" 
         intervals [14]:
@@ -132,10 +132,10 @@ item []:
             text = "ɛ" 
         intervals [19]:
             xmin = 2.19 
-            xmax = 2.27 
+            xmax = 2.28 
             text = "j" 
         intervals [20]:
-            xmin = 2.27 
+            xmin = 2.28 
             xmax = 2.35 
             text = "n" 
         intervals [21]:
@@ -248,9 +248,9 @@ item []:
             text = "ɛ" 
         intervals [48]:
             xmin = 4.34 
-            xmax = 4.57 
+            xmax = 4.61 
             text = "n" 
         intervals [49]:
-            xmin = 4.57 
+            xmin = 4.61 
             xmax = 4.998062 
             text = "" 

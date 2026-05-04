@@ -62,10 +62,10 @@ item []:
             text = "punt" 
         intervals [13]:
             xmin = 6.05 
-            xmax = 6.57 
+            xmax = 6.59 
             text = "vier" 
         intervals [14]:
-            xmin = 6.57 
+            xmin = 6.59 
             xmax = 7.3 
             text = "" 
         intervals [15]:
@@ -224,10 +224,10 @@ item []:
             text = "iː" 
         intervals [35]:
             xmin = 6.47 
-            xmax = 6.57 
+            xmax = 6.59 
             text = "r" 
         intervals [36]:
-            xmin = 6.57 
+            xmin = 6.59 
             xmax = 7.3 
             text = "" 
         intervals [37]:

@@ -11,7 +11,7 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 5.004875 
-        intervals: size = 9 
+        intervals: size = 8 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.04 
@@ -42,18 +42,14 @@ item []:
             text = "snooker" 
         intervals [8]:
             xmin = 4.13 
-            xmax = 4.79 
-            text = "gewonnen" 
-        intervals [9]:
-            xmin = 4.79 
             xmax = 5.004875 
-            text = "" 
+            text = "gewonnen" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 5.004875 
-        intervals: size = 45 
+        intervals: size = 44 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.04 
@@ -152,10 +148,10 @@ item []:
             text = "n" 
         intervals [25]:
             xmin = 2.72 
-            xmax = 2.81 
+            xmax = 2.8 
             text = "s" 
         intervals [26]:
-            xmin = 2.81 
+            xmin = 2.8 
             xmax = 2.9 
             text = "x" 
         intervals [27]:
@@ -180,10 +176,10 @@ item []:
             text = "n" 
         intervals [32]:
             xmin = 3.76 
-            xmax = 3.79 
+            xmax = 3.8 
             text = "oː" 
         intervals [33]:
-            xmin = 3.79 
+            xmin = 3.8 
             xmax = 3.88 
             text = "ɔ" 
         intervals [34]:
@@ -212,10 +208,10 @@ item []:
             text = "ʋ" 
         intervals [40]:
             xmin = 4.34 
-            xmax = 4.44 
+            xmax = 4.43 
             text = "ɔ" 
         intervals [41]:
-            xmin = 4.44 
+            xmin = 4.43 
             xmax = 4.5 
             text = "n" 
         intervals [42]:
@@ -224,13 +220,9 @@ item []:
             text = "n" 
         intervals [43]:
             xmin = 4.53 
-            xmax = 4.58 
+            xmax = 4.59 
             text = "ɛ" 
         intervals [44]:
-            xmin = 4.58 
-            xmax = 4.79 
-            text = "n" 
-        intervals [45]:
-            xmin = 4.79 
+            xmin = 4.59 
             xmax = 5.004875 
-            text = "" 
+            text = "n" 

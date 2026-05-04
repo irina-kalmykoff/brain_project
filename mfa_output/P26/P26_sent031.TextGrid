@@ -30,14 +30,14 @@ item []:
             text = "leeuwen" 
         intervals [5]:
             xmin = 2.24 
-            xmax = 2.94 
+            xmax = 2.56 
             text = "zijn" 
         intervals [6]:
-            xmin = 2.94 
-            xmax = 2.97 
+            xmin = 2.56 
+            xmax = 2.94 
             text = "eng" 
         intervals [7]:
-            xmin = 2.97 
+            xmin = 2.94 
             xmax = 4.004875 
             text = "" 
     item [2]:
@@ -45,7 +45,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 4.004875 
-        intervals: size = 21 
+        intervals: size = 24 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.91 
@@ -124,9 +124,21 @@ item []:
             text = "j" 
         intervals [20]:
             xmin = 2.43 
-            xmax = 2.94 
+            xmax = 2.56 
             text = "n" 
         intervals [21]:
+            xmin = 2.56 
+            xmax = 2.63 
+            text = "ɛ" 
+        intervals [22]:
+            xmin = 2.63 
+            xmax = 2.66 
+            text = "n" 
+        intervals [23]:
+            xmin = 2.66 
+            xmax = 2.94 
+            text = "x" 
+        intervals [24]:
             xmin = 2.94 
             xmax = 4.004875 
             text = "" 

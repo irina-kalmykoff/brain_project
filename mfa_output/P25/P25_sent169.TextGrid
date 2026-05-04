@@ -14,10 +14,10 @@ item []:
         intervals: size = 7 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.62 
+            xmax = 0.61 
             text = "" 
         intervals [2]:
-            xmin = 0.62 
+            xmin = 0.61 
             xmax = 1.05 
             text = "samen" 
         intervals [3]:
@@ -34,10 +34,10 @@ item []:
             text = "het" 
         intervals [6]:
             xmin = 1.56 
-            xmax = 2.2 
+            xmax = 2.21 
             text = "volkslied" 
         intervals [7]:
-            xmin = 2.2 
+            xmin = 2.21 
             xmax = 4.002937 
             text = "" 
     item [2]:
@@ -48,10 +48,10 @@ item []:
         intervals: size = 25 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.62 
+            xmax = 0.61 
             text = "" 
         intervals [2]:
-            xmin = 0.62 
+            xmin = 0.61 
             xmax = 0.76 
             text = "s" 
         intervals [3]:
@@ -140,9 +140,9 @@ item []:
             text = "iː" 
         intervals [24]:
             xmin = 2.06 
-            xmax = 2.2 
+            xmax = 2.21 
             text = "t" 
         intervals [25]:
-            xmin = 2.2 
+            xmin = 2.21 
             xmax = 4.002937 
             text = "" 

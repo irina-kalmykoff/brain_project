@@ -34,10 +34,10 @@ item []:
             text = "inspiratie" 
         intervals [6]:
             xmin = 2.53 
-            xmax = 2.88 
+            xmax = 2.9 
             text = "meer" 
         intervals [7]:
-            xmin = 2.88 
+            xmin = 2.9 
             xmax = 5.007812 
             text = "" 
     item [2]:
@@ -132,9 +132,9 @@ item []:
             text = "eː" 
         intervals [22]:
             xmin = 2.69 
-            xmax = 2.88 
+            xmax = 2.9 
             text = "r" 
         intervals [23]:
-            xmin = 2.88 
+            xmin = 2.9 
             xmax = 5.007812 
             text = "" 

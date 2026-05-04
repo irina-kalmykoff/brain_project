@@ -30,22 +30,22 @@ item []:
             text = "momenteel" 
         intervals [5]:
             xmin = 2.63 
-            xmax = 3.23 
+            xmax = 3.3 
             text = "bezig" 
         intervals [6]:
-            xmin = 3.23 
+            xmin = 3.3 
             xmax = 3.66 
             text = "met" 
         intervals [7]:
             xmin = 3.66 
-            xmax = 4.1 
+            xmax = 4.09 
             text = "" 
         intervals [8]:
-            xmin = 4.1 
-            xmax = 4.64 
+            xmin = 4.09 
+            xmax = 4.66 
             text = "de" 
         intervals [9]:
-            xmin = 4.64 
+            xmin = 4.66 
             xmax = 5.2 
             text = "" 
         intervals [10]:
@@ -70,10 +70,10 @@ item []:
             text = "" 
         intervals [15]:
             xmin = 7.3 
-            xmax = 7.98 
+            xmax = 7.96 
             text = "gebouw" 
         intervals [16]:
-            xmin = 7.98 
+            xmin = 7.96 
             xmax = 10.002937 
             text = "" 
     item [2]:
@@ -160,10 +160,10 @@ item []:
             text = "ɪ" 
         intervals [20]:
             xmin = 3.0 
-            xmax = 3.23 
+            xmax = 3.3 
             text = "x" 
         intervals [21]:
-            xmin = 3.23 
+            xmin = 3.3 
             xmax = 3.38 
             text = "m" 
         intervals [22]:
@@ -176,18 +176,18 @@ item []:
             text = "t" 
         intervals [24]:
             xmin = 3.66 
-            xmax = 4.1 
+            xmax = 4.09 
             text = "" 
         intervals [25]:
-            xmin = 4.1 
+            xmin = 4.09 
             xmax = 4.14 
             text = "d" 
         intervals [26]:
             xmin = 4.14 
-            xmax = 4.64 
+            xmax = 4.66 
             text = "eː" 
         intervals [27]:
-            xmin = 4.64 
+            xmin = 4.66 
             xmax = 5.2 
             text = "" 
         intervals [28]:
@@ -272,13 +272,13 @@ item []:
             text = "b" 
         intervals [48]:
             xmin = 7.61 
-            xmax = 7.67 
+            xmax = 7.7 
             text = "ɑ" 
         intervals [49]:
-            xmin = 7.67 
-            xmax = 7.98 
+            xmin = 7.7 
+            xmax = 7.96 
             text = "w" 
         intervals [50]:
-            xmin = 7.98 
+            xmin = 7.96 
             xmax = 10.002937 
             text = "" 

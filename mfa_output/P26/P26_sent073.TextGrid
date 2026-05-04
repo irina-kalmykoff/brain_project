@@ -88,10 +88,10 @@ item []:
             text = "k" 
         intervals [10]:
             xmin = 1.39 
-            xmax = 1.45 
+            xmax = 1.44 
             text = "t" 
         intervals [11]:
-            xmin = 1.45 
+            xmin = 1.44 
             xmax = 1.51 
             text = "r" 
         intervals [12]:

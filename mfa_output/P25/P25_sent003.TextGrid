@@ -34,14 +34,14 @@ item []:
             text = "temperatuur" 
         intervals [6]:
             xmin = 1.53 
-            xmax = 1.67 
+            xmax = 1.66 
             text = "wat" 
         intervals [7]:
-            xmin = 1.67 
-            xmax = 1.96 
+            xmin = 1.66 
+            xmax = 1.95 
             text = "hoger" 
         intervals [8]:
-            xmin = 1.96 
+            xmin = 1.95 
             xmax = 2.35 
             text = "zetten" 
         intervals [9]:
@@ -60,10 +60,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.72 
-            xmax = 0.79 
+            xmax = 0.78 
             text = "k" 
         intervals [3]:
-            xmin = 0.79 
+            xmin = 0.78 
             xmax = 0.83 
             text = "ɑ" 
         intervals [4]:
@@ -132,38 +132,38 @@ item []:
             text = "ʋ" 
         intervals [20]:
             xmin = 1.57 
-            xmax = 1.64 
+            xmax = 1.63 
             text = "ɑ" 
         intervals [21]:
-            xmin = 1.64 
-            xmax = 1.67 
+            xmin = 1.63 
+            xmax = 1.66 
             text = "t" 
         intervals [22]:
-            xmin = 1.67 
-            xmax = 1.7 
+            xmin = 1.66 
+            xmax = 1.69 
             text = "h" 
         intervals [23]:
-            xmin = 1.7 
+            xmin = 1.69 
             xmax = 1.85 
             text = "oː" 
         intervals [24]:
             xmin = 1.85 
-            xmax = 1.9 
+            xmax = 1.89 
             text = "ɣ" 
         intervals [25]:
-            xmin = 1.9 
-            xmax = 1.93 
+            xmin = 1.89 
+            xmax = 1.92 
             text = "ɛ" 
         intervals [26]:
-            xmin = 1.93 
-            xmax = 1.96 
+            xmin = 1.92 
+            xmax = 1.95 
             text = "r" 
         intervals [27]:
-            xmin = 1.96 
-            xmax = 1.99 
+            xmin = 1.95 
+            xmax = 1.98 
             text = "z" 
         intervals [28]:
-            xmin = 1.99 
+            xmin = 1.98 
             xmax = 2.09 
             text = "ɛ" 
         intervals [29]:
@@ -172,10 +172,10 @@ item []:
             text = "t" 
         intervals [30]:
             xmin = 2.12 
-            xmax = 2.17 
+            xmax = 2.18 
             text = "t" 
         intervals [31]:
-            xmin = 2.17 
+            xmin = 2.18 
             xmax = 2.21 
             text = "ɛ" 
         intervals [32]:

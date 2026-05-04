@@ -14,10 +14,10 @@ item []:
         intervals: size = 11 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.53 
+            xmax = 1.54 
             text = "" 
         intervals [2]:
-            xmin = 1.53 
+            xmin = 1.54 
             xmax = 2.12 
             text = "noorwegen" 
         intervals [3]:
@@ -64,10 +64,10 @@ item []:
         intervals: size = 37 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.53 
+            xmax = 1.54 
             text = "" 
         intervals [2]:
-            xmin = 1.53 
+            xmin = 1.54 
             xmax = 1.65 
             text = "n" 
         intervals [3]:

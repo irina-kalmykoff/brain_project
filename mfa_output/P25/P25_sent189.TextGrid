@@ -46,10 +46,10 @@ item []:
             text = "vaak" 
         intervals [9]:
             xmin = 2.34 
-            xmax = 2.56 
+            xmax = 2.57 
             text = "over" 
         intervals [10]:
-            xmin = 2.56 
+            xmin = 2.57 
             xmax = 3.0 
             text = "vrouwen" 
         intervals [11]:
@@ -176,22 +176,22 @@ item []:
             text = "oː" 
         intervals [29]:
             xmin = 2.45 
-            xmax = 2.5 
+            xmax = 2.51 
             text = "v" 
         intervals [30]:
-            xmin = 2.5 
-            xmax = 2.53 
+            xmin = 2.51 
+            xmax = 2.54 
             text = "ɛ" 
         intervals [31]:
-            xmin = 2.53 
-            xmax = 2.56 
+            xmin = 2.54 
+            xmax = 2.57 
             text = "r" 
         intervals [32]:
-            xmin = 2.56 
-            xmax = 2.59 
+            xmin = 2.57 
+            xmax = 2.6 
             text = "v" 
         intervals [33]:
-            xmin = 2.59 
+            xmin = 2.6 
             xmax = 2.63 
             text = "r" 
         intervals [34]:

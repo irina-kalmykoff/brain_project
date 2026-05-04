@@ -26,10 +26,10 @@ item []:
             text = "de" 
         intervals [4]:
             xmin = 1.05 
-            xmax = 1.52 
+            xmax = 1.51 
             text = "webshop" 
         intervals [5]:
-            xmin = 1.52 
+            xmin = 1.51 
             xmax = 1.85 
             text = "laten" 
         intervals [6]:
@@ -42,10 +42,10 @@ item []:
             text = "gerelateerde" 
         intervals [8]:
             xmin = 2.57 
-            xmax = 3.08 
+            xmax = 3.07 
             text = "producten" 
         intervals [9]:
-            xmin = 3.08 
+            xmin = 3.07 
             xmax = 3.44 
             text = "zien" 
         intervals [10]:
@@ -100,10 +100,10 @@ item []:
             text = "ɔ" 
         intervals [11]:
             xmin = 1.47 
-            xmax = 1.52 
+            xmax = 1.51 
             text = "p" 
         intervals [12]:
-            xmin = 1.52 
+            xmin = 1.51 
             xmax = 1.59 
             text = "l" 
         intervals [13]:
@@ -112,10 +112,10 @@ item []:
             text = "aː" 
         intervals [14]:
             xmin = 1.7 
-            xmax = 1.79 
+            xmax = 1.78 
             text = "t" 
         intervals [15]:
-            xmin = 1.79 
+            xmin = 1.78 
             xmax = 1.82 
             text = "ɛ" 
         intervals [16]:
@@ -196,22 +196,22 @@ item []:
             text = "ʏ" 
         intervals [35]:
             xmin = 2.89 
-            xmax = 2.94 
+            xmax = 2.93 
             text = "c" 
         intervals [36]:
-            xmin = 2.94 
+            xmin = 2.93 
             xmax = 3.0 
             text = "t" 
         intervals [37]:
             xmin = 3.0 
-            xmax = 3.05 
+            xmax = 3.03 
             text = "ɛ" 
         intervals [38]:
-            xmin = 3.05 
-            xmax = 3.08 
+            xmin = 3.03 
+            xmax = 3.07 
             text = "n" 
         intervals [39]:
-            xmin = 3.08 
+            xmin = 3.07 
             xmax = 3.15 
             text = "z" 
         intervals [40]:

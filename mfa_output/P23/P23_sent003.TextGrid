@@ -22,10 +22,10 @@ item []:
             text = "donald" 
         intervals [3]:
             xmin = 1.22 
-            xmax = 1.65 
+            xmax = 1.54 
             text = "trump" 
         intervals [4]:
-            xmin = 1.65 
+            xmin = 1.54 
             xmax = 1.84 
             text = "is" 
         intervals [5]:
@@ -68,10 +68,10 @@ item []:
             text = "oː" 
         intervals [4]:
             xmin = 1.04 
-            xmax = 1.08 
+            xmax = 1.09 
             text = "n" 
         intervals [5]:
-            xmin = 1.08 
+            xmin = 1.09 
             xmax = 1.12 
             text = "ɑ" 
         intervals [6]:
@@ -100,10 +100,10 @@ item []:
             text = "m" 
         intervals [12]:
             xmin = 1.49 
-            xmax = 1.65 
+            xmax = 1.54 
             text = "p" 
         intervals [13]:
-            xmin = 1.65 
+            xmin = 1.54 
             xmax = 1.75 
             text = "ɪ" 
         intervals [14]:
@@ -112,10 +112,10 @@ item []:
             text = "s" 
         intervals [15]:
             xmin = 1.84 
-            xmax = 1.87 
+            xmax = 1.88 
             text = "d" 
         intervals [16]:
-            xmin = 1.87 
+            xmin = 1.88 
             xmax = 2.08 
             text = "eː" 
         intervals [17]:
@@ -212,10 +212,10 @@ item []:
             text = "iː" 
         intervals [40]:
             xmin = 3.42 
-            xmax = 3.48 
+            xmax = 3.47 
             text = "d" 
         intervals [41]:
-            xmin = 3.48 
+            xmin = 3.47 
             xmax = 3.55 
             text = "ɛ" 
         intervals [42]:

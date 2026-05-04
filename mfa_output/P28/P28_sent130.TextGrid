@@ -18,10 +18,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 0.91 
-            xmax = 1.06 
+            xmax = 1.05 
             text = "het" 
         intervals [3]:
-            xmin = 1.06 
+            xmin = 1.05 
             xmax = 1.47 
             text = "water" 
         intervals [4]:
@@ -42,10 +42,10 @@ item []:
             text = "het" 
         intervals [8]:
             xmin = 2.21 
-            xmax = 2.73 
+            xmax = 2.72 
             text = "koken" 
         intervals [9]:
-            xmin = 2.73 
+            xmin = 2.72 
             xmax = 3.327187 
             text = "" 
     item [2]:
@@ -68,10 +68,10 @@ item []:
             text = "ɛ" 
         intervals [4]:
             xmin = 1.0 
-            xmax = 1.06 
+            xmax = 1.05 
             text = "t" 
         intervals [5]:
-            xmin = 1.06 
+            xmin = 1.05 
             xmax = 1.13 
             text = "ʋ" 
         intervals [6]:
@@ -132,10 +132,10 @@ item []:
             text = "k" 
         intervals [20]:
             xmin = 2.27 
-            xmax = 2.47 
+            xmax = 2.46 
             text = "oː" 
         intervals [21]:
-            xmin = 2.47 
+            xmin = 2.46 
             xmax = 2.53 
             text = "k" 
         intervals [22]:
@@ -144,9 +144,9 @@ item []:
             text = "ɛ" 
         intervals [23]:
             xmin = 2.56 
-            xmax = 2.73 
+            xmax = 2.72 
             text = "n" 
         intervals [24]:
-            xmin = 2.73 
+            xmin = 2.72 
             xmax = 3.327187 
             text = "" 

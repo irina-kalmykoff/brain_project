@@ -128,18 +128,18 @@ item []:
             text = "z" 
         intervals [18]:
             xmin = 2.48 
-            xmax = 2.57 
+            xmax = 2.58 
             text = "ɔ" 
         intervals [19]:
-            xmin = 2.57 
-            xmax = 2.6 
+            xmin = 2.58 
+            xmax = 2.61 
             text = "n" 
         intervals [20]:
-            xmin = 2.6 
-            xmax = 2.63 
+            xmin = 2.61 
+            xmax = 2.64 
             text = "d" 
         intervals [21]:
-            xmin = 2.63 
+            xmin = 2.64 
             xmax = 2.74 
             text = "ɛ" 
         intervals [22]:

@@ -22,10 +22,10 @@ item []:
             text = "hier" 
         intervals [3]:
             xmin = 2.74 
-            xmax = 3.02 
+            xmax = 3.01 
             text = "geldt" 
         intervals [4]:
-            xmin = 3.02 
+            xmin = 3.01 
             xmax = 3.42 
             text = "voorrang" 
         intervals [5]:
@@ -34,10 +34,10 @@ item []:
             text = "van" 
         intervals [6]:
             xmin = 3.59 
-            xmax = 4.1 
+            xmax = 4.13 
             text = "rechts" 
         intervals [7]:
-            xmin = 4.1 
+            xmin = 4.13 
             xmax = 4.623062 
             text = "" 
     item [2]:
@@ -80,10 +80,10 @@ item []:
             text = "t" 
         intervals [9]:
             xmin = 2.97 
-            xmax = 3.02 
+            xmax = 3.01 
             text = "t" 
         intervals [10]:
-            xmin = 3.02 
+            xmin = 3.01 
             xmax = 3.09 
             text = "v" 
         intervals [11]:
@@ -140,9 +140,9 @@ item []:
             text = "t" 
         intervals [24]:
             xmin = 3.93 
-            xmax = 4.1 
+            xmax = 4.13 
             text = "s" 
         intervals [25]:
-            xmin = 4.1 
+            xmin = 4.13 
             xmax = 4.623062 
             text = "" 

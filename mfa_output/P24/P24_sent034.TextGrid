@@ -132,18 +132,18 @@ item []:
             text = "k" 
         intervals [21]:
             xmin = 2.43 
-            xmax = 2.61 
+            xmax = 2.6 
             text = "aː" 
         intervals [22]:
-            xmin = 2.61 
+            xmin = 2.6 
             xmax = 2.7 
             text = "m" 
         intervals [23]:
             xmin = 2.7 
-            xmax = 2.76 
+            xmax = 2.77 
             text = "ɛ" 
         intervals [24]:
-            xmin = 2.76 
+            xmin = 2.77 
             xmax = 2.93 
             text = "r" 
         intervals [25]:

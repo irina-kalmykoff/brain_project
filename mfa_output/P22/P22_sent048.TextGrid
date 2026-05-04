@@ -160,10 +160,10 @@ item []:
             text = "l" 
         intervals [27]:
             xmin = 2.72 
-            xmax = 2.86 
+            xmax = 2.87 
             text = "aː" 
         intervals [28]:
-            xmin = 2.86 
+            xmin = 2.87 
             xmax = 3.04 
             text = "r" 
         intervals [29]:

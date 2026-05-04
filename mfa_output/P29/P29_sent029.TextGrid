@@ -62,10 +62,10 @@ item []:
             text = "sterk" 
         intervals [13]:
             xmin = 7.62 
-            xmax = 8.2 
+            xmax = 8.19 
             text = "uitbreiden" 
         intervals [14]:
-            xmin = 8.2 
+            xmin = 8.19 
             xmax = 8.549812 
             text = "" 
     item [2]:
@@ -80,10 +80,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 1.25 
-            xmax = 1.36 
+            xmax = 1.37 
             text = "z" 
         intervals [3]:
-            xmin = 1.36 
+            xmin = 1.37 
             xmax = 1.42 
             text = "eː" 
         intervals [4]:
@@ -112,10 +112,10 @@ item []:
             text = "h" 
         intervals [10]:
             xmin = 1.8 
-            xmax = 1.84 
+            xmax = 1.85 
             text = "ɛ" 
         intervals [11]:
-            xmin = 1.84 
+            xmin = 1.85 
             xmax = 2.07 
             text = "t" 
         intervals [12]:
@@ -212,10 +212,10 @@ item []:
             text = "" 
         intervals [35]:
             xmin = 7.06 
-            xmax = 7.23 
+            xmax = 7.2 
             text = "s" 
         intervals [36]:
-            xmin = 7.23 
+            xmin = 7.2 
             xmax = 7.3 
             text = "t" 
         intervals [37]:
@@ -272,9 +272,9 @@ item []:
             text = "ɛ" 
         intervals [50]:
             xmin = 8.09 
-            xmax = 8.2 
+            xmax = 8.19 
             text = "n" 
         intervals [51]:
-            xmin = 8.2 
+            xmin = 8.19 
             xmax = 8.549812 
             text = "" 

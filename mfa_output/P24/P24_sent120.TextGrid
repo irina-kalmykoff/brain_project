@@ -11,7 +11,7 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 5.001 
-        intervals: size = 10 
+        intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.06 
@@ -42,22 +42,18 @@ item []:
             text = "richting" 
         intervals [8]:
             xmin = 4.24 
-            xmax = 4.55 
+            xmax = 4.79 
             text = "" 
         intervals [9]:
-            xmin = 4.55 
-            xmax = 4.58 
-            text = "kyoto" 
-        intervals [10]:
-            xmin = 4.58 
+            xmin = 4.79 
             xmax = 5.001 
-            text = "" 
+            text = "kyoto" 
     item [2]:
         class = "IntervalTier" 
         name = "phones" 
         xmin = 0 
         xmax = 5.001 
-        intervals: size = 35 
+        intervals: size = 40 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.06 
@@ -84,10 +80,10 @@ item []:
             text = "r" 
         intervals [7]:
             xmin = 1.51 
-            xmax = 1.56 
+            xmax = 1.68 
             text = "eː" 
         intervals [8]:
-            xmin = 1.56 
+            xmin = 1.68 
             xmax = 2.0 
             text = "n" 
         intervals [9]:
@@ -196,5 +192,25 @@ item []:
             text = "x" 
         intervals [35]:
             xmin = 4.24 
-            xmax = 5.001 
+            xmax = 4.79 
             text = "" 
+        intervals [36]:
+            xmin = 4.79 
+            xmax = 4.83 
+            text = "k" 
+        intervals [37]:
+            xmin = 4.83 
+            xmax = 4.88 
+            text = "j" 
+        intervals [38]:
+            xmin = 4.88 
+            xmax = 4.91 
+            text = "oː" 
+        intervals [39]:
+            xmin = 4.91 
+            xmax = 4.94 
+            text = "t" 
+        intervals [40]:
+            xmin = 4.94 
+            xmax = 5.001 
+            text = "oː" 

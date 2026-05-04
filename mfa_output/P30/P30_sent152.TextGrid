@@ -14,22 +14,22 @@ item []:
         intervals: size = 11 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.97 
+            xmax = 1.96 
             text = "" 
         intervals [2]:
-            xmin = 1.97 
+            xmin = 1.96 
             xmax = 2.5 
             text = "finland" 
         intervals [3]:
             xmin = 2.5 
-            xmax = 2.58 
+            xmax = 2.57 
             text = "" 
         intervals [4]:
-            xmin = 2.58 
-            xmax = 2.97 
+            xmin = 2.57 
+            xmax = 2.98 
             text = "grenst" 
         intervals [5]:
-            xmin = 2.97 
+            xmin = 2.98 
             xmax = 3.16 
             text = "in" 
         intervals [6]:
@@ -64,10 +64,10 @@ item []:
         intervals: size = 36 
         intervals [1]:
             xmin = 0.0 
-            xmax = 1.97 
+            xmax = 1.96 
             text = "" 
         intervals [2]:
-            xmin = 1.97 
+            xmin = 1.96 
             xmax = 2.04 
             text = "f" 
         intervals [3]:
@@ -96,10 +96,10 @@ item []:
             text = "t" 
         intervals [9]:
             xmin = 2.5 
-            xmax = 2.58 
+            xmax = 2.57 
             text = "" 
         intervals [10]:
-            xmin = 2.58 
+            xmin = 2.57 
             xmax = 2.68 
             text = "x" 
         intervals [11]:
@@ -120,10 +120,10 @@ item []:
             text = "s" 
         intervals [15]:
             xmin = 2.94 
-            xmax = 2.97 
+            xmax = 2.98 
             text = "t" 
         intervals [16]:
-            xmin = 2.97 
+            xmin = 2.98 
             xmax = 3.11 
             text = "ɪ" 
         intervals [17]:

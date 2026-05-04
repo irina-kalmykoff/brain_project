@@ -34,10 +34,10 @@ item []:
             text = "kwam" 
         intervals [6]:
             xmin = 3.07 
-            xmax = 3.49 
+            xmax = 3.48 
             text = "" 
         intervals [7]:
-            xmin = 3.49 
+            xmin = 3.48 
             xmax = 3.81 
             text = "ik" 
         intervals [8]:
@@ -84,10 +84,10 @@ item []:
             text = "b" 
         intervals [3]:
             xmin = 1.27 
-            xmax = 1.5 
+            xmax = 1.51 
             text = "ɛ" 
         intervals [4]:
-            xmin = 1.5 
+            xmin = 1.51 
             xmax = 1.62 
             text = "j" 
         intervals [5]:
@@ -148,10 +148,10 @@ item []:
             text = "k" 
         intervals [19]:
             xmin = 2.5 
-            xmax = 2.7 
+            xmax = 2.71 
             text = "ʋ" 
         intervals [20]:
-            xmin = 2.7 
+            xmin = 2.71 
             xmax = 2.82 
             text = "ɑ" 
         intervals [21]:
@@ -160,10 +160,10 @@ item []:
             text = "m" 
         intervals [22]:
             xmin = 3.07 
-            xmax = 3.49 
+            xmax = 3.48 
             text = "" 
         intervals [23]:
-            xmin = 3.49 
+            xmin = 3.48 
             xmax = 3.67 
             text = "ɪ" 
         intervals [24]:
@@ -232,10 +232,10 @@ item []:
             text = "r" 
         intervals [40]:
             xmin = 5.42 
-            xmax = 5.48 
+            xmax = 5.47 
             text = "p" 
         intervals [41]:
-            xmin = 5.48 
+            xmin = 5.47 
             xmax = 5.54 
             text = "l" 
         intervals [42]:
@@ -260,10 +260,10 @@ item []:
             text = "t" 
         intervals [47]:
             xmin = 5.88 
-            xmax = 6.06 
+            xmax = 6.05 
             text = "eː" 
         intervals [48]:
-            xmin = 6.06 
+            xmin = 6.05 
             xmax = 6.12 
             text = "ɣ" 
         intervals [49]:

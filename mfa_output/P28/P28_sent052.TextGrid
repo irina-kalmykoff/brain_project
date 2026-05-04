@@ -34,10 +34,10 @@ item []:
             text = "zijn" 
         intervals [6]:
             xmin = 2.39 
-            xmax = 3.12 
+            xmax = 3.11 
             text = "levenswerk" 
         intervals [7]:
-            xmin = 3.12 
+            xmin = 3.11 
             xmax = 3.68 
             text = "voort" 
         intervals [8]:
@@ -88,10 +88,10 @@ item []:
             text = "t" 
         intervals [10]:
             xmin = 1.83 
-            xmax = 1.88 
+            xmax = 1.87 
             text = "t" 
         intervals [11]:
-            xmin = 1.88 
+            xmin = 1.87 
             xmax = 1.92 
             text = "ɛ" 
         intervals [12]:
@@ -160,10 +160,10 @@ item []:
             text = "r" 
         intervals [28]:
             xmin = 3.03 
-            xmax = 3.12 
+            xmax = 3.11 
             text = "k" 
         intervals [29]:
-            xmin = 3.12 
+            xmin = 3.11 
             xmax = 3.22 
             text = "v" 
         intervals [30]:

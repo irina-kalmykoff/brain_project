@@ -38,10 +38,10 @@ item []:
             text = "al" 
         intervals [7]:
             xmin = 2.74 
-            xmax = 3.45 
+            xmax = 3.42 
             text = "klaar" 
         intervals [8]:
-            xmin = 3.45 
+            xmin = 3.42 
             xmax = 5.005875 
             text = "" 
     item [2]:
@@ -156,9 +156,9 @@ item []:
             text = "aː" 
         intervals [27]:
             xmin = 3.13 
-            xmax = 3.45 
+            xmax = 3.42 
             text = "r" 
         intervals [28]:
-            xmin = 3.45 
+            xmin = 3.42 
             xmax = 5.005875 
             text = "" 

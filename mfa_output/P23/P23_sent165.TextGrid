@@ -58,10 +58,10 @@ item []:
             text = "hun" 
         intervals [12]:
             xmin = 4.63 
-            xmax = 4.98 
+            xmax = 4.99 
             text = "bad" 
         intervals [13]:
-            xmin = 4.98 
+            xmin = 4.99 
             xmax = 10.0 
             text = "" 
     item [2]:
@@ -76,18 +76,18 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 2.05 
-            xmax = 2.2 
+            xmax = 2.21 
             text = "ɛ" 
         intervals [3]:
-            xmin = 2.2 
+            xmin = 2.21 
             xmax = 2.25 
             text = "r" 
         intervals [4]:
             xmin = 2.25 
-            xmax = 2.32 
+            xmax = 2.3 
             text = "ʋ" 
         intervals [5]:
-            xmin = 2.32 
+            xmin = 2.3 
             xmax = 2.38 
             text = "ɑ" 
         intervals [6]:
@@ -120,10 +120,10 @@ item []:
             text = "p" 
         intervals [13]:
             xmin = 2.83 
-            xmax = 2.88 
+            xmax = 2.89 
             text = "l" 
         intervals [14]:
-            xmin = 2.88 
+            xmin = 2.89 
             xmax = 2.99 
             text = "eː" 
         intervals [15]:
@@ -168,18 +168,18 @@ item []:
             text = "v" 
         intervals [25]:
             xmin = 3.66 
-            xmax = 3.85 
+            xmax = 3.83 
             text = "uː" 
         intervals [26]:
-            xmin = 3.85 
+            xmin = 3.83 
             xmax = 4.18 
             text = "r" 
         intervals [27]:
             xmin = 4.18 
-            xmax = 4.28 
+            xmax = 4.29 
             text = "v" 
         intervals [28]:
-            xmin = 4.28 
+            xmin = 4.29 
             xmax = 4.37 
             text = "ɑ" 
         intervals [29]:
@@ -208,9 +208,9 @@ item []:
             text = "ɑ" 
         intervals [35]:
             xmin = 4.78 
-            xmax = 4.98 
+            xmax = 4.99 
             text = "t" 
         intervals [36]:
-            xmin = 4.98 
+            xmin = 4.99 
             xmax = 10.0 
             text = "" 

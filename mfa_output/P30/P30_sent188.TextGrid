@@ -176,10 +176,10 @@ item []:
             text = "h" 
         intervals [27]:
             xmin = 5.33 
-            xmax = 5.4 
+            xmax = 5.41 
             text = "uː" 
         intervals [28]:
-            xmin = 5.4 
+            xmin = 5.41 
             xmax = 5.49 
             text = "k" 
         intervals [29]:
@@ -216,10 +216,10 @@ item []:
             text = "m" 
         intervals [37]:
             xmin = 6.09 
-            xmax = 6.19 
+            xmax = 6.2 
             text = "ɛ" 
         intervals [38]:
-            xmin = 6.19 
+            xmin = 6.2 
             xmax = 6.33 
             text = "r" 
         intervals [39]:

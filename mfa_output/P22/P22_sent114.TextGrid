@@ -92,10 +92,10 @@ item []:
             text = "ɪ" 
         intervals [7]:
             xmin = 1.51 
-            xmax = 1.59 
+            xmax = 1.58 
             text = "s" 
         intervals [8]:
-            xmin = 1.59 
+            xmin = 1.58 
             xmax = 1.62 
             text = "t" 
         intervals [9]:
@@ -256,10 +256,10 @@ item []:
             text = "ɛ" 
         intervals [48]:
             xmin = 4.04 
-            xmax = 4.14 
+            xmax = 4.08 
             text = "n" 
         intervals [49]:
-            xmin = 4.14 
+            xmin = 4.08 
             xmax = 4.2 
             text = "ɪ" 
         intervals [50]:

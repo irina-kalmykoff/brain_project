@@ -38,10 +38,10 @@ item []:
             text = "aan" 
         intervals [7]:
             xmin = 2.31 
-            xmax = 2.72 
+            xmax = 2.73 
             text = "uit" 
         intervals [8]:
-            xmin = 2.72 
+            xmin = 2.73 
             xmax = 3.485375 
             text = "" 
     item [2]:
@@ -56,10 +56,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 1.28 
-            xmax = 1.36 
+            xmax = 1.35 
             text = "ɪ" 
         intervals [3]:
-            xmin = 1.36 
+            xmin = 1.35 
             xmax = 1.43 
             text = "k" 
         intervals [4]:
@@ -120,9 +120,9 @@ item []:
             text = "ɥ" 
         intervals [18]:
             xmin = 2.51 
-            xmax = 2.72 
+            xmax = 2.73 
             text = "t" 
         intervals [19]:
-            xmin = 2.72 
+            xmin = 2.73 
             xmax = 3.485375 
             text = "" 

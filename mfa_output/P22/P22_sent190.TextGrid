@@ -152,18 +152,18 @@ item []:
             text = "s" 
         intervals [26]:
             xmin = 2.62 
-            xmax = 2.69 
+            xmax = 2.7 
             text = "ʋ" 
         intervals [27]:
-            xmin = 2.69 
+            xmin = 2.7 
             xmax = 2.75 
             text = "ɑ" 
         intervals [28]:
             xmin = 2.75 
-            xmax = 2.81 
+            xmax = 2.82 
             text = "n" 
         intervals [29]:
-            xmin = 2.81 
+            xmin = 2.82 
             xmax = 2.88 
             text = "d" 
         intervals [30]:

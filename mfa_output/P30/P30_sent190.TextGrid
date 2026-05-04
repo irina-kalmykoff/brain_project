@@ -26,10 +26,10 @@ item []:
             text = "de" 
         intervals [4]:
             xmin = 2.44 
-            xmax = 3.11 
+            xmax = 3.1 
             text = "bakkerij" 
         intervals [5]:
-            xmin = 3.11 
+            xmin = 3.1 
             xmax = 3.36 
             text = "rook" 
         intervals [6]:
@@ -116,18 +116,18 @@ item []:
             text = "ɛ" 
         intervals [13]:
             xmin = 2.89 
-            xmax = 3.11 
+            xmax = 3.1 
             text = "j" 
         intervals [14]:
-            xmin = 3.11 
+            xmin = 3.1 
             xmax = 3.16 
             text = "r" 
         intervals [15]:
             xmin = 3.16 
-            xmax = 3.31 
+            xmax = 3.29 
             text = "oː" 
         intervals [16]:
-            xmin = 3.31 
+            xmin = 3.29 
             xmax = 3.36 
             text = "k" 
         intervals [17]:
@@ -164,10 +164,10 @@ item []:
             text = "ɛ" 
         intervals [25]:
             xmin = 3.99 
-            xmax = 4.05 
+            xmax = 4.06 
             text = "r" 
         intervals [26]:
-            xmin = 4.05 
+            xmin = 4.06 
             xmax = 4.17 
             text = "s" 
         intervals [27]:

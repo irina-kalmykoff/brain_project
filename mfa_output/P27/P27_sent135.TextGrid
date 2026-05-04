@@ -30,10 +30,10 @@ item []:
             text = "met" 
         intervals [5]:
             xmin = 2.77 
-            xmax = 2.91 
+            xmax = 2.87 
             text = "de" 
         intervals [6]:
-            xmin = 2.91 
+            xmin = 2.87 
             xmax = 3.55 
             text = "kajak" 
         intervals [7]:
@@ -124,10 +124,10 @@ item []:
             text = "d" 
         intervals [17]:
             xmin = 2.81 
-            xmax = 2.91 
+            xmax = 2.87 
             text = "eː" 
         intervals [18]:
-            xmin = 2.91 
+            xmin = 2.87 
             xmax = 2.98 
             text = "k" 
         intervals [19]:
@@ -176,14 +176,14 @@ item []:
             text = "ɛ" 
         intervals [30]:
             xmin = 3.92 
-            xmax = 3.98 
+            xmax = 4.0 
             text = "j" 
         intervals [31]:
-            xmin = 3.98 
-            xmax = 4.01 
+            xmin = 4.0 
+            xmax = 4.03 
             text = "ɪ" 
         intervals [32]:
-            xmin = 4.01 
+            xmin = 4.03 
             xmax = 4.08 
             text = "l" 
         intervals [33]:

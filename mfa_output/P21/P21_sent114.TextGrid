@@ -26,10 +26,10 @@ item []:
             text = "het" 
         intervals [4]:
             xmin = 1.34 
-            xmax = 1.95 
+            xmax = 1.96 
             text = "ontbijt" 
         intervals [5]:
-            xmin = 1.95 
+            xmin = 1.96 
             xmax = 2.17 
             text = "" 
         intervals [6]:
@@ -42,10 +42,10 @@ item []:
             text = "ook" 
         intervals [8]:
             xmin = 2.59 
-            xmax = 3.24 
+            xmax = 3.25 
             text = "croissants" 
         intervals [9]:
-            xmin = 3.24 
+            xmin = 3.25 
             xmax = 4.001 
             text = "geserveerd" 
     item [2]:
@@ -108,10 +108,10 @@ item []:
             text = "j" 
         intervals [14]:
             xmin = 1.76 
-            xmax = 1.95 
+            xmax = 1.96 
             text = "t" 
         intervals [15]:
-            xmin = 1.95 
+            xmin = 1.96 
             xmax = 2.17 
             text = "" 
         intervals [16]:
@@ -184,10 +184,10 @@ item []:
             text = "t" 
         intervals [33]:
             xmin = 3.04 
-            xmax = 3.24 
+            xmax = 3.25 
             text = "s" 
         intervals [34]:
-            xmin = 3.24 
+            xmin = 3.25 
             xmax = 3.32 
             text = "ɣ" 
         intervals [35]:

@@ -58,18 +58,18 @@ item []:
             text = "type" 
         intervals [12]:
             xmin = 4.53 
-            xmax = 5.11 
+            xmax = 5.14 
             text = "" 
         intervals [13]:
-            xmin = 5.11 
-            xmax = 5.14 
+            xmin = 5.14 
+            xmax = 6.11 
             text = "usb" 
         intervals [14]:
-            xmin = 5.14 
-            xmax = 6.12 
+            xmin = 6.11 
+            xmax = 6.14 
             text = "c" 
         intervals [15]:
-            xmin = 6.12 
+            xmin = 6.14 
             xmax = 6.694375 
             text = "" 
     item [2]:
@@ -77,7 +77,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 6.694375 
-        intervals: size = 35 
+        intervals: size = 39 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.75 
@@ -96,10 +96,10 @@ item []:
             text = "z" 
         intervals [5]:
             xmin = 1.98 
-            xmax = 2.06 
+            xmax = 2.07 
             text = "uː" 
         intervals [6]:
-            xmin = 2.06 
+            xmin = 2.07 
             xmax = 2.14 
             text = "k" 
         intervals [7]:
@@ -212,9 +212,25 @@ item []:
             text = "" 
         intervals [34]:
             xmin = 5.14 
-            xmax = 6.12 
-            text = "k" 
+            xmax = 5.36 
+            text = "ʏ" 
         intervals [35]:
-            xmin = 6.12 
+            xmin = 5.36 
+            xmax = 5.45 
+            text = "s" 
+        intervals [36]:
+            xmin = 5.45 
+            xmax = 5.5 
+            text = "b" 
+        intervals [37]:
+            xmin = 5.5 
+            xmax = 6.11 
+            text = "eː" 
+        intervals [38]:
+            xmin = 6.11 
+            xmax = 6.14 
+            text = "k" 
+        intervals [39]:
+            xmin = 6.14 
             xmax = 6.694375 
             text = "" 

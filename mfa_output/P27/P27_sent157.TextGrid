@@ -38,10 +38,10 @@ item []:
             text = "lager" 
         intervals [7]:
             xmin = 3.41 
-            xmax = 3.62 
+            xmax = 3.61 
             text = "dan" 
         intervals [8]:
-            xmin = 3.62 
+            xmin = 3.61 
             xmax = 3.94 
             text = "verwacht" 
         intervals [9]:
@@ -100,10 +100,10 @@ item []:
             text = "oː" 
         intervals [10]:
             xmin = 1.72 
-            xmax = 1.79 
+            xmax = 1.78 
             text = "x" 
         intervals [11]:
-            xmin = 1.79 
+            xmin = 1.78 
             xmax = 1.88 
             text = "s" 
         intervals [12]:
@@ -156,10 +156,10 @@ item []:
             text = "ɑ" 
         intervals [24]:
             xmin = 3.53 
-            xmax = 3.62 
+            xmax = 3.61 
             text = "n" 
         intervals [25]:
-            xmin = 3.62 
+            xmin = 3.61 
             xmax = 3.66 
             text = "v" 
         intervals [26]:

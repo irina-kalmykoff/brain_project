@@ -14,10 +14,10 @@ item []:
         intervals: size = 9 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.81 
+            xmax = 0.8 
             text = "" 
         intervals [2]:
-            xmin = 0.81 
+            xmin = 0.8 
             xmax = 1.02 
             text = "het" 
         intervals [3]:
@@ -26,10 +26,10 @@ item []:
             text = "beest" 
         intervals [4]:
             xmin = 1.48 
-            xmax = 1.82 
+            xmax = 1.83 
             text = "bleek" 
         intervals [5]:
-            xmin = 1.82 
+            xmin = 1.83 
             xmax = 2.06 
             text = "een" 
         intervals [6]:
@@ -56,14 +56,14 @@ item []:
         intervals: size = 24 
         intervals [1]:
             xmin = 0.0 
-            xmax = 0.81 
+            xmax = 0.8 
             text = "" 
         intervals [2]:
-            xmin = 0.81 
-            xmax = 0.86 
+            xmin = 0.8 
+            xmax = 0.87 
             text = "h" 
         intervals [3]:
-            xmin = 0.86 
+            xmin = 0.87 
             xmax = 0.92 
             text = "ɛ" 
         intervals [4]:
@@ -96,14 +96,14 @@ item []:
             text = "l" 
         intervals [11]:
             xmin = 1.59 
-            xmax = 1.73 
+            xmax = 1.74 
             text = "eː" 
         intervals [12]:
-            xmin = 1.73 
-            xmax = 1.82 
+            xmin = 1.74 
+            xmax = 1.83 
             text = "k" 
         intervals [13]:
-            xmin = 1.82 
+            xmin = 1.83 
             xmax = 1.95 
             text = "eː" 
         intervals [14]:
@@ -136,14 +136,14 @@ item []:
             text = "z" 
         intervals [21]:
             xmin = 2.66 
-            xmax = 2.73 
+            xmax = 2.74 
             text = "ɛ" 
         intervals [22]:
-            xmin = 2.73 
-            xmax = 2.78 
+            xmin = 2.74 
+            xmax = 2.87 
             text = "j" 
         intervals [23]:
-            xmin = 2.78 
+            xmin = 2.87 
             xmax = 2.97 
             text = "n" 
         intervals [24]:

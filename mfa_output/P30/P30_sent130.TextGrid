@@ -38,14 +38,14 @@ item []:
             text = "van" 
         intervals [7]:
             xmin = 5.18 
-            xmax = 5.83 
+            xmax = 5.87 
             text = "" 
         intervals [8]:
-            xmin = 5.83 
-            xmax = 5.86 
+            xmin = 5.87 
+            xmax = 6.63 
             text = "nvidia" 
         intervals [9]:
-            xmin = 5.86 
+            xmin = 6.63 
             xmax = 7.415063 
             text = "" 
     item [2]:
@@ -53,7 +53,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 7.415063 
-        intervals: size = 23 
+        intervals: size = 30 
         intervals [1]:
             xmin = 0.0 
             xmax = 3.88 
@@ -144,5 +144,33 @@ item []:
             text = "n" 
         intervals [23]:
             xmin = 5.18 
+            xmax = 5.87 
+            text = "" 
+        intervals [24]:
+            xmin = 5.87 
+            xmax = 6.04 
+            text = "n" 
+        intervals [25]:
+            xmin = 6.04 
+            xmax = 6.12 
+            text = "v" 
+        intervals [26]:
+            xmin = 6.12 
+            xmax = 6.22 
+            text = "iː" 
+        intervals [27]:
+            xmin = 6.22 
+            xmax = 6.26 
+            text = "d" 
+        intervals [28]:
+            xmin = 6.26 
+            xmax = 6.37 
+            text = "ɪ" 
+        intervals [29]:
+            xmin = 6.37 
+            xmax = 6.63 
+            text = "aː" 
+        intervals [30]:
+            xmin = 6.63 
             xmax = 7.415063 
             text = "" 

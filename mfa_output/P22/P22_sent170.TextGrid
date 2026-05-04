@@ -42,14 +42,14 @@ item []:
             text = "tijdens" 
         intervals [8]:
             xmin = 3.15 
-            xmax = 4.92 
+            xmax = 3.28 
             text = "de" 
         intervals [9]:
-            xmin = 4.92 
-            xmax = 4.95 
+            xmin = 3.28 
+            xmax = 3.59 
             text = "" 
         intervals [10]:
-            xmin = 4.95 
+            xmin = 3.59 
             xmax = 5.001 
             text = "kolonisatieperiode" 
     item [2]:
@@ -57,7 +57,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 5.001 
-        intervals: size = 38 
+        intervals: size = 56 
         intervals [1]:
             xmin = 0.0 
             xmax = 0.94 
@@ -204,9 +204,81 @@ item []:
             text = "d" 
         intervals [37]:
             xmin = 3.19 
-            xmax = 4.92 
+            xmax = 3.28 
             text = "eː" 
         intervals [38]:
-            xmin = 4.92 
-            xmax = 5.001 
+            xmin = 3.28 
+            xmax = 3.59 
             text = "" 
+        intervals [39]:
+            xmin = 3.59 
+            xmax = 3.7 
+            text = "k" 
+        intervals [40]:
+            xmin = 3.7 
+            xmax = 3.77 
+            text = "oː" 
+        intervals [41]:
+            xmin = 3.77 
+            xmax = 3.82 
+            text = "l" 
+        intervals [42]:
+            xmin = 3.82 
+            xmax = 3.92 
+            text = "ɔ" 
+        intervals [43]:
+            xmin = 3.92 
+            xmax = 3.97 
+            text = "n" 
+        intervals [44]:
+            xmin = 3.97 
+            xmax = 4.06 
+            text = "iː" 
+        intervals [45]:
+            xmin = 4.06 
+            xmax = 4.16 
+            text = "s" 
+        intervals [46]:
+            xmin = 4.16 
+            xmax = 4.3 
+            text = "aː" 
+        intervals [47]:
+            xmin = 4.3 
+            xmax = 4.43 
+            text = "t" 
+        intervals [48]:
+            xmin = 4.43 
+            xmax = 4.48 
+            text = "iː" 
+        intervals [49]:
+            xmin = 4.48 
+            xmax = 4.51 
+            text = "ɛ" 
+        intervals [50]:
+            xmin = 4.51 
+            xmax = 4.6 
+            text = "p" 
+        intervals [51]:
+            xmin = 4.6 
+            xmax = 4.65 
+            text = "ɛ" 
+        intervals [52]:
+            xmin = 4.65 
+            xmax = 4.74 
+            text = "r" 
+        intervals [53]:
+            xmin = 4.74 
+            xmax = 4.87 
+            text = "ɪ" 
+        intervals [54]:
+            xmin = 4.87 
+            xmax = 4.92 
+            text = "oː" 
+        intervals [55]:
+            xmin = 4.92 
+            xmax = 4.95 
+            text = "d" 
+        intervals [56]:
+            xmin = 4.95 
+            xmax = 5.001 
+            text = "eː" 

@@ -30,10 +30,10 @@ item []:
             text = "bureaustoelen" 
         intervals [5]:
             xmin = 2.98 
-            xmax = 3.54 
+            xmax = 3.77 
             text = "zijn" 
         intervals [6]:
-            xmin = 3.54 
+            xmin = 3.77 
             xmax = 3.84 
             text = "" 
         intervals [7]:
@@ -46,10 +46,10 @@ item []:
             text = "niet" 
         intervals [9]:
             xmin = 4.91 
-            xmax = 5.55 
+            xmax = 5.57 
             text = "verantwoord" 
         intervals [10]:
-            xmin = 5.55 
+            xmin = 5.57 
             xmax = 10.004875 
             text = "" 
     item [2]:
@@ -132,14 +132,14 @@ item []:
             text = "uː" 
         intervals [19]:
             xmin = 2.58 
-            xmax = 2.64 
+            xmax = 2.63 
             text = "ɛ" 
         intervals [20]:
-            xmin = 2.64 
-            xmax = 2.67 
+            xmin = 2.63 
+            xmax = 2.66 
             text = "l" 
         intervals [21]:
-            xmin = 2.67 
+            xmin = 2.66 
             xmax = 2.93 
             text = "ɛ" 
         intervals [22]:
@@ -156,14 +156,14 @@ item []:
             text = "ɛ" 
         intervals [25]:
             xmin = 3.09 
-            xmax = 3.2 
+            xmax = 3.21 
             text = "j" 
         intervals [26]:
-            xmin = 3.2 
-            xmax = 3.54 
+            xmin = 3.21 
+            xmax = 3.77 
             text = "n" 
         intervals [27]:
-            xmin = 3.54 
+            xmin = 3.77 
             xmax = 3.84 
             text = "" 
         intervals [28]:
@@ -196,10 +196,10 @@ item []:
             text = "m" 
         intervals [35]:
             xmin = 4.45 
-            xmax = 4.52 
+            xmax = 4.51 
             text = "ɪ" 
         intervals [36]:
-            xmin = 4.52 
+            xmin = 4.51 
             xmax = 4.61 
             text = "s" 
         intervals [37]:
@@ -228,10 +228,10 @@ item []:
             text = "r" 
         intervals [43]:
             xmin = 5.02 
-            xmax = 5.1 
+            xmax = 5.11 
             text = "ɑ" 
         intervals [44]:
-            xmin = 5.1 
+            xmin = 5.11 
             xmax = 5.16 
             text = "n" 
         intervals [45]:
@@ -252,9 +252,9 @@ item []:
             text = "r" 
         intervals [49]:
             xmin = 5.42 
-            xmax = 5.55 
+            xmax = 5.57 
             text = "t" 
         intervals [50]:
-            xmin = 5.55 
+            xmin = 5.57 
             xmax = 10.004875 
             text = "" 

@@ -22,14 +22,14 @@ item []:
             text = "wie" 
         intervals [3]:
             xmin = 1.43 
-            xmax = 2.14 
+            xmax = 1.65 
             text = "niet" 
         intervals [4]:
-            xmin = 2.14 
-            xmax = 2.17 
+            xmin = 1.65 
+            xmax = 2.26 
             text = "waagt" 
         intervals [5]:
-            xmin = 2.17 
+            xmin = 2.26 
             xmax = 2.4 
             text = "die" 
         intervals [6]:
@@ -49,7 +49,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 4.999062 
-        intervals: size = 19 
+        intervals: size = 22 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.14 
@@ -76,53 +76,65 @@ item []:
             text = "iː" 
         intervals [7]:
             xmin = 1.58 
-            xmax = 2.14 
+            xmax = 1.65 
             text = "t" 
         intervals [8]:
-            xmin = 2.14 
-            xmax = 2.17 
-            text = "" 
+            xmin = 1.65 
+            xmax = 1.73 
+            text = "ʋ" 
         intervals [9]:
-            xmin = 2.17 
-            xmax = 2.28 
-            text = "d" 
+            xmin = 1.73 
+            xmax = 1.91 
+            text = "aː" 
         intervals [10]:
-            xmin = 2.28 
+            xmin = 1.91 
+            xmax = 2.02 
+            text = "x" 
+        intervals [11]:
+            xmin = 2.02 
+            xmax = 2.26 
+            text = "t" 
+        intervals [12]:
+            xmin = 2.26 
+            xmax = 2.29 
+            text = "d" 
+        intervals [13]:
+            xmin = 2.29 
             xmax = 2.36 
             text = "iː" 
-        intervals [11]:
+        intervals [14]:
             xmin = 2.36 
             xmax = 2.4 
             text = "eː" 
-        intervals [12]:
+        intervals [15]:
             xmin = 2.4 
             xmax = 2.46 
             text = "n" 
-        intervals [13]:
+        intervals [16]:
             xmin = 2.46 
             xmax = 2.56 
             text = "iː" 
-        intervals [14]:
+        intervals [17]:
             xmin = 2.56 
             xmax = 2.62 
             text = "t" 
-        intervals [15]:
+        intervals [18]:
             xmin = 2.62 
             xmax = 2.69 
             text = "ʋ" 
-        intervals [16]:
+        intervals [19]:
             xmin = 2.69 
             xmax = 2.79 
             text = "ɪ" 
-        intervals [17]:
+        intervals [20]:
             xmin = 2.79 
             xmax = 2.92 
             text = "n" 
-        intervals [18]:
+        intervals [21]:
             xmin = 2.92 
             xmax = 3.04 
             text = "t" 
-        intervals [19]:
+        intervals [22]:
             xmin = 3.04 
             xmax = 4.999062 
             text = "" 

@@ -46,10 +46,10 @@ item []:
             text = "boterhammen" 
         intervals [9]:
             xmin = 3.18 
-            xmax = 3.67 
+            xmax = 3.79 
             text = "gedaan" 
         intervals [10]:
-            xmin = 3.67 
+            xmin = 3.79 
             xmax = 5.009812 
             text = "" 
     item [2]:
@@ -64,10 +64,10 @@ item []:
             text = "" 
         intervals [2]:
             xmin = 1.24 
-            xmax = 1.37 
+            xmax = 1.38 
             text = "ʋ" 
         intervals [3]:
-            xmin = 1.37 
+            xmin = 1.38 
             xmax = 1.46 
             text = "ɛ" 
         intervals [4]:
@@ -120,10 +120,10 @@ item []:
             text = "eː" 
         intervals [16]:
             xmin = 2.35 
-            xmax = 2.4 
+            xmax = 2.42 
             text = "ɔ" 
         intervals [17]:
-            xmin = 2.4 
+            xmin = 2.42 
             xmax = 2.51 
             text = "p" 
         intervals [18]:
@@ -196,9 +196,9 @@ item []:
             text = "aː" 
         intervals [35]:
             xmin = 3.5 
-            xmax = 3.67 
+            xmax = 3.79 
             text = "n" 
         intervals [36]:
-            xmin = 3.67 
+            xmin = 3.79 
             xmax = 5.009812 
             text = "" 

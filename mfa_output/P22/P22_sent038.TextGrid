@@ -11,17 +11,17 @@ item []:
         name = "words" 
         xmin = 0 
         xmax = 5.002937 
-        intervals: size = 8 
+        intervals: size = 7 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.78 
             text = "" 
         intervals [2]:
             xmin = 1.78 
-            xmax = 2.56 
+            xmax = 2.6 
             text = "veganistisch" 
         intervals [3]:
-            xmin = 2.56 
+            xmin = 2.6 
             xmax = 3.12 
             text = "eten" 
         intervals [4]:
@@ -30,18 +30,14 @@ item []:
             text = "gaat" 
         intervals [5]:
             xmin = 3.49 
-            xmax = 4.48 
+            xmax = 3.93 
             text = "verder" 
         intervals [6]:
-            xmin = 4.48 
-            xmax = 4.51 
-            text = "" 
-        intervals [7]:
-            xmin = 4.51 
-            xmax = 4.95 
+            xmin = 3.93 
+            xmax = 4.16 
             text = "dan" 
-        intervals [8]:
-            xmin = 4.95 
+        intervals [7]:
+            xmin = 4.16 
             xmax = 5.002937 
             text = "vegetarisch" 
     item [2]:
@@ -49,7 +45,7 @@ item []:
         name = "phones" 
         xmin = 0 
         xmax = 5.002937 
-        intervals: size = 29 
+        intervals: size = 36 
         intervals [1]:
             xmin = 0.0 
             xmax = 1.78 
@@ -92,10 +88,10 @@ item []:
             text = "ɪ" 
         intervals [11]:
             xmin = 2.46 
-            xmax = 2.56 
+            xmax = 2.6 
             text = "s" 
         intervals [12]:
-            xmin = 2.56 
+            xmin = 2.6 
             xmax = 2.78 
             text = "eː" 
         intervals [13]:
@@ -140,29 +136,57 @@ item []:
             text = "d" 
         intervals [23]:
             xmin = 3.82 
-            xmax = 4.06 
+            xmax = 3.9 
             text = "ɛ" 
         intervals [24]:
-            xmin = 4.06 
-            xmax = 4.48 
+            xmin = 3.9 
+            xmax = 3.93 
             text = "r" 
         intervals [25]:
-            xmin = 4.48 
-            xmax = 4.51 
-            text = "" 
-        intervals [26]:
-            xmin = 4.51 
-            xmax = 4.56 
+            xmin = 3.93 
+            xmax = 3.96 
             text = "d" 
-        intervals [27]:
-            xmin = 4.56 
-            xmax = 4.62 
+        intervals [26]:
+            xmin = 3.96 
+            xmax = 3.99 
             text = "ɑ" 
-        intervals [28]:
-            xmin = 4.62 
-            xmax = 4.95 
+        intervals [27]:
+            xmin = 3.99 
+            xmax = 4.16 
             text = "n" 
+        intervals [28]:
+            xmin = 4.16 
+            xmax = 4.32 
+            text = "v" 
         intervals [29]:
+            xmin = 4.32 
+            xmax = 4.4 
+            text = "eː" 
+        intervals [30]:
+            xmin = 4.4 
+            xmax = 4.43 
+            text = "ɣ" 
+        intervals [31]:
+            xmin = 4.43 
+            xmax = 4.51 
+            text = "ɛ" 
+        intervals [32]:
+            xmin = 4.51 
+            xmax = 4.57 
+            text = "t" 
+        intervals [33]:
+            xmin = 4.57 
+            xmax = 4.61 
+            text = "aː" 
+        intervals [34]:
+            xmin = 4.61 
+            xmax = 4.91 
+            text = "r" 
+        intervals [35]:
+            xmin = 4.91 
+            xmax = 4.95 
+            text = "ɪ" 
+        intervals [36]:
             xmin = 4.95 
             xmax = 5.002937 
-            text = "" 
+            text = "s" 

@@ -911,21 +911,32 @@ def predict_segments(model, eeg_frames_for_detector, pid, oracle_n_phonemes=None
     K (target segment count) source depends on ADAPTIVE_K_SOURCE.
     """
     model.eval()
-    is_word_aware  = isinstance(model, CountWordAwareDetector)
-    is_count_aware = isinstance(model, CountAwareJointDetector)
+    # Check by class NAME so importlib.reload of this module doesn't break
+    # isinstance checks against pre-reload model instances.
+    cls_name = model.__class__.__name__
 
     with torch.no_grad():
         X = torch.from_numpy(eeg_frames_for_detector.astype(np.float32)
                               ).unsqueeze(0).to(DEVICE)
-        if is_word_aware:
-            b_logits, _w_logits, count_pred = model(eeg=X, mfcc=None, pid=pid)
-            count_pred_val = float(count_pred[0].item())
-            logits = b_logits
-        elif is_count_aware:
-            logits, count_pred = model(eeg=X, mfcc=None, pid=pid)
-            count_pred_val = float(count_pred[0].item())
+        out = model(eeg=X, mfcc=None, pid=pid)
+
+        # Disambiguate by inspecting return type:
+        #   - CountWordAwareDetector → (boundary_logits, word_logits, count_pred)
+        #   - CountAwareJointDetector → (boundary_logits, count_pred)
+        #   - JointBoundaryDetector → boundary_logits
+        if isinstance(out, tuple):
+            if len(out) == 3:
+                logits, _w_logits, count_pred = out
+                count_pred_val = float(count_pred[0].item())
+            elif len(out) == 2:
+                logits, count_pred = out
+                count_pred_val = float(count_pred[0].item())
+            else:
+                raise ValueError(
+                    f"Unexpected forward output shape: tuple of length {len(out)} "
+                    f"(model class: {cls_name})")
         else:
-            logits = model(eeg=X, mfcc=None, pid=pid)
+            logits = out
             count_pred_val = None
         probs  = torch.sigmoid(logits)[0].cpu().numpy()
 
@@ -1356,43 +1367,151 @@ def main():
 # pipeline.patient_results[pid] = {'true_labels', 'predictions',
 # 'accuracy', ...} so the colored-n-gram viz keeps working unchanged.
 
-def run_path_detector(pipeline, run_config=None):
-    """Train per-patient CRFs on pipeline.train (MFA features), then
-    evaluate on detector-segmented test sentences. Stores results on
-    pipeline.patient_results.
+def train_brain_only_models(pipeline):
+    """TRAIN-TIME ONLY. Trains all components needed for brain-only inference,
+    using MFA-derived data as the supervision signal.
 
+    What gets trained:
+      - One CRF per patient on `pipeline.train['features']` (per-phoneme HG
+        features computed by run_with_mfa_boundaries; MFA timestamps were
+        used to slice phonemes — supervision only, not test input).
+      - The v6 boundary detector (BiLSTM + count head + word-onset head),
+        trained on per-sentence iEEG with MFA timestamps as boundary labels.
+
+    No test-time inference happens here. No per-sentence prediction occurs.
+    MFA's role at this stage is purely as a TRAINING-LABEL source.
+
+    Returns:
+        classifiers:        dict pid → {'crf', 'scaler', 'pca', 'valid_classes'}
+        v6_model:           trained CountWordAwareDetector
+        detector_test_ds:   held-out sentences for the brain-only inference
+                            phase. Each item has 'eeg' (z-scored frame
+                            features for v6's input), 'pid', 'sentence_idx',
+                            and (for diagnostics) 'n_phonemes'.
+    """
+    classifiers = train_per_patient_crfs(pipeline)
+    v6_model, detector_test_ds = load_or_train_detector(pipeline)
+    return classifiers, v6_model, detector_test_ds
+
+
+def predict_one_sentence_brain_only(v6_model, classifiers, sentence_eeg,
+                                     detector_input_frames, pid,
+                                     oracle_n_phonemes=None,
+                                     stk_order=None,
+                                     pipeline_config=None):
+    """TEST-TIME, BRAIN-ONLY. Predict the phoneme sequence for one sentence
+    using ONLY iEEG. No MFA, no audio.
+
+    Steps:
+      1. v6 detector reads detector_input_frames (z-scored 200 Hz iEEG
+         features) → predicts phoneme boundaries + count.
+      2. Slice raw iEEG (`sentence_eeg`) at those predicted boundaries →
+         pipeline-native HG features per segment.
+      3. Apply patient's StandardScaler + PCA + CRF → predicted phoneme labels.
+
+    Args:
+        v6_model:                trained CountWordAwareDetector
+        classifiers:             dict from train_brain_only_models
+        sentence_eeg:            np.ndarray (n_samples, n_channels) — raw iEEG
+                                 for this sentence (channel-masked)
+        detector_input_frames:   np.ndarray (T, n_channels) — z-scored 200 Hz
+                                 features for v6 (typically item['eeg'] from
+                                 detector_test_ds)
+        pid:                     patient id
+        oracle_n_phonemes:       only used if v6 is configured to use 'oracle'
+                                 K-source; ignored under default 'predicted'
+        stk_order:               stacking order for feature extraction
+        pipeline_config:         pipeline.config (for sample rate, etc.)
+
+    Returns:
+        (predicted_phonemes, segments_seconds): list[str], list[(start_s, end_s)]
+        Empty lists if no boundaries detected.
+    """
+    if pid not in classifiers:
+        return [], []
+
+    eeg_sr     = pipeline_config.eeg_sr      if pipeline_config else 1024
+    win_len    = pipeline_config.window_length if pipeline_config else 0.015
+    frameshift = pipeline_config.frameshift  if pipeline_config else 0.005
+    if stk_order is None:
+        stk_order = RUN_CONFIG['stacking_order']
+
+    # Step 1 — boundaries from iEEG (no MFA, no audio)
+    segments = predict_segments(v6_model, detector_input_frames, pid,
+                                  oracle_n_phonemes=oracle_n_phonemes)
+    if not segments:
+        return [], []
+
+    # Step 2 — pipeline-native features per detected segment (raw iEEG only)
+    seg_feats = []
+    for (s_s, e_s) in segments:
+        f = extract_phoneme_feature_pipeline_native(
+            sentence_eeg, s_s, e_s, eeg_sr, win_len, frameshift, stk_order)
+        if f is not None:
+            seg_feats.append(f)
+    if not seg_feats:
+        return [], segments
+
+    # Step 3 — CRF inference (StandardScaler + PCA + CRF, all from train-side)
+    scaler = classifiers[pid]['scaler']
+    pca    = classifiers[pid]['pca']
+    crf    = classifiers[pid]['crf']
+
+    X = pca.transform(scaler.transform(np.asarray(seg_feats)))
+    y_pred = crf.predict(_features_to_dicts_one_seq(X))[0]
+    return list(y_pred), segments
+
+
+def get_mfa_oracle_labels(pid, sent_idx, valid_classes):
+    """SCORING-TIME ONLY. Look up MFA's ground-truth phoneme sequence for a
+    sentence, filtered to the classes the patient's CRF was trained on.
+
+    MFA appears here as the ORACLE REFERENCE for computing PER. It is never
+    fed to the predictor — this function exists separately to make that
+    explicit.
+
+    Returns: list of phoneme strings (the true sequence).
+    """
+    mfa = load_mfa_alignments(pid).get(sent_idx, [])
+    return [p['phone'] for p in mfa if p['phone'] in valid_classes]
+
+
+def run_with_ieeg_boundaries(pipeline, run_config=None):
+    """Brain-only inference orchestration. Three explicit phases:
+
+       1. TRAIN  (uses MFA labels as supervision):
+          train_brain_only_models(pipeline)
+       2. INFER  (iEEG only, no MFA, no audio):
+          predict_one_sentence_brain_only(...) per held-out sentence
+       3. SCORE  (compare to MFA oracle for PER computation):
+          get_mfa_oracle_labels(...) per held-out sentence
+
+    Stores per-patient results in pipeline.patient_results.
     Returns (name, params, results) — same shape as run_from_config.
     """
-    if run_config is not None and run_config.get('stacking_order') is not None:
-        # honour the caller's stacking config for our segment-feature extractor
-        global STK_ORDER  # noqa: PLW0603
-        # (e2e module already pulls stacking_order from RUN_CONFIG)
+    # ── Phase 1: TRAIN ─────────────────────────────────────────────────────
+    classifiers, v6_model, detector_test_ds = train_brain_only_models(pipeline)
 
-    classifiers              = train_per_patient_crfs(pipeline)
-    model, detector_test_ds  = load_or_train_detector(pipeline)
-    det_summary              = evaluate_detector_path(
-        pipeline, classifiers, model, detector_test_ds)
+    # (Diagnostic table — not part of brain-only inference, just printed)
+    _ = evaluate_detector_path(pipeline, classifiers, v6_model,
+                                detector_test_ds)
 
-    # Build pipeline.patient_results from the per-sentence runs
-    eeg_sr     = pipeline.config.eeg_sr
-    win_len    = pipeline.config.window_length
-    frameshift = pipeline.config.frameshift
-    stk_order  = (run_config or RUN_CONFIG)['stacking_order']
+    # Per-sentence storage
+    per_pid_pred = defaultdict(list)
+    per_pid_true = defaultdict(list)
+    per_pid_true_sids = defaultdict(list)
+    per_pid_pred_sids = defaultdict(list)
 
+    # Cache raw EEG per patient (with the same channel mask the CRF saw)
     raw_eeg_cache  = {}
     chan_mask_cache = {pid: get_pipeline_channel_mask(pipeline, pid)
                        for pid in ALL_PIDS}
 
-    per_pid_pred = defaultdict(list)
-    per_pid_true = defaultdict(list)
-    per_pid_true_sids = defaultdict(list)   # sentence id per true phoneme
-    per_pid_pred_sids = defaultdict(list)   # sentence id per pred phoneme
+    stk_order = (run_config or RUN_CONFIG)['stacking_order']
 
     for item in detector_test_ds:
         pid      = item['pid']
         sent_idx = item['sentence_idx']
-        if pid not in classifiers:
-            continue
 
         if pid not in raw_eeg_cache:
             raw  = np.load(os.path.join(DUTCH_30_PATH, 'raw',
@@ -1403,40 +1522,31 @@ def run_path_detector(pipeline, run_config=None):
         wd        = pipeline.split_result['word_segments_dict'][pid]
         sent_info = wd['sentence_list'][sent_idx]
         sentence_eeg = raw_eeg_cache[pid][int(sent_info['stim_start_idx']):
-                                          int(sent_info['stim_end_idx'])]
+                                           int(sent_info['stim_end_idx'])]
 
-        segments = predict_segments(
-            model, item['eeg'], pid,
-            oracle_n_phonemes=item.get('n_phonemes'))
-        if not segments:
+        # ── Phase 2: INFER (brain-only) ──────────────────────────────────
+        y_pred, _segments = predict_one_sentence_brain_only(
+            v6_model, classifiers,
+            sentence_eeg=sentence_eeg,
+            detector_input_frames=item['eeg'],
+            pid=pid,
+            oracle_n_phonemes=item.get('n_phonemes'),
+            stk_order=stk_order,
+            pipeline_config=pipeline.config,
+        )
+        if not y_pred:
             continue
 
-        seg_feats = []
-        for (s_s, e_s) in segments:
-            f = extract_phoneme_feature_pipeline_native(
-                sentence_eeg, s_s, e_s, eeg_sr, win_len, frameshift, stk_order)
-            if f is not None:
-                seg_feats.append(f)
-        if not seg_feats:
-            continue
+        # ── Phase 3: SCORE (compare to MFA oracle) ────────────────────────
+        y_true = get_mfa_oracle_labels(pid, sent_idx,
+                                        classifiers[pid]['valid_classes'])
 
-        scaler = classifiers[pid]['scaler']
-        pca    = classifiers[pid]['pca']
-        crf    = classifiers[pid]['crf']
-        valid  = classifiers[pid]['valid_classes']
-
-        X = pca.transform(scaler.transform(np.asarray(seg_feats)))
-        y_pred = crf.predict(_features_to_dicts_one_seq(X))[0]
-
-        mfa = load_mfa_alignments(pid).get(sent_idx, [])
-        y_true = [p['phone'] for p in mfa if p['phone'] in valid]
-
-        per_pid_pred[pid].extend(list(y_pred))
+        per_pid_pred[pid].extend(y_pred)
         per_pid_true[pid].extend(y_true)
         per_pid_pred_sids[pid].extend([sent_idx] * len(y_pred))
         per_pid_true_sids[pid].extend([sent_idx] * len(y_true))
 
-    # Pack into pipeline.patient_results
+    # Pack per-patient summary into pipeline.patient_results
     pipeline.patient_results = {}
     for pid in sorted(per_pid_pred):
         true = per_pid_true[pid]
@@ -1448,20 +1558,26 @@ def run_path_detector(pipeline, run_config=None):
                     / max(len(true), 1))
         ed = edit_distance(true, pred)
         pipeline.patient_results[pid] = {
-            'true_labels':     list(true),
-            'predictions':     list(pred),
+            'true_labels':       list(true),
+            'predictions':       list(pred),
             'true_sentence_ids': list(per_pid_true_sids[pid]),
             'pred_sentence_ids': list(per_pid_pred_sids[pid]),
-            'accuracy':        accuracy,
-            'edit_distance':   ed,
-            'per':             ed / max(len(true), 1),
-            'n_test':          len(true),
-            'n_pred':          len(pred),
+            'accuracy':          accuracy,
+            'edit_distance':     ed,
+            'per':               ed / max(len(true), 1),
+            'n_test':            len(true),
+            'n_pred':            len(pred),
         }
 
     return ('detector_path',
             {'ckpt_prefix': CKPT_PREFIX, 'k_source': ADAPTIVE_K_SOURCE},
             pipeline.patient_results)
+
+
+# Backward-compat alias — `run_path_detector` is the older name kept so
+# previous notebook code keeps working. New code should use
+# `run_with_ieeg_boundaries`.
+run_path_detector = run_with_ieeg_boundaries
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1485,6 +1601,7 @@ DEFAULT_WEAK_EQUIVALENCE = [
     # Vowel quality (close pairs)
     {'e', 'ɛ'}, {'o', 'ɔ'}, {'i', 'ɪ'}, {'u', 'ʊ'},
     {'eː', 'ɛ'}, {'oː', 'ɔ'},
+    {'ɪ', 'ɛ'},      # high-lax vs mid-lax front vowels (neighbors on vowel chart)
     # Voicing pairs (stops + fricatives)
     {'t', 'd'}, {'p', 'b'},
     {'k', 'ɡ', 'g'},                    # IPA ɡ (U+0261) and ASCII g often interchangeable
@@ -1493,6 +1610,8 @@ DEFAULT_WEAK_EQUIVALENCE = [
     {'ɣ', 'ɦ'},                         # both voiced; cross-dialect overlap
     # /r/ realization variants (Dutch has alveolar trill, uvular trill, uvular fric.)
     {'r', 'ʀ', 'ʁ'},
+    # Liquids — alveolar /r/ and /l/ share place + sonorance, often confusable
+    {'r', 'l'},
     # Schwa-adjacent
     {'ə', 'ɛ'}, {'ə', 'ɪ'},
 ]
@@ -1881,11 +2000,35 @@ def display_matched_sequences(true_seq, pred_seq, matches,
     display(HTML(''.join(chunks)))
 
 
+def _collapse_consecutive_repeats(seq, sids=None):
+    """Collapse consecutive duplicates: ['n','n','ɛ','n']  → ['n','ɛ','n'].
+    Returns (collapsed_seq, collapsed_sids). If sids is None, returns
+    (collapsed_seq, None)."""
+    out = []
+    out_sids = [] if sids is not None else None
+    prev = object()    # sentinel — never matches
+    for i, x in enumerate(seq):
+        if x != prev:
+            out.append(x)
+            if sids is not None:
+                out_sids.append(sids[i])
+        prev = x
+    return out, out_sids
+
+
 def show_matched_sequences(pipeline, pid,
                             shift_by_len=None,
-                            max_per_line=50, n_phonemes=None):
+                            max_per_line=50, n_phonemes=None,
+                            collapse_repeats=True):
     """Show one patient's true vs pred phoneme sequence with colored
-    n-gram matches (variable shift per length)."""
+    n-gram matches (variable shift per length).
+
+    collapse_repeats: if True (default), consecutive repeated phonemes in
+    BOTH true and pred are collapsed to one before matching/rendering.
+    `n n n` becomes `n`. Sentence ids are preserved (the first sid of each
+    run wins). Affects only the visualization — `pipeline.patient_results`
+    is unchanged.
+    """
     res  = pipeline.patient_results[pid]
     true = list(res['true_labels'])
     pred = list(res['predictions'])
@@ -1896,6 +2039,10 @@ def show_matched_sequences(pipeline, pid,
         true = true[:n_phonemes]; pred = pred[:n_phonemes]
         if true_sids is not None: true_sids = true_sids[:n_phonemes]
         if pred_sids is not None: pred_sids = pred_sids[:n_phonemes]
+
+    if collapse_repeats:
+        true, true_sids = _collapse_consecutive_repeats(true, true_sids)
+        pred, pred_sids = _collapse_consecutive_repeats(pred, pred_sids)
 
     matches = find_color_matches(
         true, pred, shift_by_len=shift_by_len,
@@ -1931,7 +2078,7 @@ def show_matched_sequences(pipeline, pid,
 
 
 def show_all_patients(pipeline, shift_by_len=None, max_per_line=50,
-                       n_phonemes=None):
+                       n_phonemes=None, collapse_repeats=True):
     """Loop all patients in pipeline.patient_results and print per-patient
     edit-distance summary at the end."""
     pids = sorted(pipeline.patient_results.keys())
@@ -1939,7 +2086,8 @@ def show_all_patients(pipeline, shift_by_len=None, max_per_line=50,
         show_matched_sequences(pipeline, pid,
                                 shift_by_len=shift_by_len,
                                 max_per_line=max_per_line,
-                                n_phonemes=n_phonemes)
+                                n_phonemes=n_phonemes,
+                                collapse_repeats=collapse_repeats)
 
     # Per-patient edit-distance / PER summary
     print("\n  " + "=" * 60)
@@ -1961,14 +2109,6 @@ def show_all_patients(pipeline, shift_by_len=None, max_per_line=50,
     print("  " + "-" * 50)
     print(f"  {'mean':<5} {'':>7} {'':>7} {np.mean(eds):>6.1f} "
           f"{np.mean(pers):>7.2%} {np.mean(accs):>6.2%}")
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# Public alias with a more descriptive name
-# ═════════════════════════════════════════════════════════════════════════════
-# `run_path_detector` predates this convention and is kept for backward
-# compatibility. New code should use `run_with_ieeg_boundaries`.
-run_with_ieeg_boundaries = run_path_detector
 
 
 if __name__ == '__main__':

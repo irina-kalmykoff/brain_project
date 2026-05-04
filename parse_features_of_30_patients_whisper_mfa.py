@@ -1,3 +1,4 @@
+# %% Cell 1 — Setup — package versions
 # Converted from parse_features_of_30_patients_whisper_mfa.ipynb
 
 packages = [
@@ -100,45 +101,6 @@ path_output = OUTPUT_PATH #'./features'  # Path to save extracted features
 path_results = RESULTS_PATH #'./results'  # Path to save results
 paths_30 = get_dataset_paths('dutch30')
 
-    # def run_from_config(pipeline, run_config):
-    #     """Run experiment using a unified config dict.
-    
-    #     Passes all parameters to run_experiment and includes
-    #     the full pipeline config in the logged params.
-    
-    #     Args:
-    #         pipeline: Pipeline with train/test data.
-    #         run_config: dict with all pipeline and classifier settings.
-    
-    #     Returns:
-    #         Tuple of (name, params, results).
-    #     """
-    #     name, params, results = run_experiment(
-    #         pipeline,
-    #         order=run_config.get('markov_order', 1),
-    #         class_weight=run_config.get('class_weight', 'balanced'),
-    #         use_groups=run_config.get('use_groups', False),
-    #         classifier_type=run_config.get('classifier_type', 'random_forest'),
-    #         use_viterbi=run_config.get('use_viterbi', False),
-    #         stacking_order=run_config.get('stacking_order'),
-    #         stacking_step_size=run_config.get('stacking_step_size'),
-    #         max_frames=run_config.get('max_frames'),
-    #         min_frames=run_config.get('min_frames'),
-    #         target_frames=run_config.get('target_frames'),
-    #         random_state=run_config.get('random_state', 37),
-    #         scaler_type=run_config.get('scaler_type', 'standard'),
-    #         subtract_baseline=run_config.get('subtract_baseline', False),
-    #         min_class_samples = run_config.get('min_class_samples', 5)
-    #     )
-    
-    #     # Add pipeline config to params so it's all in one place
-    #     params['patient_range'] = run_config.get('patient_range')
-    #     params['feature_extraction_method'] = run_config.get('feature_extraction_method')
-    #     params['subtract_baseline'] = run_config.get('subtract_baseline')
-    #     params['sample_fraction'] = run_config.get('sample_fraction')
-    
-    #     return name, params, results
-
 # python run_pipeline.py                    # Path A (wav2vec)
 # python run_pipeline.py --mfa             # Path B (MFA)
 # python run_pipeline.py --mfa --sweep     # Path B + hyperparameter sweep
@@ -148,57 +110,21 @@ paths_30 = get_dataset_paths('dutch30')
 # python run_pipeline.py --mfa-coverage    # Show alignment coverage
 # python run_pipeline.py --patients 1-10   # Different patient range
 
-from run_pipeline import (
-    # ── Configuration ─────────────────────────────────────────────────────
-    DEFAULT_RUN_CONFIG,          # dict with all default hyperparameters
-
-    # ── Pipeline paths (choose one) ───────────────────────────────────────
-    # run_path_a,                # Path A: wav2vec/WhisperX boundary detection
-    #                            #   - detects phoneme boundaries from audio in real time
-    #                            #   - uses step4_custom_detector + step5_accumulate
-    #                            #   - requires WhisperX model loaded (slow, ~1GB RAM)
-    #                            #   - 3-level checkpoint system (step5 → frame → step3)
-    run_path_b,                  # Path B: MFA pre-aligned TextGrids
-                                 #   - reads phoneme timestamps from MFA TextGrid files
-                                 #   - bypasses step4 + step5_accumulate entirely
-                                 #   - requires mfa_output/ TextGrids to exist already
-                                 #   - only needs step3 checkpoint (for train/test split)
-
-    # ── Classification ────────────────────────────────────────────────────
-    run_from_config,             # train + evaluate per-patient classifiers (uses run_config)
-    # run_experiment,            # same but with explicit keyword args instead of dict
-
-    # ── Analysis & diagnostics ────────────────────────────────────────────
-    count,                       # print train/test sample counts
-    analyze_consecutive_predictions,  # per-patient consecutive-correct runs + position stats
-    # diagnose_mfa_loss,         # show where MFA phonemes are lost (min_samples, missing TG)
-    # mfa_coverage_summary,      # per-patient MFA alignment coverage (sentences, phones)
-
-    # ── MFA setup (one-time, already done for P21-P30) ────────────────────
-    # export_sentences_for_mfa,  # export .wav + .lab per sentence for MFA input
-    # clean_text_for_mfa,        # strip punctuation from transcripts
-    # load_mfa_alignments,       # read TextGrid files into dict
-
-    # ── Sweep ─────────────────────────────────────────────────────────────
-    run_sweep,                 # grid search over stacking_order, step_size, frames, etc.
-
-    # ── Helpers ───────────────────────────────────────────────────────────
-    # attach_whisperx,           # load WhisperX model (only needed for Path A)
-    # make_checkpoint_names,     # generate pickle filenames from run_config
-)
+# build pipeline
+# Pipeline setup + load MFA-aligned features into pipeline.train / pipeline.test
+from run_pipeline import DEFAULT_RUN_CONFIG, run_with_mfa_boundaries
+from dutch_30_pipeline import Dutch30Pipeline
+from dutch_30_feature_extractor import Dutch30FeatureExtractor
 
 run_config = dict(DEFAULT_RUN_CONFIG)
-# Override if needed:
-run_config['use_viterbi'] = True
-# run_config['patient_range'] = (21, 30)
-run_config['stacking_order'] = 7
+run_config['use_viterbi']        = True
+run_config['stacking_order']     = 20
 run_config['stacking_step_size'] = 1
 
-# ---- Pipeline setup ----
+# %% Cell 2 — Pipeline setup
 extractor = Dutch30FeatureExtractor()
 pipeline = Dutch30Pipeline(
-    dutch30_extractor=extractor,
-    debug_mode=False,
+    dutch30_extractor=extractor, debug_mode=False,
     feature_extraction_method=run_config['feature_extraction_method'],
     use_wav2vec=False,
     subtract_baseline=run_config['subtract_baseline'],
@@ -206,11 +132,133 @@ pipeline = Dutch30Pipeline(
     use_multifeature=False,
 )
 
-# ── Run Path B (MFA) ─────────────────────────────────────────────────────────
-cached_train, cached_test = run_path_b(pipeline, run_config)
+# %% Cell 3 — Run with MFA boundaries (formerly Path B)
+cached_train, cached_test = run_with_mfa_boundaries(pipeline, run_config)
 
-# ── Classification ────────────────────────────────────────────────────────────
-# name, params, results = run_from_config(pipeline, run_config)
+# boundary detection checkpoint
+import os, glob
+# Remove v6 leftovers
+# for f in glob.glob('boundary_detector_v6_*.pt'):
+#     os.remove(f); print(f'removed {f}')
+
+import importlib, e2e_brain_decoder
+importlib.reload(e2e_brain_decoder)
+from e2e_brain_decoder import run_with_ieeg_boundaries
+_ = run_with_ieeg_boundaries(pipeline, run_config)
+
+# ═════════════════════════════════════════════════════════════════════════════
+# OPTIONAL: train CTC frame-level decoder
+# ═════════════════════════════════════════════════════════════════════════════
+# CTC was investigated but did not generalize well on ~750 training sentences
+# even with regularization or warm-start from v6's encoder. v6 (above) gives
+# the same ceiling with cleaner len_ratio. Comment in the block below if you
+# want to retry CTC.
+
+# %% Cell — (optional) Train CTC frame-level decoder
+# import os, glob
+# for f in glob.glob('frame_ctc_v3_*.pt'):
+#     os.remove(f); print(f'removed {f}')
+#
+# import importlib, frame_level_decoder as fld
+# importlib.reload(fld)
+# fld.HIDDEN_DIM      = 192
+# fld.N_LSTM_LAYERS   = 2
+# fld.PROJ_DIM        = 64
+# fld.DROPOUT         = 0.3
+# fld.WEIGHT_DECAY    = 1e-3
+# fld.CHANNEL_MASK_PROB = 0.05
+# fld.PER_EPOCH_CHANNEL_DROPOUT = True
+# fld.N_EPOCHS_TOTAL  = 80
+# fld.EARLY_STOP_PATIENCE = 15
+# fld.WARM_START_FROM_V6 = True
+# _ = fld.run_path_ctc(pipeline)
+
+# %% Cell — (optional) Hybrid decoder: v6 boundaries + CTC frame logits
+# import importlib, hybrid_decoder
+# importlib.reload(hybrid_decoder)
+# from hybrid_decoder import run_path_hybrid
+# _ = run_path_hybrid(pipeline)
+
+# %% Cell — (optional) Diagnostic: evaluate CTC on TRAIN data to check overfit
+# import torch, glob
+# from frame_level_decoder import (
+#     FrameCTCModel, build_ctc_dataset, attach_target_indices, Vocab,
+#     HIDDEN_DIM, N_LSTM_LAYERS, DROPOUT, PROJ_DIM, DEVICE,
+#     evaluate_ctc, ALL_PIDS,
+# )
+# from boundary_detector_joint_audio import (
+#     split_by_sentence, fit_train_stats, apply_stats,
+# )
+# ckpt_path = sorted(glob.glob('frame_ctc_v3_*.pt'))[-1]
+# ckpt = torch.load(ckpt_path, map_location=DEVICE)
+# vocab = Vocab(set())
+# vocab.itos = ckpt['vocab_itos']; vocab.stoi = {p: i for i, p in enumerate(vocab.itos)}
+# model = FrameCTCModel(
+#     per_patient_eeg_n_ch=ckpt['per_patient_eeg_n_ch'],
+#     vocab_size=ckpt['vocab_size'],
+#     hidden_dim=HIDDEN_DIM, n_layers=N_LSTM_LAYERS,
+#     dropout=DROPOUT, proj_dim=PROJ_DIM,
+# ).to(DEVICE)
+# model.load_state_dict(ckpt['model_state'])
+# model.eval()
+# full_ds = build_ctc_dataset(pipeline, ALL_PIDS)
+# train_ds, _ = split_by_sentence(full_ds)
+# eeg_stats  = fit_train_stats(train_ds, 'eeg')
+# mfcc_stats = fit_train_stats(train_ds, 'mfcc')
+# apply_stats(train_ds, eeg_stats, mfcc_stats)
+# attach_target_indices(train_ds, vocab)
+# print("\n=== CTC v3 evaluated on TRAIN data ===")
+# train_summary = evaluate_ctc(model, vocab, train_ds)
+
+
+# Check MFA coverage across all sentences
+from collections import defaultdict
+import numpy as np
+from run_pipeline import load_mfa_alignments
+
+eeg_sr = pipeline.config.eeg_sr
+patient_stats = defaultdict(list)
+
+for pid in [f'P{i:02d}' for i in range(21, 31)]:
+    wd = pipeline.split_result.get('word_segments_dict', {}).get(pid)
+    if wd is None: continue
+    mfa = load_mfa_alignments(pid)
+    for sent_idx, sent_info in enumerate(wd['sentence_list']):
+        text = sent_info['text'] if isinstance(sent_info, dict) else sent_info
+        if not text: continue
+        if sent_idx not in mfa or not mfa[sent_idx]: continue
+        orig_dur = (sent_info['stim_end_idx'] - sent_info['stim_start_idx']) / eeg_sr
+        mfa_last = mfa[sent_idx][-1]['end_s']
+        coverage = mfa_last / orig_dur
+        patient_stats[pid].append((coverage, len(mfa[sent_idx]), text))
+
+print(f"  {'pid':<5} {'n':>4} {'mean_cov':>9} {'<50%':>5} {'<80%':>5}  worst sentence")
+for pid in sorted(patient_stats):
+    xs = patient_stats[pid]
+    covs = [c for c, _, _ in xs]
+    worst = min(xs, key=lambda t: t[0])
+    print(f"  {pid:<5} {len(xs):>4} {np.mean(covs):>8.1%} "
+          f"{sum(1 for c in covs if c < 0.5):>5} "
+          f"{sum(1 for c in covs if c < 0.8):>5}  "
+          f"cov={worst[0]:.0%} \"{worst[2][:60]}\"")
+
+import importlib, e2e_brain_decoder
+importlib.reload(e2e_brain_decoder)
+from e2e_brain_decoder import show_all_patients, show_matched_sequences
+
+from datetime import datetime
+print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+# Re-run the viz — pipeline.patient_results is still in memory
+show_all_patients(pipeline)
+
+show_matched_sequences(pipeline, 'P21',
+                        shift_by_len={1: 3, 2: 5, 3: 10, 4: 20})
+
+
+# Or: custom tolerances
+show_matched_sequences(pipeline, 'P21',
+                        shift_by_len={2: 3, 3: 8, 4: 15, 6: 25})
 
 count(pipeline)
 
@@ -254,6 +302,7 @@ from collections import Counter
 from run_pipeline import _run_crf_experiment
 
 
+# %% Cell 4 — step11_compare_with_permuted
 def step11_compare_with_permuted(pipeline, run_config, n_permutations=3,
                                   seed=37, save_to_pipeline=True):
     """Compare real CRF performance with label-permuted CRF (per-patient bars).
@@ -380,6 +429,7 @@ def step11_compare_with_permuted(pipeline, run_config, n_permutations=3,
     return comparison
 
 
+# %% Cell 5 — plot_compare_with_permuted
 def plot_compare_with_permuted(comparison):
     """Two-row bar charts per patient: real vs permuted recall and precision."""
     for pid, c in comparison.items():
@@ -438,9 +488,19 @@ def plot_compare_with_permuted(comparison):
 
 step11_compare_with_permuted(
     pipeline, run_config,
-    n_permutations=3,    # 3 label-shuffles, averaged. Increase to 5+ for tighter error bars.
+    n_permutations=5,    # 3 label-shuffles, averaged. Increase to 5+ for tighter error bars.
     seed=37,
 );
+
+import importlib, dutch_30_pipeline
+importlib.reload(dutch_30_pipeline)
+pipeline.__class__ = dutch_30_pipeline.Dutch30Pipeline
+
+# Visualize - this calls both run-counting functions on patient_results
+pipeline.step10_visualize_patient('P21')
+
+# Cross-check with show_longest_correct_sequences (uses the same data)
+show_longest_correct_sequences(pipeline, run_config, top_n=5)
 
 # ── Step 9: train & evaluate (populates pipeline.patient_results for step 10) ─
 results = pipeline.step9_train_and_evaluate(
@@ -459,12 +519,14 @@ results = pipeline.step9_train_and_evaluate(
     use_viterbi=run_config['use_viterbi'],
 )
 
+# %% Cell 6 — Step 10: per-patient visualization
 # ── Step 10: per-patient visualization ────────────────────────────────────────
 pr = run_config['patient_range']
 for pid in [f'P{i:02d}' for i in range(pr[0], pr[1] + 1)]:
     if pid in pipeline.patient_results:
         pipeline.step10_visualize_patient(pid, show_table=False)
 
+# %% Cell 7 — Step 10: group summary
 # ── Step 10: group summary ────────────────────────────────────────────────────
 pipeline.step10_visualize_group()
 
@@ -478,12 +540,14 @@ for pid in sorted(set(pipeline.train['phoneme_participant_ids'])):
     test_count = sum(1 for p in pipeline.test['phoneme_participant_ids'] if p == pid)
     print(f"  {pid}: train={train_count}, test={test_count}, total={train_count + test_count}")
 
-# ── Run Path B (MFA) ─────────────────────────────────────────────────────────
-cached_train, cached_test = run_path_b(pipeline, run_config)
+# %% Cell 8 — Run with MFA boundaries (formerly Path B)
+# ── Run with MFA boundaries ─────────────────────────────────────────────────
+cached_train, cached_test = run_with_mfa_boundaries(pipeline, run_config)
 
 # ── Sweep over stacking/frame configs ─────────────────────────────────────────
 logger = run_sweep(pipeline, run_config, cached_train, cached_test)
 
+# %% Cell 9 — plot_patient_metrics_heatmap
 def plot_patient_metrics_heatmap(pipeline, run_config):
     """Heatmap: metrics (rows) × patients (columns), with row means."""
     import numpy as np
@@ -581,6 +645,7 @@ plot_patient_metrics_heatmap(pipeline, run_config)
 # logger.print_table()
 logger.best_experiment()
 
+# %% Cell 10 — show_sentences
 def show_sentences(pipeline, run_config, n_sentences=3, from_end=False):
 
     """Show example sentences with correct/wrong phoneme predictions per patient.
@@ -675,7 +740,7 @@ def show_sentences(pipeline, run_config, n_sentences=3, from_end=False):
 
 show_sentences(pipeline, run_config, n_sentences=15, from_end=True)
 
-
+# %% Cell 11 — show_longest_correct_sequences
 def show_longest_correct_sequences(pipeline, run_config, top_n=10):
     """Find and display the longest consecutive correctly predicted phoneme sequences.
     
@@ -792,6 +857,661 @@ def show_longest_correct_sequences(pipeline, run_config, top_n=10):
 show_longest_correct_sequences(pipeline, run_config, top_n=10)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Edit distance + Phoneme Error Rate for the current pipeline run
+# ═══════════════════════════════════════════════════════════════════════════════
+# Computes Levenshtein edit distance between predicted and true phoneme
+# sequences, per patient, and reports PER (phoneme error rate).
+#
+# PER = edit_distance / len(true)
+#   • 0.0 = perfect
+#   • 1.0 = every phoneme wrong (or missing) but no extras
+#   • >1.0 = predictions have many spurious insertions
+#
+# Requires only `pipeline.patient_results[pid]` with keys
+# 'predictions', 'true_labels', 'accuracy'.
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# %% Cell 12 — Edit distance
+# ── Edit distance ─────────────────────────────────────────────────────────────
+def edit_distance(s1, s2):
+    """Levenshtein edit distance — pure Python, no extra packages."""
+    if len(s1) < len(s2):
+        return edit_distance(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+    previous_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions    = previous_row[j + 1] + 1
+            deletions     = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    return previous_row[-1]
+
+
+# %% Cell 13 — Aligned phoneme matrix printer
+# ── Aligned phoneme matrix printer ────────────────────────────────────────────
+def print_aligned_phonemes(true_seq, pred_seq, max_per_line=15, indent='    '):
+    """Print true vs predicted phoneme sequences as a properly-aligned matrix.
+
+    Each phoneme gets its own column, padded to fit the longer of the
+    true vs pred string (handles variable-width IPA like 'iː', 'aɪ').
+    Position numbers go on top so you can refer to specific positions.
+    """
+    n = min(len(true_seq), len(pred_seq))
+    if len(true_seq) != len(pred_seq):
+        print(f'{indent}⚠ length mismatch: true={len(true_seq)}, pred={len(pred_seq)}')
+
+    for chunk_start in range(0, n, max_per_line):
+        chunk_end = min(chunk_start + max_per_line, n)
+        c_true    = true_seq[chunk_start:chunk_end]
+        c_pred    = pred_seq[chunk_start:chunk_end]
+        c_pos     = list(range(chunk_start, chunk_end))
+
+        # Each column wide enough to fit pos-number, true, AND pred + 1 spacer
+        widths = [max(len(str(p)), len(t), len(pr)) + 1
+                  for p, t, pr in zip(c_pos, c_true, c_pred)]
+
+        pos_row   = ''.join(f'{p}'.ljust(w) for p,  w in zip(c_pos,  widths))
+        true_row  = ''.join(t.ljust(w)      for t,  w in zip(c_true, widths))
+        pred_row  = ''.join(pr.ljust(w)     for pr, w in zip(c_pred, widths))
+        match_row = ''.join(('✓' if t == p else '·').ljust(w)
+                            for t, p, w in zip(c_true, c_pred, widths))
+
+        print(f'{indent}pos    {pos_row}')
+        print(f'{indent}true   {true_row}')
+        print(f'{indent}pred   {pred_row}')
+        print(f'{indent}match  {match_row}')
+        print()
+
+
+# %% Cell 14 — Compute per-patient edit distance and PER
+# ── Compute per-patient edit distance and PER ─────────────────────────────────
+print("="*72)
+print(f"  {'pid':<6} {'len':>6} {'edit':>6} {'PER':>8} {'acc':>8} {'lift':>8}")
+print("="*72)
+
+per_patient = {}
+pids = sorted(pipeline.patient_results.keys())
+
+for pid in pids:
+    res  = pipeline.patient_results[pid]
+    true = list(res['true_labels'])
+    pred = list(res['predictions'])
+
+    ed  = edit_distance(true, pred)
+    per = ed / len(true) if true else float('nan')
+
+    acc = res['accuracy']
+    n_classes = len(set(true))
+    chance = 1.0 / n_classes if n_classes > 0 else 0.0
+    lift = acc / chance if chance > 0 else 0.0
+
+    per_patient[pid] = {
+        'len':  len(true),
+        'edit': ed,
+        'per':  per,
+        'acc':  acc,
+        'lift': lift,
+    }
+    print(f"  {pid:<6} {len(true):>6} {ed:>6} {per:>7.2%} "
+          f"{acc:>7.2%} {lift:>7.2f}×")
+
+# %% Cell 15 — Aggregate stats
+# ── Aggregate stats ──────────────────────────────────────────────────────────
+print("-"*72)
+total_len   = sum(p['len']  for p in per_patient.values())
+total_edit  = sum(p['edit'] for p in per_patient.values())
+overall_per = total_edit / total_len if total_len else float('nan')
+mean_per    = np.mean([p['per']  for p in per_patient.values()])
+mean_acc    = np.mean([p['acc']  for p in per_patient.values()])
+mean_lift   = np.mean([p['lift'] for p in per_patient.values()])
+
+print(f"  {'TOTAL':<6} {total_len:>6} {total_edit:>6} "
+      f"{overall_per:>7.2%} {mean_acc:>7.2%} {mean_lift:>7.2f}×")
+print(f"  (per-patient mean PER: {mean_per:.2%})")
+print()
+
+
+# %% Cell 16 — Bar chart: PER per patient (lower = better)
+# ── Bar chart: PER per patient (lower = better) ──────────────────────────────
+fig, ax = plt.subplots(figsize=(11, 4.5))
+xs   = np.arange(len(pids))
+pers = [per_patient[pid]['per'] for pid in pids]
+accs = [per_patient[pid]['acc'] for pid in pids]
+
+ax.bar(xs - 0.2, pers, 0.4, color='crimson',  label='PER (lower = better)',
+       edgecolor='black', lw=0.5)
+ax.bar(xs + 0.2, [1 - a for a in accs], 0.4, color='steelblue',
+       label='1 − accuracy', edgecolor='black', lw=0.5)
+ax.set_xticks(xs); ax.set_xticklabels(pids)
+ax.set_ylabel('error rate')
+ax.set_title('Per-patient PER vs (1 − accuracy)', fontsize=12, fontweight='bold')
+ax.legend()
+ax.grid(alpha=0.3, axis='y')
+plt.tight_layout(); plt.show()
+
+
+# %% Cell 17 — Aligned-matrix sanity check
+# ── Aligned-matrix sanity check ──────────────────────────────────────────────
+# Shows true vs predicted phonemes side by side in a properly-aligned grid,
+# so variable-width phonemes (like 'iː', 'aɪ') don't throw off the columns.
+print("\nSanity check — first 30 phonemes of true vs predicted, per patient:")
+print("(✓ = match, · = mismatch — column-aligned regardless of phoneme width)")
+
+for pid in pids[:5]:        # first 5 patients only, to keep output readable
+    res = pipeline.patient_results[pid]
+    print(f"\n  {pid}  acc={res['accuracy']:.2%}  PER={per_patient[pid]['per']:.2%}")
+    print_aligned_phonemes(
+        res['true_labels'][:90],
+        res['predictions'][:90],
+        max_per_line=90,
+        indent='    ',
+    )
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Colored n-gram matching display
+# ═══════════════════════════════════════════════════════════════════════════════
+# Find matching n-grams (length 2+ with shift ±5, or length 1 at exact position),
+# assign each a unique color, render true/pred as HTML tables with highlights.
+#
+# Pure deterministic: greedy longest-match-first, left-to-right scan, fixed
+# tie-breaking (shift=0 wins). Same input → same matches → same colors.
+
+from IPython.display import HTML, display
+
+
+# 20 distinct pastel colors. Cycles if you have more matches.
+PALETTE = [
+    '#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA', '#FFD9B3',
+    '#E1BAFF', '#B3FFE4', '#FFC8DD', '#C8DDFF', '#DDFFC8',
+    '#FFE4C8', '#C8FFE4', '#E4C8FF', '#FFC8C8', '#C8FFFF',
+    '#F0B3FF', '#FFB3F0', '#B3F0FF', '#F0FFB3', '#FFF0B3',
+]
+
+
+# %% Cell 18 — find_color_matches
+def find_color_matches(true_seq, pred_seq, max_shift=5, max_ngram_len=15):
+    """Find non-overlapping matched n-grams between true_seq and pred_seq.
+
+    Phase 1a: exact-position n-grams (shift=0, length >= 2). Greedy longest-
+        first, left-to-right. Exact matches always win over shifted matches.
+
+    Phase 1b: shifted n-grams (length >= 2, shift in [±1..±max_shift]). Same
+        greedy strategy, but only over positions still unused after 1a.
+
+    Phase 2: exact-position 1-grams (single phonemes at the same position).
+
+    Returns: list of (true_start, pred_start, length, color_idx) tuples.
+
+    Determinism: greedy with explicit phase ordering and shift ordering.
+    No random component.
+    """
+    n_t, n_p = len(true_seq), len(pred_seq)
+    true_seq = list(true_seq)
+    pred_seq = list(pred_seq)
+    used_true = [False] * n_t
+    used_pred = [False] * n_p
+    matches = []
+    color_idx = 0
+
+    # ── Phase 1a: exact-position n-grams (shift=0, length >= 2) ──────────
+    # Done first so that an exact 3-gram beats a shorter shifted 2-gram.
+    for start in range(n_t):
+        if used_true[start] or start >= n_p or used_pred[start]:
+            continue
+        # Walk forward as long as both rows match and aren't used elsewhere
+        max_L = min(max_ngram_len, n_t - start, n_p - start)
+        L = 0
+        while L < max_L:
+            if used_true[start + L] or used_pred[start + L]:
+                break
+            if true_seq[start + L] != pred_seq[start + L]:
+                break
+            L += 1
+        if L >= 2:
+            matches.append((start, start, L, color_idx))
+            color_idx += 1
+            for k in range(L):
+                used_true[start + k] = True
+                used_pred[start + k] = True
+
+    # ── Phase 1b: shifted n-grams (length >= 2, |shift| in 1..max_shift) ─
+    nonzero_shifts = [s for k in range(1, max_shift + 1) for s in (-k, +k)]
+    for true_start in range(n_t):
+        if used_true[true_start]:
+            continue
+        best = None
+        upper = min(max_ngram_len, n_t - true_start)
+        for length in range(upper, 1, -1):
+            if any(used_true[true_start + k] for k in range(length)):
+                continue
+            seq = true_seq[true_start:true_start + length]
+            for shift in nonzero_shifts:
+                pred_start = true_start + shift
+                if pred_start < 0 or pred_start + length > n_p:
+                    continue
+                if any(used_pred[pred_start + k] for k in range(length)):
+                    continue
+                if pred_seq[pred_start:pred_start + length] == seq:
+                    best = (true_start, pred_start, length)
+                    break
+            if best:
+                break
+        if best:
+            ts, ps, L = best
+            matches.append((ts, ps, L, color_idx))
+            color_idx += 1
+            for k in range(L):
+                used_true[ts + k] = True
+                used_pred[ps + k] = True
+
+    # ── Phase 2: exact-position 1-gram matches ───────────────────────────
+    for i in range(min(n_t, n_p)):
+        if used_true[i] or used_pred[i]:
+            continue
+        if true_seq[i] == pred_seq[i]:
+            matches.append((i, i, 1, color_idx))
+            color_idx += 1
+            used_true[i] = True
+            used_pred[i] = True
+
+    return matches
+
+
+# %% Cell 19 — display_matched_sequences
+def display_matched_sequences(true_seq, pred_seq, matches, max_per_line=20):
+    """Render true_seq vs pred_seq as HTML with each match highlighted."""
+    n_t, n_p = len(true_seq), len(pred_seq)
+    true_color = [None] * n_t
+    pred_color = [None] * n_p
+
+    for (ts, ps, L, color_idx) in matches:
+        color = PALETTE[color_idx % len(PALETTE)]
+        for k in range(L):
+            if ts + k < n_t:
+                true_color[ts + k] = color
+            if ps + k < n_p:
+                pred_color[ps + k] = color
+
+    def cell(content, color=None, is_pos=False):
+        base = ("text-align:center; padding:3px 8px; "
+                "border:1px solid #eee; font-family:monospace;")
+        if is_pos:
+            return f'<td style="{base} font-size:10px; color:#888;">{content}</td>'
+        if color is not None:
+            return (f'<td style="{base} background:{color}; '
+                    f'font-weight:bold;">{content}</td>')
+        return f'<td style="{base} color:#bbb;">{content}</td>'
+
+    n = max(n_t, n_p)
+    chunks = []
+    for chunk_start in range(0, n, max_per_line):
+        chunk_end = min(chunk_start + max_per_line, n)
+        idxs = range(chunk_start, chunk_end)
+
+        pos_row  = ''.join(cell(str(i), is_pos=True) for i in idxs)
+        true_row = ''.join(
+            cell(true_seq[i] if i < n_t else '',
+                 true_color[i] if i < n_t else None)
+            for i in idxs
+        )
+        pred_row = ''.join(
+            cell(pred_seq[i] if i < n_p else '',
+                 pred_color[i] if i < n_p else None)
+            for i in idxs
+        )
+
+        label_style = ('font-family:monospace; font-weight:bold; '
+                       'padding-right:10px; text-align:right;')
+        chunks.append(f"""
+        <table style="border-collapse:collapse; margin-bottom:6px">
+          <tr><td style="{label_style}">pos</td>{pos_row}</tr>
+          <tr><td style="{label_style}">true</td>{true_row}</tr>
+          <tr><td style="{label_style}">pred</td>{pred_row}</tr>
+        </table>
+        """)
+
+    display(HTML(''.join(chunks)))
+
+
+# %% Cell 20 — show_matched_sequences
+def show_matched_sequences(pipeline, pid, max_shift=5,
+                            max_per_line=20, n_phonemes=None):
+    """Display true vs predicted phoneme sequences for one patient with
+    matched n-grams highlighted in distinct colors.
+
+    Args:
+        pipeline: pipeline object with .patient_results[pid].
+        pid: patient id, e.g. 'P21'.
+        max_shift: max shift (in positions) allowed for 2+ gram matches.
+                   1-gram matches require exact position (no shift).
+        max_per_line: how many phoneme positions per HTML table row before
+                      wrapping to a new table.
+        n_phonemes: int or None. If int, only show first N phonemes.
+    """
+    res  = pipeline.patient_results[pid]
+    true = list(res['true_labels'])
+    pred = list(res['predictions'])
+
+    if n_phonemes is not None:
+        true = true[:n_phonemes]
+        pred = pred[:n_phonemes]
+
+    matches = find_color_matches(true, pred, max_shift=max_shift)
+
+    n_2plus  = sum(1 for m in matches if m[2] >= 2)
+    n_1grams = sum(1 for m in matches if m[2] == 1)
+    n_covered = sum(m[2] for m in matches)
+
+    n_classes = len(set(true))
+    chance = 1.0 / n_classes if n_classes > 0 else 0
+    acc = res.get('accuracy', float('nan'))
+    lift = acc / chance if chance > 0 else 0
+
+    print(f"\n  {pid}  acc={acc:.2%}  lift={lift:.2f}×  ({n_classes} classes)")
+    print(f"  {len(matches)} matched n-grams: "
+          f"{n_2plus} of length ≥2 (with ±{max_shift} shift)  +  "
+          f"{n_1grams} exact 1-grams")
+    print(f"  Coverage: {n_covered}/{len(true)} phonemes "
+          f"({100*n_covered/max(len(true),1):.1f}% in matched n-grams)")
+    print(f"  Each colored block = one matched n-gram. Same color in true and "
+          f"pred rows = same match.")
+    print()
+
+    display_matched_sequences(true, pred, matches, max_per_line=max_per_line)
+    
+# # Single patient
+# show_matched_sequences(pipeline, 'P21', max_shift=5, max_per_line=20)
+
+# Loop all patients
+for pid in sorted(pipeline.patient_results.keys()):
+    show_matched_sequences(pipeline, pid, max_shift=5, max_per_line=50)
+
+# # Just the first 100 phonemes (matching your earlier output style)
+# show_matched_sequences(pipeline, 'P21', n_phonemes=100, max_per_line=50)
+
+# %% Cell 21 — find_shifted_runs
+def find_shifted_runs(true, pred, min_length=2, max_shift=5):
+    """Find true[start:start+L] sequences that appear in pred at some
+    position within ±max_shift of `start`. Returns list of
+    (start_in_true, length, shift, sequence) tuples."""
+    matches = []
+    used = [False] * len(true)   # avoid reporting overlapping subseq
+
+    # Greedy: scan left-to-right, prefer LONGEST matches starting at each position
+    for start in range(len(true)):
+        if used[start]:
+            continue
+        best = None
+        for length in range(min(15, len(true) - start), min_length - 1, -1):
+            seq = true[start:start + length]
+            for shift in range(-max_shift, max_shift + 1):
+                if shift == 0:
+                    continue   # ignore exact-position matches (already counted)
+                target = start + shift
+                if 0 <= target <= len(pred) - length:
+                    if pred[target:target + length] == seq:
+                        best = (start, length, shift, seq)
+                        break
+            if best:
+                break
+        if best:
+            matches.append(best)
+            for k in range(best[1]):
+                used[best[0] + k] = True
+    return matches
+
+
+# %% Cell 22 — show_shifted_runs
+def show_shifted_runs(pid, top_n=15):
+    res = pipeline.patient_results[pid]
+    true = list(res['true_labels'])
+    pred = list(res['predictions'])
+    runs = find_shifted_runs(true, pred, min_length=2, max_shift=5)
+
+    if not runs:
+        print(f"  {pid}: no shifted matches found")
+        return
+    runs.sort(key=lambda r: (-r[1], abs(r[2])))   # longest first, smallest shift
+
+    print(f"\n  {pid}: {len(runs)} shifted-match runs (≥2 phonemes)")
+    print(f"  total phonemes in shifted matches: {sum(r[1] for r in runs)} "
+          f"of {len(true)} ({100*sum(r[1] for r in runs)/len(true):.1f}%)")
+    print(f"  {'true_pos':>8} {'length':>7} {'shift':>6}  {'sequence'}")
+    print(f"  {'-'*60}")
+    for start, length, shift, seq in runs[:top_n]:
+        seq_str = ' '.join(seq)
+        print(f"  {start:>8} {length:>7} {shift:>+6}  {seq_str}")
+
+
+show_shifted_runs('P21', top_n=20)
+
+# %% Cell 23 — smith_waterman_score
+def smith_waterman_score(s1, s2, match=2, mismatch=-1, gap=-1):
+    """Smith-Waterman local alignment score and best aligned region.
+    Returns (max_score, aligned_s1, aligned_s2, start_s1, start_s2)."""
+    n, m = len(s1), len(s2)
+    H = np.zeros((n + 1, m + 1), dtype=np.int32)
+    trace = np.zeros((n + 1, m + 1), dtype=np.int8)  # 1=diag 2=up 3=left
+
+    max_val = 0
+    max_pos = (0, 0)
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            d = H[i-1, j-1] + (match if s1[i-1] == s2[j-1] else mismatch)
+            u = H[i-1, j] + gap
+            l = H[i, j-1] + gap
+            best = max(0, d, u, l)
+            H[i, j] = best
+            if best == d:   trace[i, j] = 1
+            elif best == u: trace[i, j] = 2
+            elif best == l: trace[i, j] = 3
+            if best > max_val:
+                max_val = best
+                max_pos = (i, j)
+
+    # Backtrace
+    aln1, aln2 = [], []
+    i, j = max_pos
+    while i > 0 and j > 0 and H[i, j] > 0:
+        if trace[i, j] == 1:
+            aln1.append(s1[i-1]); aln2.append(s2[j-1])
+            i, j = i-1, j-1
+        elif trace[i, j] == 2:
+            aln1.append(s1[i-1]); aln2.append('-')
+            i = i-1
+        elif trace[i, j] == 3:
+            aln1.append('-'); aln2.append(s2[j-1])
+            j = j-1
+        else:
+            break
+    aln1.reverse(); aln2.reverse()
+    return max_val, aln1, aln2, i, j
+
+
+# %% Cell 24 — report_local_alignment_v2
+def report_local_alignment_v2(pid):
+    """Same as report_local_alignment but also returns the key numbers."""
+    res = pipeline.patient_results[pid]
+    true = list(res['true_labels'])
+    pred = list(res['predictions'])
+    score, a1, a2, i, j = smith_waterman_score(true, pred)
+    matches = sum(1 for x, y in zip(a1, a2) if x == y)
+    aligned_len = len(a1)
+
+    print(f"\n  {pid}  best local alignment:")
+    print(f"  Smith-Waterman score: {score}")
+    print(f"  aligned length: {aligned_len}, matches: {matches} "
+          f"({100*matches/aligned_len:.0f}%)")
+    print(f"  starts at true[{i}], pred[{j}]")
+    print(f"  true: {' '.join(a1)}")
+    print(f"  pred: {' '.join(a2)}")
+
+    return {
+        'score':       score,
+        'aligned_len': aligned_len,
+        'matches':     matches,
+        'pct_match':   matches / aligned_len if aligned_len else 0,
+        'true_start':  i,
+        'pred_start':  j,
+    }
+
+
+# Run for all patients and collect
+sw_results = {}
+for pid in sorted(pipeline.patient_results.keys()):
+    print("=" * 80)
+    sw_results[pid] = report_local_alignment_v2(pid)
+
+# Summary table at end
+print("\n" + "=" * 80)
+print(f"  {'pid':<5} {'SW score':>9} {'len':>5} {'matches':>8} {'%match':>8}")
+print("-" * 80)
+for pid, r in sw_results.items():
+    print(f"  {pid:<5} {r['score']:>9} {r['aligned_len']:>5} "
+          f"{r['matches']:>8} {r['pct_match']:>7.0%}")
+
+from collections import Counter
+
+# %% Cell 25 — bigram_overlap
+def bigram_overlap(true, pred):
+    if len(true) < 2 or len(pred) < 2:
+        return 0.0
+    t = Counter(tuple(true[i:i+2]) for i in range(len(true) - 1))
+    p = Counter(tuple(pred[i:i+2]) for i in range(len(pred) - 1))
+    return sum((t & p).values()) / sum(t.values())
+
+
+print(f"\n  {'pid':<6} {'strict':>8} {'shift±2':>8} {'bigram':>8}")
+print("-"*40)
+for pid in sorted(pipeline.patient_results.keys()):
+    res = pipeline.patient_results[pid]
+    true = list(res['true_labels'])
+    pred = list(res['predictions'])
+    print(f"  {pid:<6} "
+          f"{res['accuracy']:>7.2%} "
+          f"{shift_tolerant_accuracy(true, pred, 2, 2):>7.2%} "
+          f"{bigram_overlap(true, pred):>7.2%}")
+
+# %% Cell 26 — trigram_overlap
+def trigram_overlap(true, pred):
+    if len(true) < 3 or len(pred) < 3:
+        return 0.0
+    t = Counter(tuple(true[i:i+3]) for i in range(len(true) - 2))
+    p = Counter(tuple(pred[i:i+3]) for i in range(len(pred) - 2))
+    return sum((t & p).values()) / sum(t.values())
+
+
+# %% Cell 27 — shuffled_trigram_baseline
+def shuffled_trigram_baseline(true, pred, n_shuffles=20):
+    overlaps = []
+    pred_copy = list(pred)
+    for _ in range(n_shuffles):
+        random.shuffle(pred_copy)
+        overlaps.append(trigram_overlap(true, pred_copy))
+    return float(np.mean(overlaps))
+
+
+print(f"\n  {'pid':<6} {'trigram':>9} {'chance':>9} {'gain':>6}")
+print("-"*36)
+for pid in sorted(pipeline.patient_results.keys()):
+    res = pipeline.patient_results[pid]
+    true = list(res['true_labels'])
+    pred = list(res['predictions'])
+    actual = trigram_overlap(true, pred)
+    chance = shuffled_trigram_baseline(true, pred)
+    print(f"  {pid:<6} {actual:>8.2%} {chance:>8.2%} +{actual-chance:>5.2%}")
+
+all_labels = set()
+
+# Add train labels
+all_labels.update(pipeline.train['phoneme_labels'])
+
+# Add test labels  
+all_labels.update(pipeline.test['phoneme_labels'])
+
+# Also from patient_results in case there are any others
+for pid in pipeline.patient_results:
+    all_labels.update(pipeline.patient_results[pid]['true_labels'])
+    all_labels.update(pipeline.patient_results[pid]['predictions'])
+
+LABEL_TO_IDX = {l: i for i, l in enumerate(sorted(all_labels))}
+IDX_TO_LABEL = {i: l for l, i in LABEL_TO_IDX.items()}
+
+print(f"  Built LABEL_TO_IDX with {len(LABEL_TO_IDX)} unique phonemes")
+print(f"  Phonemes: {sorted(all_labels)}")
+
+import numpy as np
+from collections import Counter
+
+# %% Cell 28 — fit_transition_matrix
+def fit_transition_matrix(label_seq, n_classes, smoothing=1.0):
+    """Estimate phoneme transitions from a single training sequence."""
+    counts = np.full((n_classes, n_classes), smoothing, dtype=np.float64)
+    for i in range(len(label_seq) - 1):
+        counts[label_seq[i], label_seq[i+1]] += 1
+    return counts / counts.sum(axis=1, keepdims=True)
+
+
+# %% Cell 29 — transitions_only_decode
+def transitions_only_decode(train_labels_idx, n_global, length, seed=0):
+    """Sample a sequence using transitions ONLY — no acoustic info.
+    Tests how much bigram structure comes from the transition matrix alone."""
+    rng = np.random.default_rng(seed)
+    trans = fit_transition_matrix(train_labels_idx, n_global, smoothing=1.0)
+
+    # Start from stationary distribution
+    counts = np.full(n_global, 1.0)
+    for y in train_labels_idx:
+        counts[y] += 1
+    p_start = counts / counts.sum()
+
+    pred = [int(rng.choice(n_global, p=p_start))]
+    for _ in range(length - 1):
+        probs = trans[pred[-1]]
+        pred.append(int(rng.choice(n_global, p=probs)))
+    return pred
+
+
+# Build per-patient train labels from pipeline.train
+print(f"\n  Transitions-only baseline (no acoustic info, just learned bigrams):")
+print(f"  {'pid':<6} {'actual bigram':>14} {'trans-only':>11} {'chance':>9}")
+print("-"*52)
+
+for pid in sorted(pipeline.patient_results.keys()):
+    # Get this patient's training labels in order
+    train_idx_for_pid = [i for i, p in enumerate(pipeline.train['phoneme_participant_ids'])
+                          if p == pid]
+    train_labels = [pipeline.train['phoneme_labels'][i] for i in train_idx_for_pid]
+    train_idx_seq = [LABEL_TO_IDX[l] for l in train_labels]
+
+    # Get this patient's true test labels
+    res = pipeline.patient_results[pid]
+    true_labels = list(res['true_labels'])
+    pred_labels = list(res['predictions'])
+    n_global = len(LABEL_TO_IDX)
+
+    # Transitions-only decode (multiple seeds for stable estimate)
+    trans_overlaps = []
+    for seed in range(5):
+        sampled_idx = transitions_only_decode(train_idx_seq, n_global,
+                                               len(true_labels), seed=seed)
+        sampled_labels = [IDX_TO_LABEL[i] for i in sampled_idx]
+        trans_overlaps.append(bigram_overlap(true_labels, sampled_labels))
+    trans_only = np.mean(trans_overlaps)
+
+    actual_overlap = bigram_overlap(true_labels, pred_labels)
+    chance_overlap, _ = shuffled_bigram_baseline(true_labels, pred_labels, n_shuffles=10)
+
+    print(f"  {pid:<6} {actual_overlap:>13.2%} {trans_only:>10.2%} {chance_overlap:>8.2%}")
+
 import random
 res = pipeline.patient_results['P23']
 pairs = list(zip(res['predictions'], res['true_labels']))
@@ -802,35 +1522,38 @@ acc_b = sum(p == t for p, t in pairs[mid:]) / (len(pairs) - mid)
 print(f"Random half A: {acc_a:.1%}")
 print(f"Random half B: {acc_b:.1%}")
 
-# ─── Rebuild pipeline with the SAME patients as your earlier CRF runs ───
+# %% Cell 30 — Rebuild pipeline_sweep with the SAME patients as your earlier CRF runs
+# ─── Rebuild pipeline_sweep with the SAME patients as your earlier CRF runs ───
 from dutch_30_pipeline import Dutch30Pipeline
 from dutch_30_feature_extractor import Dutch30FeatureExtractor
 from dataset_config import Dutch30Config
 import copy
 
 config = Dutch30Config()
+
+# %% Cell 31 — Pipeline setup
 extractor = Dutch30FeatureExtractor(config=config)
-pipeline = Dutch30Pipeline(extractor, config=config, use_wav2vec=True)
+pipeline_sweep = Dutch30Pipeline(extractor, config=config, use_wav2vec=True)
 
 # Match your earlier run_config['patient_range'] — should be (21, 30)
 pr = run_config['patient_range']
-pipeline.step1_load_dutch30_data(patient_range=pr)   # e.g. (21, 30)
+pipeline_sweep.step1_load_dutch30_data(patient_range=pr)   # e.g. (21, 30)
 
-pipeline.step2_split_by_instances(train_fraction=0.8)
-pipeline.step3_load_channel_exclusions('channel_exclusions.json')
-pipeline.step4_custom_detector()
-pipeline.step5_accumulate_data_dutch30()
+pipeline_sweep.step2_split_by_instances(train_fraction=0.8)
+pipeline_sweep.step3_load_channel_exclusions('channel_exclusions.json')
+pipeline_sweep.step4_custom_detector()
+pipeline_sweep.step5_accumulate_data_dutch30()
 
 # Verify features are 2D and we have the right patients
-print("Patients:", sorted(set(pipeline.train['phoneme_participant_ids'])))
-f = pipeline.train['features'][0]
+print("Patients:", sorted(set(pipeline_sweep.train['phoneme_participant_ids'])))
+f = pipeline_sweep.train['features'][0]
 print(f"Feature shape: {f.shape}  ndim: {f.ndim}")
 assert f.ndim == 2
 
 # Snapshot pre-stack state
 pre_stack_state = {
-    'train': copy.deepcopy(pipeline.train),
-    'test':  copy.deepcopy(pipeline.test),
+    'train': copy.deepcopy(pipeline_sweep.train),
+    'test':  copy.deepcopy(pipeline_sweep.test),
 }
 print(f"Pre-stack state snapshotted. Train samples: {len(pre_stack_state['train']['features'])}")
 
@@ -844,7 +1567,7 @@ from run_pipeline import run_from_config
 # ═══════════════════════════════════════════════════════════════════════════════
 # 1. Verify pre-stacking state
 # ═══════════════════════════════════════════════════════════════════════════════
-f = pipeline.train['features'][0]
+f = pipeline_sweep.train['features'][0]
 print(f"Feature shape: {f.shape}  ndim: {f.ndim}")
 assert f.ndim == 2, "Features must be 2D (n_frames, n_channels) for the sweep"
 
@@ -852,8 +1575,8 @@ assert f.ndim == 2, "Features must be 2D (n_frames, n_channels) for the sweep"
 # 2. Snapshot pre-stack state
 # ═══════════════════════════════════════════════════════════════════════════════
 pre_stack_state = {
-    'train': copy.deepcopy(pipeline.train),
-    'test':  copy.deepcopy(pipeline.test),
+    'train': copy.deepcopy(pipeline_sweep.train),
+    'test':  copy.deepcopy(pipeline_sweep.test),
 }
 print(f"Pre-stack snapshot saved. Train samples: {len(pre_stack_state['train']['features'])}")
 
@@ -864,10 +1587,11 @@ print(f"Pre-stack snapshot saved. Train samples: {len(pre_stack_state['train']['
 from run_pipeline import _run_step5abc, _run_crf_experiment
 
 
+# %% Cell 32 — sweep_temporal_context_crf
 def sweep_temporal_context_crf(pipeline, base_run_config, pre_stack_state,
                                offsets_ms=(10, 25, 50, 75, 100, 125, 150, 175, 200)):
     """CRF-based sweep of temporal context window."""
-    frameshift_ms = pipeline.config.frameshift * 1000
+    frameshift_ms = pipeline_sweep.config.frameshift * 1000
     print(f"Pipeline frameshift = {frameshift_ms:.2f} ms")
 
     results = {}
@@ -877,8 +1601,8 @@ def sweep_temporal_context_crf(pipeline, base_run_config, pre_stack_state,
         n_frames = 2 * model_order + 1
 
         # Restore pre-stacking state
-        pipeline.train = copy.deepcopy(pre_stack_state['train'])
-        pipeline.test  = copy.deepcopy(pre_stack_state['test'])
+        pipeline_sweep.train = copy.deepcopy(pre_stack_state['train'])
+        pipeline_sweep.test  = copy.deepcopy(pre_stack_state['test'])
 
         print(f"\n{'='*60}")
         print(f"  ±{actual_ms:.1f} ms  (model_order={model_order}, "
@@ -891,12 +1615,12 @@ def sweep_temporal_context_crf(pipeline, base_run_config, pre_stack_state,
 
         try:
             # 1) Apply stacking/collapse
-            _run_step5abc(pipeline, cfg)
-            f = pipeline.train['features'][0]
+            _run_step5abc(pipeline_sweep, cfg)
+            f = pipeline_sweep.train['features'][0]
             print(f"  feature dim after stacking: {len(f)}")
 
             # 2) Run CRF directly
-            crf_results = _run_crf_experiment(pipeline, cfg)
+            crf_results = _run_crf_experiment(pipeline_sweep, cfg)
 
             # 3) Aggregate per-patient, compute per-patient lift
             accs, adj_accs, lifts, n_classes_list = [], [], [], []
@@ -936,6 +1660,7 @@ def sweep_temporal_context_crf(pipeline, base_run_config, pre_stack_state,
 
     return results
 
+# %% Cell 33 — plot_temporal_sweep_crf
 def plot_temporal_sweep_crf(sweep_results):
     valid = [(ms, r) for ms, r in sorted(sweep_results.items()) if 'mean_acc' in r]
     if not valid:
@@ -989,6 +1714,8 @@ def plot_temporal_sweep_crf(sweep_results):
 # ═══════════════════════════════════════════════════════════════════════════════
 # 4. Plot function
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# %% Cell 34 — plot_temporal_sweep
 def plot_temporal_sweep(sweep_results):
     valid = [(ms, r) for ms, r in sorted(sweep_results.items()) if 'mean_acc' in r]
     if not valid:
@@ -1046,7 +1773,7 @@ def plot_temporal_sweep(sweep_results):
 # 5. Run the sweep
 # ═══════════════════════════════════════════════════════════════════════════════
 sweep_results_crf = sweep_temporal_context_crf(
-    pipeline, run_config, pre_stack_state,
+    pipeline_sweep, run_config, pre_stack_state,
     offsets_ms=[10, 25, 50, 75, 100, 125, 150, 175, 200]
 )
 
@@ -1058,6 +1785,7 @@ import matplotlib.pyplot as plt
 from run_pipeline import _run_crf_experiment
 
 
+# %% Cell 35 — lag_sweep_crf
 def lag_sweep_crf(pipeline, base_run_config, pre_stack_state,
                   lag_ms_values=(-200, -150, -100, -50, 0, 50, 100, 150, 200),
                   context_model_order=8):
@@ -1070,14 +1798,14 @@ def lag_sweep_crf(pipeline, base_run_config, pre_stack_state,
     Negative lag → look at neural signal BEFORE the phoneme (motor planning)
 
     Args:
-        pipeline: Dutch30Pipeline (pre-stacking state restorable).
+        pipeline_sweep: Dutch30Pipeline (pre-stacking state restorable).
         base_run_config: your run_config.
-        pre_stack_state: deepcopy'd pipeline.train / .test before step5a/b/c.
+        pre_stack_state: deepcopy'd pipeline_sweep.train / .test before step5a/b/c.
         lag_ms_values: list of lags to test (in ms).
         context_model_order: ±N frames of context around the shifted center.
             Fixed across all lags so only the shift varies.
     """
-    frameshift_ms = pipeline.config.frameshift * 1000
+    frameshift_ms = pipeline_sweep.config.frameshift * 1000
     n_context_frames = 2 * context_model_order + 1
     context_ms = context_model_order * frameshift_ms
 
@@ -1095,13 +1823,13 @@ def lag_sweep_crf(pipeline, base_run_config, pre_stack_state,
         print(f"{'='*60}")
 
         # Restore pre-stacking state
-        pipeline.train = copy.deepcopy(pre_stack_state['train'])
-        pipeline.test  = copy.deepcopy(pre_stack_state['test'])
+        pipeline_sweep.train = copy.deepcopy(pre_stack_state['train'])
+        pipeline_sweep.test  = copy.deepcopy(pre_stack_state['test'])
 
         try:
             # Build shifted features for each dataset
             for dataset_name in ['train', 'test']:
-                data = getattr(pipeline, dataset_name)
+                data = getattr(pipeline_sweep, dataset_name)
                 if data is None:
                     continue
 
@@ -1146,14 +1874,14 @@ def lag_sweep_crf(pipeline, base_run_config, pre_stack_state,
                 data['features'] = new_features
 
             # Quick sanity check
-            f0 = pipeline.train['features'][0]
+            f0 = pipeline_sweep.train['features'][0]
             if f0 is None or f0.ndim != 1:
                 print(f"  !! feature construction failed, shape={getattr(f0,'shape','None')}")
                 continue
             print(f"  feature dim = {len(f0)}")
 
             # Run CRF (uses its own internal PCA + sequence handling)
-            crf_results = _run_crf_experiment(pipeline, base_run_config)
+            crf_results = _run_crf_experiment(pipeline_sweep, base_run_config)
 
             # Collect metrics with per-patient lift
             accs, adj_accs, lifts, ncls = [], [], [], []
@@ -1188,6 +1916,7 @@ def lag_sweep_crf(pipeline, base_run_config, pre_stack_state,
     return results
 
 
+# %% Cell 36 — plot_lag_sweep
 def plot_lag_sweep(sweep_results):
     """Plot accuracy and lift vs lag. Peak below 0ms suggests motor lead."""
     valid = [(ms, r) for ms, r in sorted(sweep_results.items()) if 'mean_acc' in r]
@@ -1247,7 +1976,7 @@ def plot_lag_sweep(sweep_results):
 # Usage
 # ═══════════════════════════════════════════════════════════════════════════════
 lag_results = lag_sweep_crf(
-    pipeline, run_config, pre_stack_state,
+    pipeline_sweep, run_config, pre_stack_state,
     lag_ms_values=[-200, -150, -100, -50, 0, 50, 100, 150, 200],
     context_model_order=8   # ±48 ms context window (fixed across lags)
 )
@@ -1259,6 +1988,7 @@ import copy
 from run_pipeline import _run_crf_experiment
 
 
+# %% Cell 37 — lag_sweep_with_seeds
 def lag_sweep_with_seeds(pipeline, base_run_config, pre_stack_state,
                          lag_ms_values=(-200, -150, -100, -50, 0, 50, 100, 150, 200),
                          context_model_order=8,
@@ -1272,7 +2002,7 @@ def lag_sweep_with_seeds(pipeline, base_run_config, pre_stack_state,
         cfg['random_state'] = seed
 
         seed_results = lag_sweep_crf(
-            pipeline, cfg, pre_stack_state,
+            pipeline_sweep, cfg, pre_stack_state,
             lag_ms_values=lag_ms_values,
             context_model_order=context_model_order,
         )
@@ -1286,6 +2016,7 @@ def lag_sweep_with_seeds(pipeline, base_run_config, pre_stack_state,
     return all_results
 
 
+# %% Cell 38 — plot_lag_with_error_bars
 def plot_lag_with_error_bars(all_results):
     import matplotlib.pyplot as plt
     lags = sorted(all_results.keys())
@@ -1315,7 +2046,7 @@ def plot_lag_with_error_bars(all_results):
 
 # Run
 error_bar_results = lag_sweep_with_seeds(
-    pipeline, run_config, pre_stack_state,
+    pipeline_sweep, run_config, pre_stack_state,
     lag_ms_values=[-200, -150, -100, -50, 0, 50, 100, 150, 200],
     seeds=[37, 42, 123, 567, 999]   # 5 seeds — adds ~5× runtime
 )
@@ -1323,6 +2054,7 @@ error_bar_results = lag_sweep_with_seeds(
 
 plot_lag_with_error_bars(error_bar_results)
 
+# %% Cell 39 — lag_sweep_shuffled
 def lag_sweep_shuffled(pipeline, base_run_config, pre_stack_state,
                        lag_ms_values=(-200, -150, -100, -50, 0, 50, 100, 150, 200),
                        context_model_order=8,
@@ -1362,7 +2094,7 @@ def lag_sweep_shuffled(pipeline, base_run_config, pre_stack_state,
         # — skipping for simplicity, CRF doesn't use them externally anyway
 
         shuffled_results = lag_sweep_crf(
-            pipeline, base_run_config, permuted_state,
+            pipeline_sweep, base_run_config, permuted_state,
             lag_ms_values=lag_ms_values,
             context_model_order=context_model_order,
         )
@@ -1375,6 +2107,7 @@ def lag_sweep_shuffled(pipeline, base_run_config, pre_stack_state,
     return perm_results
 
 
+# %% Cell 40 — plot_permutation_comparison
 def plot_permutation_comparison(real_results, perm_results):
     """Overlay real sweep on shuffled-label baseline."""
     import matplotlib.pyplot as plt
@@ -1420,13 +2153,14 @@ def plot_permutation_comparison(real_results, perm_results):
 
 # Run
 perm_results = lag_sweep_shuffled(
-    pipeline, run_config, pre_stack_state,
+    pipeline_sweep, run_config, pre_stack_state,
     lag_ms_values=[-200, -150, -100, -50, 0, 50, 100, 150, 200],
     n_permutations=5   # 5 permutations — adds ~5× runtime
 )
 
 plot_permutation_comparison(lag_results, perm_results)
 
+# %% Cell 41 — plot_lag_per_patient
 def plot_lag_per_patient(lag_results):
     """Show each patient's lag curve separately + group mean."""
     import matplotlib.pyplot as plt
@@ -1524,6 +2258,7 @@ from run_pipeline import _run_crf_experiment
 # Per-patient × per-seed lag sweep
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# %% Cell 42 — lag_sweep_per_patient_seeds
 def lag_sweep_per_patient_seeds(pipeline, base_run_config, pre_stack_state,
                                  lag_ms_values=(-200, -150, -100, -50, 0,
                                                  50, 100, 150, 200),
@@ -1534,7 +2269,7 @@ def lag_sweep_per_patient_seeds(pipeline, base_run_config, pre_stack_state,
     Returns:
         dict {pid: {lag_ms: [lift_seed1, lift_seed2, ...]}}
     """
-    frameshift_ms = pipeline.config.frameshift * 1000
+    frameshift_ms = pipeline_sweep.config.frameshift * 1000
     n_context_frames = 2 * context_model_order + 1
 
     print(f"Frameshift: {frameshift_ms:.2f} ms")
@@ -1558,13 +2293,13 @@ def lag_sweep_per_patient_seeds(pipeline, base_run_config, pre_stack_state,
             actual_lag_ms = lag_frames * frameshift_ms
 
             # Restore pre-stacking state
-            pipeline.train = copy.deepcopy(pre_stack_state['train'])
-            pipeline.test  = copy.deepcopy(pre_stack_state['test'])
+            pipeline_sweep.train = copy.deepcopy(pre_stack_state['train'])
+            pipeline_sweep.test  = copy.deepcopy(pre_stack_state['test'])
 
             # Build shifted features for both datasets
             try:
                 for ds_name in ['train', 'test']:
-                    data = getattr(pipeline, ds_name)
+                    data = getattr(pipeline_sweep, ds_name)
                     if data is None:
                         continue
                     features = data['features']
@@ -1596,7 +2331,7 @@ def lag_sweep_per_patient_seeds(pipeline, base_run_config, pre_stack_state,
 
                     data['features'] = new_features
 
-                crf_results = _run_crf_experiment(pipeline, cfg)
+                crf_results = _run_crf_experiment(pipeline_sweep, cfg)
 
                 # Store each patient's lift at this (seed, lag)
                 for pid, r in crf_results.items():
@@ -1621,6 +2356,7 @@ def lag_sweep_per_patient_seeds(pipeline, base_run_config, pre_stack_state,
 # Stability analysis
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# %% Cell 43 — analyze_best_lag_stability
 def analyze_best_lag_stability(per_patient):
     """For each patient, find best lag per seed and measure consistency."""
     import pandas as pd
@@ -1659,6 +2395,7 @@ def analyze_best_lag_stability(per_patient):
     return df
 
 
+# %% Cell 44 — plot_stability
 def plot_stability(per_patient):
     """Heatmap: rows = patients, cols = seeds, values = best lag."""
     pids  = sorted(per_patient.keys())
@@ -1702,6 +2439,7 @@ def plot_stability(per_patient):
     plt.show()
 
 
+# %% Cell 45 — plot_lag_curves_per_patient
 def plot_lag_curves_per_patient(per_patient):
     """One row per patient: mean ± std lift curve across seeds."""
     pids = sorted(per_patient.keys())
@@ -1754,7 +2492,7 @@ def plot_lag_curves_per_patient(per_patient):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 per_patient = lag_sweep_per_patient_seeds(
-    pipeline, run_config, pre_stack_state,
+    pipeline_sweep, run_config, pre_stack_state,
     lag_ms_values=[-200, -150, -100, -50, 0, 50, 100, 150, 200],
     context_model_order=8,
     seeds=[37, 42, 123, 567, 999]   # 5 seeds × 9 lags = 45 CRF runs
@@ -1781,7 +2519,8 @@ from dataset_config import Dutch30Config
 from run_pipeline import _run_crf_experiment, _run_step5abc
 
 
-# ─── Rebuild pipeline with baseline subtraction turned OFF ─────────────
+# %% Cell 46 — Rebuild pipeline_sweep with baseline subtraction turned OFF
+# ─── Rebuild pipeline_sweep with baseline subtraction turned OFF ─────────────
 config = Dutch30Config()
 extractor = Dutch30FeatureExtractor(config=config)
 
@@ -1806,6 +2545,7 @@ print(f"feature shape: {f.shape}  ndim: {f.ndim}")
 # Apply same step5 stacking as your baseline (matches earlier CRF runs)
 _run_step5abc(pipeline_nobase, run_config)
 
+# %% Cell 47 — Run CRF
 # ─── Run CRF ────────────────────────────────────────────────────────────
 crf_results_nobase = _run_crf_experiment(pipeline_nobase, run_config)
 
@@ -1846,18 +2586,18 @@ for pid, r in crf_results_nobase.items():
 
 print(f"\n  {'pid':<6} {'with_base':>11} {'no_base':>9} {'Δ':>7}")
 print("  " + "-" * 38)
-for pid in sorted(pipeline.patient_results.keys()):
-    with_base = pipeline.patient_results[pid]['lift']
+for pid in sorted(pipeline_sweep.patient_results.keys()):
+    with_base = pipeline_sweep.patient_results[pid]['lift']
     if pid in pipeline_nobase.patient_results:
         no_base = pipeline_nobase.patient_results[pid]['lift']
         delta = no_base - with_base
         print(f"  {pid:<6} {with_base:>10.2f}x {no_base:>8.2f}x  {delta:>+6.2f}")
 
 # more extensive version with train set predictions
-# def show_sentences(pipeline, run_config, n_sentences=3):
+# def show_sentences(pipeline_sweep, run_config, n_sentences=3):
 #     """Show example sentences with correct/wrong phoneme predictions per patient.
     
-#     Uses predictions from pipeline.patient_results for TEST.
+#     Uses predictions from pipeline_sweep.patient_results for TEST.
 #     Re-predicts on train data using stored model (step9) or a quick LogReg fallback.
     
 #     Correct = phoneme symbol, Wrong = *
@@ -1871,25 +2611,25 @@ for pid in sorted(pipeline.patient_results.keys()):
 #     pids = [f'P{i:02d}' for i in range(pr[0], pr[1] + 1)]
 
 #     for pid in pids:
-#         if pid not in pipeline.patient_results:
+#         if pid not in pipeline_sweep.patient_results:
 #             continue
 
-#         res = pipeline.patient_results[pid]
+#         res = pipeline_sweep.patient_results[pid]
 #         te_preds    = res['predictions']
 #         te_true     = res['true_labels']
 #         te_acc      = res['accuracy']
 
 #         # ── Gather raw data for this patient ──────────────────────────
-#         tr_idx = [i for i, p in enumerate(pipeline.train['phoneme_participant_ids']) if p == pid]
-#         te_idx = [i for i, p in enumerate(pipeline.test['phoneme_participant_ids']) if p == pid]
+#         tr_idx = [i for i, p in enumerate(pipeline_sweep.train['phoneme_participant_ids']) if p == pid]
+#         te_idx = [i for i, p in enumerate(pipeline_sweep.test['phoneme_participant_ids']) if p == pid]
 #         if not tr_idx or not te_idx:
 #             continue
 
-#         tr_lbl_all = [pipeline.train['phoneme_labels'][i] for i in tr_idx]
-#         tr_wrd_all = [pipeline.train['phoneme_words'][i] for i in tr_idx]
+#         tr_lbl_all = [pipeline_sweep.train['phoneme_labels'][i] for i in tr_idx]
+#         tr_wrd_all = [pipeline_sweep.train['phoneme_words'][i] for i in tr_idx]
 
-#         te_lbl_all = [pipeline.test['phoneme_labels'][i] for i in te_idx]
-#         te_wrd_all = [pipeline.test['phoneme_words'][i] for i in te_idx]
+#         te_lbl_all = [pipeline_sweep.test['phoneme_labels'][i] for i in te_idx]
+#         te_wrd_all = [pipeline_sweep.test['phoneme_words'][i] for i in te_idx]
 
 #         # ── Align test words to (possibly filtered) predictions ───────
 #         if len(te_wrd_all) != len(te_preds):
@@ -1907,7 +2647,7 @@ for pid in sorted(pipeline.patient_results.keys()):
 #         # ── Get train predictions ─────────────────────────────────────
 #         # Try using stored model; fall back to quick LogReg
 #         model = res.get('model')
-#         tr_feat_all = [pipeline.train['features'][i] for i in tr_idx]
+#         tr_feat_all = [pipeline_sweep.train['features'][i] for i in tr_idx]
 
 #         if model is not None and hasattr(model, 'predict'):
 #             try:
@@ -1980,14 +2720,14 @@ for pid in sorted(pipeline.patient_results.keys()):
 #         for s in chunk_words(te_rendered, n_sentences):
 #             print(f"    {s}")
 
-# show_sentences(pipeline, run_config, n_sentences=5)
+# show_sentences(pipeline_sweep, run_config, n_sentences=5)
 
 import importlib, run_pipeline, markov_phoneme_model
 importlib.reload(markov_phoneme_model)
 importlib.reload(run_pipeline)
 from run_pipeline import compare_classifiers, plot_classifier_heatmap
 
-comparison = compare_classifiers(pipeline, run_config)
+comparison = compare_classifiers(pipeline_sweep, run_config)
 
 plot_classifier_heatmap(comparison)                          # adjusted accuracy (default)
 # plot_classifier_heatmap(comparison, metric='accuracy')     # raw accuracy
@@ -2037,6 +2777,7 @@ from sklearn.metrics import accuracy_score
 
 FRAMESHIFT_MS = 5  # ms per HG frame
 
+# %% Cell 48 — make_feature_matrix
 def make_feature_matrix(features, labels, participant_ids, expected_size=None):
     """Flatten features and drop any with wrong size."""
     flat = [np.array(f).flatten() for f in features]
@@ -2052,6 +2793,7 @@ def make_feature_matrix(features, labels, participant_ids, expected_size=None):
         print(f"  dropped {n_dropped} malformed samples (expected size={expected_size})")
     return X, y, ids, expected_size
 
+# %% Cell 49 — sweep_temporal_offset
 def sweep_temporal_offset(cached_train, cached_test, pipeline, run_config,
                            offsets_frames=[-30, -26, -20, -16, -10, -8, -6, 0, 6, 10]):
     patients = sorted(set(cached_train['phoneme_participant_ids']))
@@ -2081,30 +2823,30 @@ def sweep_temporal_offset(cached_train, cached_test, pipeline, run_config,
                     new_feats.append(arr)
             data['features'] = new_feats
 
-        pipeline.train = train
-        pipeline.test  = test
+        pipeline_sweep.train = train
+        pipeline_sweep.test  = test
 
-        for d in [pipeline.train, pipeline.test]:
+        for d in [pipeline_sweep.train, pipeline_sweep.test]:
             d['phoneme_positions'] = [0] * len(d['phoneme_positions'])
 
-        pipeline.step5a_filter_by_frame_count(
+        pipeline_sweep.step5a_filter_by_frame_count(
             min_frames=run_config['min_frames'],
             max_frames=run_config['max_frames'],
         )
-        pipeline.step5b_stack_features(
+        pipeline_sweep.step5b_stack_features(
             model_order=run_config['stacking_order'],
             step_size=run_config['stacking_step_size'],
         )
-        pipeline.step5c_collapse_to_phoneme_level()
-        pipeline.dutch30_step6_resolve_unknowns()
-        pipeline.step7_filter_unknowns(unknown_keep_ratio=run_config['unknown_keep_ratio'])
+        pipeline_sweep.step5c_collapse_to_phoneme_level()
+        pipeline_sweep.dutch30_step6_resolve_unknowns()
+        pipeline_sweep.step7_filter_unknowns(unknown_keep_ratio=run_config['unknown_keep_ratio'])
 
-        tr_features = pipeline.train['features']
-        tr_labels   = pipeline.train['phoneme_labels']
-        tr_ids      = pipeline.train['phoneme_participant_ids']
-        te_features = pipeline.test['features']
-        te_labels   = pipeline.test['phoneme_labels']
-        te_ids      = pipeline.test['phoneme_participant_ids']
+        tr_features = pipeline_sweep.train['features']
+        tr_labels   = pipeline_sweep.train['phoneme_labels']
+        tr_ids      = pipeline_sweep.train['phoneme_participant_ids']
+        te_features = pipeline_sweep.test['features']
+        te_labels   = pipeline_sweep.test['phoneme_labels']
+        te_ids      = pipeline_sweep.test['phoneme_participant_ids']
         
         for pid in patients:
             tr_idx = [i for i, p in enumerate(tr_ids) if p == pid]
@@ -2147,7 +2889,7 @@ def sweep_temporal_offset(cached_train, cached_test, pipeline, run_config,
 
 
 offset_results = sweep_temporal_offset(
-    cached_train, cached_test, pipeline, run_config,
+    cached_train, cached_test, pipeline_sweep, run_config,
     #offsets_frames=[-30, -25, -20, -16, -12, -10, -8, -6, -4, -2, 0, 10]
     offsets_frames=[-30, -20, -10, 0, 6, 10]
 )
@@ -2162,9 +2904,9 @@ THRESHOLD = 0.90
 
 # Words that made it to phoneme level, per patient
 parsed_words_per_pid = defaultdict(set)
-for word, pid in zip(pipeline.train['phoneme_words'], pipeline.train['phoneme_participant_ids']):
+for word, pid in zip(pipeline_sweep.train['phoneme_words'], pipeline_sweep.train['phoneme_participant_ids']):
     parsed_words_per_pid[pid].add(word)
-for word, pid in zip(pipeline.test['phoneme_words'], pipeline.test['phoneme_participant_ids']):
+for word, pid in zip(pipeline_sweep.test['phoneme_words'], pipeline_sweep.test['phoneme_participant_ids']):
     parsed_words_per_pid[pid].add(word)
 
 print(f"{'Pat':<6} {'Sents':>6} {'AvgWds':>7} {'Expect':>7} "
@@ -2181,8 +2923,8 @@ for pid_num in range(21, 31):
     total_expected = sum(phon_dict.count_phonemes(s) for s in unique_sentences)
     n_sents = len(unique_sentences)
 
-    train_ph = sum(1 for p in pipeline.train['phoneme_participant_ids'] if p == pid)
-    test_ph  = sum(1 for p in pipeline.test ['phoneme_participant_ids'] if p == pid)
+    train_ph = sum(1 for p in pipeline_sweep.train['phoneme_participant_ids'] if p == pid)
+    test_ph  = sum(1 for p in pipeline_sweep.test ['phoneme_participant_ids'] if p == pid)
     total_ph = train_ph + test_ph
     rate     = 100 * total_ph / total_expected if total_expected > 0 else 0
     passed   = total_ph >= total_expected * THRESHOLD
@@ -2209,10 +2951,10 @@ for pid_num in range(21, 31):
 print("-" * 82)
 print("AvgMaxPos = average of (last parsed word position within each sentence), 0-indexed")
 
-results = pipeline.step9_train_and_evaluate(
+results = pipeline_sweep.step9_train_and_evaluate(
     model_factory=MarkovPhonemeModel,
     model_params={
-        'phonetic_dict': pipeline.detector.phonetic_dict,
+        'phonetic_dict': pipeline_sweep.detector.phonetic_dict,
         'order': run_config['markov_order'],
         'use_groups': False,
         'class_weight': run_config['class_weight'],
@@ -2223,23 +2965,24 @@ results = pipeline.step9_train_and_evaluate(
     use_viterbi=True,
 )
 
-for pid in sorted(pipeline.patient_results.keys()):
+for pid in sorted(pipeline_sweep.patient_results.keys()):
     print(f"--- {pid} ---")
-    r = pipeline.patient_results[pid]
+    r = pipeline_sweep.patient_results[pid]
     print(f"  acc={r['accuracy']:.4f}  n_pred={len(set(r['predictions']))}")
-    pipeline.step10_visualize_patient(pid, show_table=False, min_class_samples=run_config.get('min_class_samples', 5))
+    pipeline_sweep.step10_visualize_patient(pid, show_table=False, min_class_samples=run_config.get('min_class_samples', 5))
 
 import importlib, visualize_alignment
 importlib.reload(visualize_alignment)
 from visualize_alignment import plot_neural_alignment
 
-plot_neural_alignment(pipeline, 'P24', sentence_text='donald trump')
-# plot_sentence_alignment(pipeline, 'P24', sentence_text='donald trump')
+plot_neural_alignment(pipeline_sweep, 'P24', sentence_text='donald trump')
+# plot_sentence_alignment(pipeline_sweep, 'P24', sentence_text='donald trump')
 
 import numpy as np
 from scipy.signal import resample_poly
 from IPython.display import Audio, display
 
+# %% Cell 50 — analyze_boundary_search_logic
 def analyze_boundary_search_logic(total_phonemes, n_words, n_peaks_found, word_list=None, audio_signal=None, sample_rate=16000):
     """
     Compare current vs proposed boundary search logic with segment visualization and audio playback.
@@ -2340,7 +3083,7 @@ analyze_boundary_search_logic(40, 10, 0, word_list, audio_signal, sr)
 analyze_boundary_search_logic(40, 10, 9, word_list, audio_signal, sr)
 
 # # ---- Run experiment ----
-# name, params, results = run_from_config(pipeline, run_config)
+# name, params, results = run_from_config(pipeline_sweep, run_config)
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -2349,13 +3092,14 @@ from scipy.spatial.distance import pdist
 from collections import defaultdict
 
 
+# %% Cell 51 — get_patient_centroids
 def get_patient_centroids(pipeline, pid):
     """Return (centroid_matrix, phoneme_list) for one patient.
     
     Pools train + test, computes mean feature vector per phoneme class.
     """
     features, labels = [], []
-    for split in [pipeline.train, pipeline.test]:
+    for split in [pipeline_sweep.train, pipeline_sweep.test]:
         for i, p in enumerate(split['phoneme_participant_ids']):
             if p == pid:
                 features.append(split['features'][i])
@@ -2369,12 +3113,13 @@ def get_patient_centroids(pipeline, pid):
     return centroids, phonemes
 
 
+# %% Cell 52 — plot_phoneme_dendrograms
 def plot_phoneme_dendrograms(pipeline, pids=None, method='ward', metric='euclidean',
                               n_cols=2, figsize_per=(10, 4)):
     """Plot per-patient phoneme dendrograms in a grid.
 
     Args:
-        pipeline:  pipeline object after step 5/6.
+        pipeline_sweep:  pipeline_sweep object after step 5/6.
         pids:      list of patient IDs; None = all patients in train.
         method:    linkage method ('ward', 'average', 'complete', 'single').
         metric:    distance metric ('euclidean', 'cosine', 'correlation').
@@ -2382,7 +3127,7 @@ def plot_phoneme_dendrograms(pipeline, pids=None, method='ward', metric='euclide
         figsize_per: (w, h) per panel.
     """
     if pids is None:
-        pids = sorted(set(pipeline.train['phoneme_participant_ids']))
+        pids = sorted(set(pipeline_sweep.train['phoneme_participant_ids']))
 
     n_rows = int(np.ceil(len(pids) / n_cols))
     fig, axes = plt.subplots(
@@ -2396,7 +3141,7 @@ def plot_phoneme_dendrograms(pipeline, pids=None, method='ward', metric='euclide
     for idx, pid in enumerate(pids):
         ax = axes[idx]
         try:
-            centroids, phonemes = get_patient_centroids(pipeline, pid)
+            centroids, phonemes = get_patient_centroids(pipeline_sweep, pid)
             if len(phonemes) < 3:
                 ax.set_title(f'{pid} — too few classes ({len(phonemes)})')
                 ax.axis('off')
@@ -2432,6 +3177,7 @@ from sklearn.metrics import silhouette_score
 from collections import defaultdict
 
 
+# %% Cell 53 — 1. Build co-occurrence matrix across patients
 # ── 1. Build co-occurrence matrix across patients ───────────────────────────
 
 def build_cooccurrence_matrix(linkage_cache, k, all_phonemes=None):
@@ -2481,6 +3227,7 @@ def build_cooccurrence_matrix(linkage_cache, k, all_phonemes=None):
     return co_matrix, all_phonemes
 
 
+# %% Cell 54 — 2. Find best k by evaluating co-occurrence consistency
 # ── 2. Find best k by evaluating co-occurrence consistency ──────────────────
 
 def find_best_k_consensus(linkage_cache, k_range=range(2, 15), min_patients=2):
@@ -2561,6 +3308,7 @@ def find_best_k_consensus(linkage_cache, k_range=range(2, 15), min_patients=2):
     return scores, all_phonemes, best_sil
 
 
+# %% Cell 55 — 3. Plot universal dendrogram from co-occurrence matrix
 # ── 3. Plot universal dendrogram from co-occurrence matrix ──────────────────
 
 def plot_consensus_dendrogram(scores, all_phonemes, k, method='average'):
@@ -2602,7 +3350,7 @@ def plot_consensus_dendrogram(scores, all_phonemes, k, method='average'):
 
 # Step 1 — dendrograms
 linkage_cache = plot_phoneme_dendrograms(
-    pipeline,
+    pipeline_sweep,
     pids=None,     # or None for all
     method='ward',
     metric='euclidean',
@@ -2619,10 +3367,10 @@ for k in [5]:
 #nspect another k if the two metrics disagree
 # universal_labels = plot_consensus_dendrogram(scores, all_phonemes, k=5)
 
-# results_nn = pipeline.step9_train_and_evaluate(
+# results_nn = pipeline_sweep.step9_train_and_evaluate(
 #     model_factory=MarkovPhonemeModel,
 #     model_params={
-#         'phonetic_dict': pipeline.detector.phonetic_dict,
+#         'phonetic_dict': pipeline_sweep.detector.phonetic_dict,
 #         'order': 1,
 #         'use_groups': False,
 #         'class_weight': 'balanced',
@@ -2633,9 +3381,9 @@ for k in [5]:
 #     use_viterbi=True,
 # )
 
-# pipeline.checkpoint_after_step6(sample_fraction=sample_fraction)
+# pipeline_sweep.checkpoint_after_step6(sample_fraction=sample_fraction)
 
-# def plot_phoneme_clustering(pipeline, min_samples=10):
+# def plot_phoneme_clustering(pipeline_sweep, min_samples=10):
 #     """Plot per-patient hierarchical clustering of phonemes from neural features.
 
 #     For each patient, computes the mean neural feature vector per phoneme,
@@ -2644,7 +3392,7 @@ for k in [5]:
 #     and suggests natural groupings.
 
 #     Args:
-#         pipeline: Dutch30Pipeline instance with train data populated.
+#         pipeline_sweep: Dutch30Pipeline instance with train data populated.
 #         min_samples: int, minimum number of training samples required
 #             for a phoneme to be included in clustering.
 #     """
@@ -2654,7 +3402,7 @@ for k in [5]:
 #     from scipy.cluster.hierarchy import dendrogram, linkage
 #     from scipy.spatial.distance import pdist
 
-#     patient_ids = sorted(set(pipeline.train["phoneme_participant_ids"]))
+#     patient_ids = sorted(set(pipeline_sweep.train["phoneme_participant_ids"]))
 
 #     n_patients  = len(patient_ids)
 #     n_cols      = 2
@@ -2672,14 +3420,14 @@ for k in [5]:
 
 #         pid_mask = [
 #             p == pid
-#             for p in pipeline.train["phoneme_participant_ids"]
+#             for p in pipeline_sweep.train["phoneme_participant_ids"]
 #         ]
 #         features = [
-#             pipeline.train["features"][i]
+#             pipeline_sweep.train["features"][i]
 #             for i, m in enumerate(pid_mask) if m
 #         ]
 #         labels = [
-#             pipeline.train["phoneme_labels"][i]
+#             pipeline_sweep.train["phoneme_labels"][i]
 #             for i, m in enumerate(pid_mask) if m
 #         ]
 
@@ -2749,7 +3497,7 @@ for k in [5]:
 #                 bbox_inches="tight", facecolor="#faf9f6")
 #     plt.show()
 
-# diag = Dutch30PhonemeDetectionDiagnostic(pipeline)
+# diag = Dutch30PhonemeDetectionDiagnostic(pipeline_sweep)
 # diag.visualize_word_analysis('P23', word_name = 'postzegelverzameling.', save_path='p23_word_postzegelverzameling.png')
 
 #diag.visualize_multifeature_analysis('P01', word_index=50)
@@ -2765,7 +3513,7 @@ before and after resampling to a fixed frame count.
 
 Usage:
     from phoneme_duration_diagnostic import phoneme_duration_diagnostic
-    phoneme_duration_diagnostic(pipeline, pid="P23",
+    phoneme_duration_diagnostic(pipeline_sweep, pid="P23",
                                 phonemes=["t", "n", "a:", "schwa"])
 """
 
@@ -2781,11 +3529,12 @@ from dataset_config import Dutch30Config
 # Add bin legend
 from matplotlib.lines import Line2D 
 
+# %% Cell 56 — extract_phoneme_segments
 def extract_phoneme_segments(pipeline, pid, max_sentences=50):
     """Extract per-phoneme iEEG high gamma segments from sentences.
 
     Args:
-        pipeline: Dutch30Pipeline instance.
+        pipeline_sweep: Dutch30Pipeline instance.
         pid: str, patient ID.
         max_sentences: int, maximum sentences to process.
 
@@ -2796,8 +3545,8 @@ def extract_phoneme_segments(pipeline, pid, max_sentences=50):
             duration_ms: float, segment duration in ms.
             word: str, parent word.
     """
-    config = pipeline.config
-    raw_data = pipeline.dutch30_extractor.load_patient_raw_data(pid)
+    config = pipeline_sweep.config
+    raw_data = pipeline_sweep.dutch30_extractor.load_patient_raw_data(pid)
     eeg_full = raw_data["eeg"]
     audio_full = raw_data["audio"]
     stimuli = raw_data["stimuli"]
@@ -2872,7 +3621,7 @@ def extract_phoneme_segments(pipeline, pid, max_sentences=50):
         phoneme_labels = []
         phoneme_words = []
         for w in word_texts:
-            phonemes = pipeline.phonetic_dict.extract_phonemes(w)
+            phonemes = pipeline_sweep.phonetic_dict.extract_phonemes(w)
             if phonemes is None:
                 phonemes = ["?"]
             for ph in phonemes:
@@ -2881,11 +3630,11 @@ def extract_phoneme_segments(pipeline, pid, max_sentences=50):
 
         # Wav2vec boundaries
         try:
-            result = pipeline.detector.segment_sentence_by_wav2vec(
+            result = pipeline_sweep.detector.segment_sentence_by_wav2vec(
                 audio_sentence=audio_sent_16k,
                 audio_sr=config.audio_target_sr,
                 words=word_texts,
-                phonetic_dict=pipeline.phonetic_dict,
+                phonetic_dict=pipeline_sweep.phonetic_dict,
             )
         except Exception:
             n_fail += 1
@@ -2957,6 +3706,7 @@ def extract_phoneme_segments(pipeline, pid, max_sentences=50):
     return phoneme_segments
 
 
+# %% Cell 57 — phoneme_duration_diagnostic
 def phoneme_duration_diagnostic(pipeline, pid,
                                  phonemes=None,
                                  target_frames=2,
@@ -2976,7 +3726,7 @@ def phoneme_duration_diagnostic(pipeline, pid,
     one instance.
 
     Args:
-        pipeline: Dutch30Pipeline instance.
+        pipeline_sweep: Dutch30Pipeline instance.
         pid: str, patient ID.
         phonemes: list of str, phonemes to inspect. If None,
             picks 3 frequent consonants and 3 frequent vowels.
@@ -2984,7 +3734,7 @@ def phoneme_duration_diagnostic(pipeline, pid,
         max_instances_per_bin: int, max instances to draw
             per duration bin (keeps plots readable).
     """
-    all_segments = extract_phoneme_segments(pipeline, pid)
+    all_segments = extract_phoneme_segments(pipeline_sweep, pid)
 
     if phonemes is None:
         # Pick frequent phonemes with variety
@@ -3177,7 +3927,7 @@ def phoneme_duration_diagnostic(pipeline, pid,
             ax.set_title(f"{bin_name}\n(stacked, {len(bin_segs)} inst)",
                          fontsize=10)
             ax.set_xlabel(f"Context offset "
-                          f"(x{step_size}={step_size * pipeline.config.frameshift * 1000:.0f}ms)")
+                          f"(x{step_size}={step_size * pipeline_sweep.config.frameshift * 1000:.0f}ms)")
             if col == 0:
                 ax.set_ylabel(f"STACKED (order={model_order})\n"
                               f"HG power (ch avg)")
@@ -3234,7 +3984,7 @@ def phoneme_duration_diagnostic(pipeline, pid,
                      f"(order={model_order}, step={step_size}, "
                      f"{n_context} ctx)", fontsize=10)
         ax.set_xlabel(f"Context offset "
-                      f"(x{step_size}={step_size * pipeline.config.frameshift * 1000:.0f}ms)")
+                      f"(x{step_size}={step_size * pipeline_sweep.config.frameshift * 1000:.0f}ms)")
 
         plt.tight_layout(rect=[0, 0, 1, 0.93])
         plt.show()
@@ -3256,11 +4006,11 @@ def phoneme_duration_diagnostic(pipeline, pid,
         print()
 
 # # # # Auto-select 3 consonants + 3 vowels
-# phoneme_duration_diagnostic(pipeline, pid="P27", phonemes=["t", "n", "s", "d", "k", "r",
+# phoneme_duration_diagnostic(pipeline_sweep, pid="P27", phonemes=["t", "n", "s", "d", "k", "r",
 #                                        "\u0259", "\u025b", "\u0251", "i"], target_frames= 9, model_order=9, step_size=2)
 
 # # # # Or pick specific phonemes
-# # # phoneme_duration_diagnostic(pipeline, pid="P23",
+# # # phoneme_duration_diagnostic(pipeline_sweep, pid="P23",
 # # #                              phonemes=["t", "n", "s", "\u0259", "a:", "\u025b"])
 
 import numpy as np
@@ -3287,6 +4037,7 @@ DEFAULT_STACKING_ORDER = 5
 DEFAULT_N_FRAMES = 2 * DEFAULT_STACKING_ORDER + 1  # 11
 
 
+# %% Cell 58 — SinActivation
 class SinActivation(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -3297,6 +4048,7 @@ class SinActivation(nn.Module):
         return torch.sin(self.freq * x + self.phase)
 
 
+# %% Cell 59 — SnakeActivation
 class SnakeActivation(nn.Module):
     def __init__(self, dim, alpha=1.0):
         super().__init__()
@@ -3306,6 +4058,7 @@ class SnakeActivation(nn.Module):
         return x + (1.0 / (self.alpha + 1e-8)) * torch.sin(self.alpha * x) ** 2
 
 
+# %% Cell 60 — build_model
 def build_model(n_features, n_classes, activation='relu'):
     """Build a three-layer MLP with the specified activation function.
 
@@ -3342,6 +4095,7 @@ def build_model(n_features, n_classes, activation='relu'):
     )
 
 
+# %% Cell 61 — Conv1DClassifier
 class Conv1DClassifier(nn.Module):
     def __init__(self, n_channels, n_frames, n_classes):
         """1D convolutional classifier over the time axis of neural signal features.
@@ -3377,6 +4131,7 @@ class Conv1DClassifier(nn.Module):
         return self.classifier(x)
 
 
+# %% Cell 62 — SharedChannelMLP
 class SharedChannelMLP(nn.Module):
     def __init__(self, n_frames_per_channel, n_classes,
                  channel_hidden=CHANNEL_HIDDEN, global_hidden=GLOBAL_HIDDEN):
@@ -3446,6 +4201,7 @@ class SharedChannelMLP(nn.Module):
         return self.global_net(pooled)
 
 
+# %% Cell 63 — train_nn
 def train_nn(model, X_tr_t, y_tr_t, nn_weights, epochs, n_channels):
     """Train a SharedChannelMLP for a fixed number of epochs.
 
@@ -3471,6 +4227,7 @@ def train_nn(model, X_tr_t, y_tr_t, nn_weights, epochs, n_channels):
             optimizer.step()
 
 
+# %% Cell 64 — collect_joint_data
 def collect_joint_data(all_pids, pipeline, n_frames_per_ch, le_joint):
     """Collect and scale features across all patients for joint pretraining.
 
@@ -3479,7 +4236,7 @@ def collect_joint_data(all_pids, pipeline, n_frames_per_ch, le_joint):
 
     Args:
         all_pids: list of str, patient ids to include.
-        pipeline: pipeline object with train data.
+        pipeline_sweep: pipeline_sweep object with train data.
         n_frames_per_ch: int, frames per channel.
         le_joint: fitted LabelEncoder on the union of all valid classes.
 
@@ -3494,12 +4251,12 @@ def collect_joint_data(all_pids, pipeline, n_frames_per_ch, le_joint):
     scalers_per_pid = {}
 
     for pid in all_pids:
-        train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+        train_mask = [p == pid for p in pipeline_sweep.train['phoneme_participant_ids']]
         train_feat = [
-            pipeline.train['features'][i] for i, m in enumerate(train_mask) if m
+            pipeline_sweep.train['features'][i] for i, m in enumerate(train_mask) if m
         ]
         train_labels = [
-            pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m
+            pipeline_sweep.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m
         ]
 
         if len(train_feat) < 10:
@@ -3538,21 +4295,22 @@ def collect_joint_data(all_pids, pipeline, n_frames_per_ch, le_joint):
     return X_joint, y_joint, n_channels_per_pid, scalers_per_pid
 
 
+# %% Cell 65 — build_joint_label_encoder
 def build_joint_label_encoder(all_pids, pipeline):
     """Build a label encoder over the union of valid classes across all patients.
 
     Args:
         all_pids: list of str, patient ids.
-        pipeline: pipeline object with train data.
+        pipeline_sweep: pipeline_sweep object with train data.
 
     Returns:
         fitted LabelEncoder.
     """
     all_valid = set()
     for pid in all_pids:
-        train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+        train_mask = [p == pid for p in pipeline_sweep.train['phoneme_participant_ids']]
         train_labels = [
-            pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m
+            pipeline_sweep.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m
         ]
         counts = Counter(train_labels)
         all_valid.update(cls for cls, cnt in counts.items() if cnt >= MIN_CLASS_SAMPLES)
@@ -3579,7 +4337,7 @@ else:
         n_frames_per_ch = DEFAULT_N_FRAMES
 
 skip_patients = {}
-all_pids = sorted(set(pipeline.train['phoneme_participant_ids']))
+all_pids = sorted(set(pipeline_sweep.train['phoneme_participant_ids']))
 all_pids = [p for p in all_pids if p not in skip_patients]
 
 print(f"running on {len(all_pids)} patients: {all_pids}")
@@ -3591,11 +4349,11 @@ print()
 pretrained_channel_net = None
 
 print("pretraining shared_ch on all patients jointly...")
-le_joint = build_joint_label_encoder(all_pids, pipeline)
+le_joint = build_joint_label_encoder(all_pids, pipeline_sweep)
 n_joint_classes = len(le_joint.classes_)
 
 X_joint, y_joint, n_channels_per_pid, scalers_per_pid = collect_joint_data(
-    all_pids, pipeline, n_frames_per_ch, le_joint
+    all_pids, pipeline_sweep, n_frames_per_ch, le_joint
 )
 
 joint_model = SharedChannelMLP(n_frames_per_ch, n_joint_classes)
@@ -3627,20 +4385,20 @@ print()
 patient_results = {}
 
 for pid in all_pids:
-    train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
-    test_mask = [p == pid for p in pipeline.test['phoneme_participant_ids']]
+    train_mask = [p == pid for p in pipeline_sweep.train['phoneme_participant_ids']]
+    test_mask = [p == pid for p in pipeline_sweep.test['phoneme_participant_ids']]
 
     train_feat = [
-        pipeline.train['features'][i] for i, m in enumerate(train_mask) if m
+        pipeline_sweep.train['features'][i] for i, m in enumerate(train_mask) if m
     ]
     train_labels = [
-        pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m
+        pipeline_sweep.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m
     ]
     test_feat = [
-        pipeline.test['features'][i] for i, m in enumerate(test_mask) if m
+        pipeline_sweep.test['features'][i] for i, m in enumerate(test_mask) if m
     ]
     test_labels = [
-        pipeline.test['phoneme_labels'][i] for i, m in enumerate(test_mask) if m
+        pipeline_sweep.test['phoneme_labels'][i] for i, m in enumerate(test_mask) if m
     ]
 
     if len(train_feat) < 10 or len(test_feat) < 5:
@@ -3832,11 +4590,12 @@ from collections import Counter
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 
+# %% Cell 66 — TorchModelWrapper
 class TorchModelWrapper:
     """Wraps a pytorch classifier to match the step9 model interface.
 
     Handles per-patient scaling, label encoding, class filtering, and
-    converts between the pipeline's list-of-arrays format and the flat
+    converts between the pipeline_sweep's list-of-arrays format and the flat
     tensor format expected by pytorch models.
 
     Args:
@@ -3998,6 +4757,8 @@ class TorchModelWrapper:
         return self.markov_model.trained_classes
 
 # NN_conv1d
+
+# %% Cell 67 — conv1d_factory
 def conv1d_factory(n_channels, n_classes):
     return Conv1DClassifier(n_channels, n_frames_per_ch, n_classes)
     
@@ -4007,7 +4768,7 @@ def shared_ch_pt_factory(n_channels, n_classes):
     m.attach_patient_head(n_channels, n_classes)
     return m
 
-_ = pipeline.step9_train_and_evaluate(
+_ = pipeline_sweep.step9_train_and_evaluate(
     model_factory=TorchModelWrapper,
     model_params={
         'model_fn': conv1d_factory,
@@ -4017,6 +4778,7 @@ _ = pipeline.step9_train_and_evaluate(
     use_viterbi=True,
 )
 
+# %% Cell 68 — build_instance_ids
 def build_instance_ids(words, participant_ids):
     """Construct instance ids by detecting word boundary changes.
 
@@ -4042,23 +4804,24 @@ def build_instance_ids(words, participant_ids):
         instance_ids.append(f"{pid}_{word}_{instance_counter}")
     return instance_ids
 
-pipeline.train['phoneme_instance_ids'] = build_instance_ids(
-    pipeline.train['phoneme_words'],
-    pipeline.train['phoneme_participant_ids']
+pipeline_sweep.train['phoneme_instance_ids'] = build_instance_ids(
+    pipeline_sweep.train['phoneme_words'],
+    pipeline_sweep.train['phoneme_participant_ids']
 )
-pipeline.test['phoneme_instance_ids'] = build_instance_ids(
-    pipeline.test['phoneme_words'],
-    pipeline.test['phoneme_participant_ids']
+pipeline_sweep.test['phoneme_instance_ids'] = build_instance_ids(
+    pipeline_sweep.test['phoneme_words'],
+    pipeline_sweep.test['phoneme_participant_ids']
 )
 
-print('phoneme_instance_ids' in pipeline.test)
-print("sample ids:", pipeline.test['phoneme_instance_ids'][:15])
+print('phoneme_instance_ids' in pipeline_sweep.test)
+print("sample ids:", pipeline_sweep.test['phoneme_instance_ids'][:15])
 
 # monkey-patch step9 logging temporarily
-original_step9 = pipeline.step9_train_and_evaluate
+original_step9 = pipeline_sweep.step9_train_and_evaluate
 
+# %% Cell 69 — debug_step9
 def debug_step9(*args, **kwargs):
-    print("has_instance_ids:", 'phoneme_instance_ids' in pipeline.test)
+    print("has_instance_ids:", 'phoneme_instance_ids' in pipeline_sweep.test)
     print("use_viterbi:", kwargs.get('use_viterbi', True))
     return original_step9(*args, **kwargs)
 
@@ -4072,9 +4835,10 @@ _ = debug_step9(
     use_viterbi=True,
 )
 
-for pid in sorted(pipeline.patient_results.keys()):
-    pipeline.step10_visualize_patient(pid, show_table=False)
+for pid in sorted(pipeline_sweep.patient_results.keys()):
+    pipeline_sweep.step10_visualize_patient(pid, show_table=False)
 
+# %% Cell 70 — diagnose_word_segmentation
 def diagnose_word_segmentation(pipeline, word, patient_id, n_instances=3):
     """Visualize acoustic boundary detection for specific word instances.
 
@@ -4082,7 +4846,7 @@ def diagnose_word_segmentation(pipeline, word, patient_id, n_instances=3):
     and how they map to dictionary phonemes for a given word and patient.
 
     Args:
-        pipeline: pipeline object with detector and phonetic_dict.
+        pipeline_sweep: pipeline_sweep object with detector and phonetic_dict.
         word: str, word to diagnose.
         patient_id: str, patient id to look up instances for.
         n_instances: int, number of instances to visualize.
@@ -4093,7 +4857,7 @@ def diagnose_word_segmentation(pipeline, word, patient_id, n_instances=3):
     from collections import defaultdict
 
     # get dictionary phonemes
-    phonemes_dict = pipeline.phonetic_dict.extract_phonemes(word)
+    phonemes_dict = pipeline_sweep.phonetic_dict.extract_phonemes(word)
     print(f"word: '{word}'")
     print(f"dictionary phonemes: {phonemes_dict} (n={len(phonemes_dict)})")
     print(f"expected boundaries: {len(phonemes_dict) - 1}")
@@ -4101,7 +4865,7 @@ def diagnose_word_segmentation(pipeline, word, patient_id, n_instances=3):
 
     # find instances in train and test data
     instances = []
-    for split_name, data in [('train', pipeline.train), ('test', pipeline.test)]:
+    for split_name, data in [('train', pipeline_sweep.train), ('test', pipeline_sweep.test)]:
         word_mask = [w == word and p == patient_id
                      for w, p in zip(data['phoneme_words'],
                                      data['phoneme_participant_ids'])]
@@ -4115,7 +4879,7 @@ def diagnose_word_segmentation(pipeline, word, patient_id, n_instances=3):
 
     # now re-run boundary detection on raw data
     # find the word in the split_result to get raw audio and eeg
-    split_result = pipeline.split_result
+    split_result = pipeline_sweep.split_result
     patient_words = None
     for pid, pdata in split_result.items():
         if pid == patient_id:
@@ -4144,8 +4908,8 @@ def diagnose_word_segmentation(pipeline, word, patient_id, n_instances=3):
     print()
 
     # alternative: re-run detector directly on stored spectrogram segments
-    # find spectrogram segments from the pipeline data
-    for split_name, data in [('train', pipeline.train), ('test', pipeline.test)]:
+    # find spectrogram segments from the pipeline_sweep data
+    for split_name, data in [('train', pipeline_sweep.train), ('test', pipeline_sweep.test)]:
         word_mask = [w == word and p == patient_id
                      for w, p in zip(data['phoneme_words'],
                                      data['phoneme_participant_ids'])]
@@ -4231,6 +4995,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 
+# %% Cell 71 — diagnose_boundary_detection
 def diagnose_boundary_detection(pipeline, pid, word, instance_idx=0):
     """Re-run and visualize boundary detection for a single word instance.
 
@@ -4238,12 +5003,12 @@ def diagnose_boundary_detection(pipeline, pid, word, instance_idx=0):
     final boundaries, and how segments map to dictionary phonemes.
 
     Args:
-        pipeline: pipeline object with detector and phonetic_dict.
+        pipeline_sweep: pipeline_sweep object with detector and phonetic_dict.
         pid: str, patient id.
         word: str, word to diagnose.
         instance_idx: int, which instance of the word to use.
     """
-    wsd = pipeline.split_result['word_segments_dict'][pid]
+    wsd = pipeline_sweep.split_result['word_segments_dict'][pid]
     words_list = wsd['words_list']
 
     indices = [i for i, w in enumerate(words_list) if w == word]
@@ -4259,7 +5024,7 @@ def diagnose_boundary_detection(pipeline, pid, word, instance_idx=0):
     audio = wsd['audio_segments'][idx]
     eeg = wsd['eeg_segments'][idx]
 
-    phonemes_dict = pipeline.phonetic_dict.extract_phonemes(word)
+    phonemes_dict = pipeline_sweep.phonetic_dict.extract_phonemes(word)
     n_phonemes = len(phonemes_dict)
     n_boundaries_needed = n_phonemes - 1
 
@@ -4271,7 +5036,7 @@ def diagnose_boundary_detection(pipeline, pid, word, instance_idx=0):
     print()
 
     # re-run boundary detection step by step
-    detector = pipeline.detector
+    detector = pipeline_sweep.detector
 
     # compute frame-to-frame distances (same as detect_boundaries internally)
     from scipy.spatial.distance import cosine
@@ -4289,7 +5054,7 @@ def diagnose_boundary_detection(pipeline, pid, word, instance_idx=0):
         use_multifeature=detector.use_multifeature,
         use_rms_boundaries=detector.use_rms_boundaries,
         audio_segment=audio,
-        audio_sr=pipeline.config.audio_sr,
+        audio_sr=pipeline_sweep.config.audio_sr,
     )
 
     boundaries_frames = result['boundaries']
@@ -4302,7 +5067,7 @@ def diagnose_boundary_detection(pipeline, pid, word, instance_idx=0):
     print(f"match: {'yes' if match else 'NO - MISMATCH'}")
     print()
 
-    # assign labels same way pipeline does
+    # assign labels same way pipeline_sweep does
     if match:
         assigned_labels = phonemes_dict
         label_source = 'direct mapping'
@@ -4377,41 +5142,41 @@ def diagnose_boundary_detection(pipeline, pid, word, instance_idx=0):
 
 
 # run it
-diagnose_boundary_detection(pipeline, 'P21', 'mensen', instance_idx=0)
+diagnose_boundary_detection(pipeline_sweep, 'P21', 'mensen', instance_idx=0)
 
-print(sorted(set(pipeline.train['phoneme_labels'])))
-raw_phoneme_count = len(set(pipeline.train['phoneme_labels']))
+print(sorted(set(pipeline_sweep.train['phoneme_labels'])))
+raw_phoneme_count = len(set(pipeline_sweep.train['phoneme_labels']))
 
 # safety check — if labels are already groups, reload first
-sample_labels = set(list(pipeline.train['phoneme_labels'])[:100])
+sample_labels = set(list(pipeline_sweep.train['phoneme_labels'])[:100])
 known_groups = {'stops', 'fricatives', 'nasals', 'liquids', 'glides', 'schwa',
                 'a-type', 'e-type', 'i-type', 'o-type', 'u-type', 'diph', 'unknown'}
 if sample_labels.issubset(known_groups):
     print("WARNING: Labels are already groups! Reloading from checkpoint...")
-    pipeline.try_load_checkpoint(sample_fraction=sf, stage='after_step5')
-    pipeline.step5a_filter_by_frame_count(min_frames=2, max_frames=25)
-    pipeline.step5b_normalize_feature_lengths(target_frames=5)
-    pipeline.dutch30_step6_resolve_unknowns()
-    pipeline.step7_filter_unknowns(unknown_keep_ratio=run_config['unknown_keep_ratio'])
+    pipeline_sweep.try_load_checkpoint(sample_fraction=sf, stage='after_step5')
+    pipeline_sweep.step5a_filter_by_frame_count(min_frames=2, max_frames=25)
+    pipeline_sweep.step5b_normalize_feature_lengths(target_frames=5)
+    pipeline_sweep.dutch30_step6_resolve_unknowns()
+    pipeline_sweep.step7_filter_unknowns(unknown_keep_ratio=run_config['unknown_keep_ratio'])
 
-raw_phoneme_count = len(set(pipeline.train['phoneme_labels']))
-print(f"Raw phonemes before grouping: {sorted(set(pipeline.train['phoneme_labels']))[:10]}...")
+raw_phoneme_count = len(set(pipeline_sweep.train['phoneme_labels']))
+print(f"Raw phonemes before grouping: {sorted(set(pipeline_sweep.train['phoneme_labels']))[:10]}...")
 
-pipeline.step8_group_phonemes()
+pipeline_sweep.step8_group_phonemes()
 
-grouped_phoneme_count = len(set(pipeline.train['phoneme_labels']))
+grouped_phoneme_count = len(set(pipeline_sweep.train['phoneme_labels']))
 print(f"\nReduced from {raw_phoneme_count} phonemes to {grouped_phoneme_count} groups")
-grouped_results = pipeline.step9_train_and_evaluate(
+grouped_results = pipeline_sweep.step9_train_and_evaluate(
     model_factory=MarkovPhonemeModel,
     model_params={"use_groups": False}  # already grouped
 )
 
-raw_phonemes = set(pipeline.train['phoneme_labels_raw'])
+raw_phonemes = set(pipeline_sweep.train['phoneme_labels_raw'])
 print(f"Raw phonemes in data ({len(raw_phonemes)}):")
 print(sorted(raw_phonemes))
 
 # Get the mapping
-phoneme_to_group = pipeline.detector.phonetic_dict.phoneme_to_group
+phoneme_to_group = pipeline_sweep.detector.phonetic_dict.phoneme_to_group
 print(f"\nPhonemes in mapping ({len(phoneme_to_group)}):")
 print(sorted(phoneme_to_group.keys()))
 
@@ -4428,11 +5193,12 @@ for p in sorted(mapped):
 
 
 for pid in sorted(grouped_results.keys()):
-    pipeline.step10_visualize_patient(pid)
+    pipeline_sweep.step10_visualize_patient(pid)
 
 import warnings
 warnings.filterwarnings('ignore', message='.*number of unique classes.*')
 
+# %% Cell 72 — diagnose_feature_quality
 def diagnose_feature_quality(pipeline, n_phonemes_to_check=10):
     """
     Check if features show ANY systematic differences between phonemes.
@@ -4444,7 +5210,7 @@ def diagnose_feature_quality(pipeline, n_phonemes_to_check=10):
     
     phoneme_features = defaultdict(list)
     
-    for feat, label in zip(pipeline.train['features'], pipeline.train['phoneme_labels']):
+    for feat, label in zip(pipeline_sweep.train['features'], pipeline_sweep.train['phoneme_labels']):
         if label == '?' or label == 'unknown':
             continue
         if feat.ndim > 1:
@@ -4569,14 +5335,15 @@ def diagnose_feature_quality(pipeline, n_phonemes_to_check=10):
     
     return pair_results
 
-pair_results = diagnose_feature_quality(pipeline, n_phonemes_to_check=15)
+pair_results = diagnose_feature_quality(pipeline_sweep, n_phonemes_to_check=15)
 
+# %% Cell 73 — train_and_evaluate_extended
 def train_and_evaluate_extended(pipeline, use_groups=False, method='markov'):
     """
     Train per patient with multiple approaches.
     
     Args:
-        pipeline: Dutch30Pipeline with loaded data
+        pipeline_sweep: Dutch30Pipeline with loaded data
         use_groups: Whether to use phoneme groups
         method: One of 'markov', 'gmm', 'soft_labels', 'gmm_informed'
     """
@@ -4589,14 +5356,14 @@ def train_and_evaluate_extended(pipeline, use_groups=False, method='markov'):
     
     results = {}
     
-    for pid in sorted(set(pipeline.train['phoneme_participant_ids'])):
-        train_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
-        test_mask = [p == pid for p in pipeline.test['phoneme_participant_ids']]
+    for pid in sorted(set(pipeline_sweep.train['phoneme_participant_ids'])):
+        train_mask = [p == pid for p in pipeline_sweep.train['phoneme_participant_ids']]
+        test_mask = [p == pid for p in pipeline_sweep.test['phoneme_participant_ids']]
         
-        train_feat = [pipeline.train['features'][i] for i, m in enumerate(train_mask) if m]
-        train_labels = [pipeline.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m]
-        test_feat = [pipeline.test['features'][i] for i, m in enumerate(test_mask) if m]
-        test_labels = [pipeline.test['phoneme_labels'][i] for i, m in enumerate(test_mask) if m]
+        train_feat = [pipeline_sweep.train['features'][i] for i, m in enumerate(train_mask) if m]
+        train_labels = [pipeline_sweep.train['phoneme_labels'][i] for i, m in enumerate(train_mask) if m]
+        test_feat = [pipeline_sweep.test['features'][i] for i, m in enumerate(test_mask) if m]
+        test_labels = [pipeline_sweep.test['phoneme_labels'][i] for i, m in enumerate(test_mask) if m]
         
         if len(train_feat) < 10 or len(test_feat) < 5:
             continue
@@ -4619,7 +5386,7 @@ def train_and_evaluate_extended(pipeline, use_groups=False, method='markov'):
                 continue
             
             model = MarkovPhonemeModel(
-                phonetic_dict=pipeline.detector.phonetic_dict,
+                phonetic_dict=pipeline_sweep.detector.phonetic_dict,
                 order=1,
                 use_groups=use_groups
             )
@@ -4764,6 +5531,7 @@ def train_and_evaluate_extended(pipeline, use_groups=False, method='markov'):
     return results
 
 
+# %% Cell 74 — compare_methods
 def compare_methods(pipeline, use_groups=False):
     """Compare all methods side by side."""
     import pandas as pd
@@ -4775,7 +5543,7 @@ def compare_methods(pipeline, use_groups=False):
         print(f"\n{'='*60}")
         print(f"METHOD: {method}")
         print('='*60)
-        all_results[method] = train_and_evaluate_extended(pipeline, use_groups, method)
+        all_results[method] = train_and_evaluate_extended(pipeline_sweep, use_groups, method)
     
     comparison = {}
     for method, results in all_results.items():
@@ -4803,4 +5571,4 @@ def compare_methods(pipeline, use_groups=False):
     return all_results, df
 
 
-# all_results, comparison_df = compare_methods(pipeline, use_groups=True)
+# all_results, comparison_df = compare_methods(pipeline_sweep, use_groups=True)

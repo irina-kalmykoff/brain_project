@@ -121,11 +121,26 @@ P01_electrode_locations.csv
 
 **Train/val/test split** is pre-defined in `dutch30_patient_split.json` (24 train / 3 val / 3 test). Do not re-derive splits from scratch — use the JSON.
 
-**Channel exclusions** are defined per-patient in `channel_exclusions.json`. Channel quality is filtered automatically using these thresholds (`Dutch30Config`):
-- `channel_outlier_threshold`: std > median × 3.0
-- `channel_flat_threshold`: std < median × 0.1
-- `channel_kurtosis_threshold`: kurtosis > median × 5.0
-- `min_channels_to_keep`: 20
+**Channel exclusions** are defined per-patient in `channel_exclusions.json` as
+explicit lists of channel indices to drop:
+```json
+{"P21": [5, 12, 45], "P22": [3, 99], ...}
+```
+Loaded by `step3_load_channel_exclusions(exclusions_path)` and stored as
+`pipeline.channel_masks[pid] = {'keep_indices': [...], 'exclude_indices': [...],
+'n_original': N, 'n_kept': N, 'n_excluded': M}`. Then `apply_channel_exclusions()`
+applies the mask to `pipeline.split_result['word_segments_dict']`. Same indices
+are reused at inference time via `get_pipeline_channel_mask(pipeline, pid)`.
+
+The lists were curated by visual / statistical inspection of each patient's
+recordings (an earlier offline sweep) and are loaded as-is. Treat them as
+fixed inputs to the pipeline; **do not regenerate them from data that includes
+the test split.**
+
+> Note: `Dutch30Config` declares `channel_outlier_threshold`,
+> `channel_flat_threshold`, and `channel_kurtosis_threshold` config values, but
+> those are vestigial — no pipeline code reads them. Channel quality is purely
+> from the hand-curated JSON above.
 
 ## Test Data Leakage — Sacred Rules
 

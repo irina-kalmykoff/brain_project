@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git checkout *)",
+      "Bash(cp parse_features_of_30_patients_whisper_mfa.py parse_features_of_30_patients_whisper_mfa.py.bak)",
+      "Bash(python _cellify_notebook.py)",
+      "Bash(/c/ProgramData/anaconda3/python.exe _cellify_notebook.py)",
+      "Bash(cp parse_features_of_30_patients_whisper_mfa.py parse_features_of_30_patients_whisper_mfa.py.bak2)",
+      "Bash(/c/ProgramData/anaconda3/python.exe _restructure_notebook.py)"
+    ]
+  }
+}

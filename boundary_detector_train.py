@@ -29,7 +29,6 @@ import pickle
 import random
 import numpy as np
 import scipy.signal
-import scipy.fftpack
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from datetime import datetime
@@ -57,10 +56,13 @@ os.environ['PYTHONHASHSEED'] = str(SEED)
 # CELL 2 — Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Patient split — MUST match dutch30_patient_split.json so the boundary
-# detector is trained on the same train patients as the rest of the pipeline.
-TRAIN_PIDS = [f'P{i:02d}' for i in range(1, 25)]   # 24 patients (adjust if needed)
-TEST_PIDS  = [f'P{i:02d}' for i in [25, 26, 27, 28, 29, 30]]
+# Patient list — every patient gets an input projection trained on their own
+# data. Boundary detection is a per-patient task (deployed per-patient too),
+# so we don't hold out whole patients. Instead, we use the patient's own
+# training/test sentence split (see SENTENCE_TEST_FRACTION below).
+ALL_PIDS = [f'P{i:02d}' for i in range(21, 31)]   # P21-P30 sentence patients
+SENTENCE_TEST_FRACTION = 0.2          # within-patient sentence split for eval
+SENTENCE_SPLIT_SEED    = 37           # for reproducible sentence splits
 
 # Frame settings — match production extractHG defaults
 SR             = 1024            # raw EEG sample rate
@@ -91,16 +93,24 @@ F1_TOLERANCE_MS = 20             # ±this = a true positive boundary detection
 # ═══════════════════════════════════════════════════════════════════════════════
 # CELL 3 — extractHG copy (one frame stream per sentence)
 # ═══════════════════════════════════════════════════════════════════════════════
-# We need per-frame features (not per-phoneme). Reuse the production envelope
-# pipeline (pwr_lpf_10) but stop before step5c collapse.
-
-_hilbert3 = lambda x: scipy.signal.hilbert(
-    x, scipy.fftpack.next_fast_len(len(x)), axis=0)[:len(x)]
+# Reuse the production envelope pipeline (pwr_lpf_10): squaring + Butterworth
+# low-pass at 10 Hz + window-average + sqrt. This is the SAME envelope the
+# rest of the production pipeline produces — we just stop before step5c's
+# per-phoneme collapse, since the boundary detector needs frame-level data.
+#
+# Pipeline:
+#   detrend → 70-170 Hz bandpass → 100/150 Hz notches (all 4th-order
+#   Butterworth filtfilt) → x² → 10 Hz Butterworth low-pass filtfilt
+#   → window-average → sqrt → (n_frames, n_channels)
 
 
 def extract_frame_features(eeg, sr=SR, window_ms=WINDOW_MS,
                            frameshift_ms=FRAMESHIFT_MS, smoothing_hz=10.0):
-    """High-gamma envelope features at 200 fps. (n_frames, n_channels)."""
+    """High-gamma envelope features at 200 fps. (n_frames, n_channels).
+
+    Identical to production extractHG (pwr_lpf_10) but returns the frame-level
+    output (no per-phoneme collapse). Used as input to the boundary detector.
+    """
     win   = window_ms / 1000.0
     shift = frameshift_ms / 1000.0
     data = scipy.signal.detrend(eeg, axis=0)
@@ -223,6 +233,9 @@ def collect_sentences(pid, mfa_dir=MFA_OUTPUT_PATH, raw_dir=None):
 def build_dataset_from_pipeline(pipeline, patient_ids):
     """Use the live pipeline to get per-sentence (frames, labels) tuples.
 
+    Returns ALL sentences for the requested patients (no train/test split).
+    Use split_dataset_by_sentence() afterwards to make the held-out split.
+
     Requires `pipeline.split_result['word_segments_dict'][pid]` to be populated.
     """
     dataset = []
@@ -263,6 +276,33 @@ def build_dataset_from_pipeline(pipeline, patient_ids):
     return dataset
 
 
+def split_dataset_by_sentence(full_dataset,
+                               test_fraction=SENTENCE_TEST_FRACTION,
+                               seed=SENTENCE_SPLIT_SEED):
+    """Per-patient deterministic sentence-level split.
+
+    For each patient, randomly hold out `test_fraction` of sentences for
+    evaluation. The split is done per-patient so every patient ends up in
+    both train and test (avoids the "model has no projection for this PID"
+    error and gives proper held-out sentences for F1 evaluation).
+
+    Returns: (train_items, test_items)
+    """
+    rng = random.Random(seed)
+    by_pid = defaultdict(list)
+    for d in full_dataset:
+        by_pid[d['pid']].append(d)
+    train_items, test_items = [], []
+    for pid, items in by_pid.items():
+        order = list(range(len(items)))
+        rng.shuffle(order)
+        n_test = max(1, int(round(len(items) * test_fraction)))
+        test_idxs  = set(order[:n_test])
+        for i, item in enumerate(items):
+            (test_items if i in test_idxs else train_items).append(item)
+    return train_items, test_items
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CELL 6 — Build the train and test sets
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -279,11 +319,12 @@ if 'pipeline' not in dir():
     print("      pipeline = Dutch30Pipeline(extractor, ...)")
     print("      run_path_b(pipeline, dict(DEFAULT_RUN_CONFIG))")
 else:
-    print("\n  Building per-sentence datasets...")
-    train_dataset = build_dataset_from_pipeline(pipeline, TRAIN_PIDS)
-    test_dataset  = build_dataset_from_pipeline(pipeline, TEST_PIDS)
-    print(f"  train: {len(train_dataset)} sentences from "
-          f"{len(set(d['pid'] for d in train_dataset))} patients")
+    print("\n  Building full per-sentence dataset for ALL patients...")
+    full_dataset = build_dataset_from_pipeline(pipeline, ALL_PIDS)
+    train_dataset, test_dataset = split_dataset_by_sentence(full_dataset)
+    print(f"  total: {len(full_dataset)} sentences from "
+          f"{len(set(d['pid'] for d in full_dataset))} patients")
+    print(f"  train: {len(train_dataset)} sentences ({SENTENCE_TEST_FRACTION:.0%} held out)")
     print(f"  test:  {len(test_dataset)} sentences from "
           f"{len(set(d['pid'] for d in test_dataset))} patients")
 
@@ -316,11 +357,11 @@ def apply_stats(dataset, stats):
 
 if 'train_dataset' in dir() and train_dataset:
     print("\n  Computing and applying per-patient z-score normalization...")
+    # Same patients in train and test (within-patient sentence split), so use
+    # train statistics for BOTH — no leakage from test.
     train_stats = fit_per_patient_stats(train_dataset)
     train_dataset = apply_stats(train_dataset, train_stats)
-    # For test patients, fit fresh stats (they're unseen patients)
-    test_stats  = fit_per_patient_stats(test_dataset)
-    test_dataset  = apply_stats(test_dataset, test_stats)
+    test_dataset  = apply_stats(test_dataset, train_stats)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

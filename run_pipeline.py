@@ -1655,5 +1655,15 @@ def main():
         analyze_consecutive_predictions(pipeline, run_config)
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# Public aliases with more descriptive names
+# ═════════════════════════════════════════════════════════════════════════════
+# Old `run_path_a` / `run_path_b` named after pipeline-internal "paths". Kept
+# as aliases for backward compatibility. New code should prefer the names
+# below which describe the boundary source.
+run_with_audio_boundaries = run_path_a
+run_with_mfa_boundaries   = run_path_b
+
+
 if __name__ == '__main__':
     main()

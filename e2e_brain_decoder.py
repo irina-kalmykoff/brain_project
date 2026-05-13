@@ -1501,6 +1501,8 @@ def run_with_ieeg_boundaries(pipeline, run_config=None):
     per_pid_true = defaultdict(list)
     per_pid_true_sids = defaultdict(list)
     per_pid_pred_sids = defaultdict(list)
+    per_pid_pred_segs = defaultdict(list)   # (start_s, end_s) per pred phoneme
+    per_pid_true_segs = defaultdict(list)   # (start_s, end_s) per true phoneme
 
     # Cache raw EEG per patient (with the same channel mask the CRF saw)
     raw_eeg_cache  = {}
@@ -1538,13 +1540,24 @@ def run_with_ieeg_boundaries(pipeline, run_config=None):
             continue
 
         # ── Phase 3: SCORE (compare to MFA oracle) ────────────────────────
-        y_true = get_mfa_oracle_labels(pid, sent_idx,
-                                        classifiers[pid]['valid_classes'])
+        valid_classes = classifiers[pid]['valid_classes']
+        y_true = get_mfa_oracle_labels(pid, sent_idx, valid_classes)
+
+        # MFA-derived true-phoneme times (same filter the oracle labels use)
+        mfa_phones = load_mfa_alignments(pid).get(sent_idx, [])
+        true_segs  = [(p['start_s'], p['end_s'])
+                       for p in mfa_phones if p['phone'] in valid_classes]
+        # Predicted segment times — pad/truncate to len(y_pred) defensively.
+        pred_segs = list(_segments[:len(y_pred)])
+        while len(pred_segs) < len(y_pred):
+            pred_segs.append((float('nan'), float('nan')))
 
         per_pid_pred[pid].extend(y_pred)
         per_pid_true[pid].extend(y_true)
         per_pid_pred_sids[pid].extend([sent_idx] * len(y_pred))
         per_pid_true_sids[pid].extend([sent_idx] * len(y_true))
+        per_pid_pred_segs[pid].extend(pred_segs)
+        per_pid_true_segs[pid].extend(true_segs[:len(y_true)])
 
     # Pack per-patient summary into pipeline.patient_results
     pipeline.patient_results = {}
@@ -1562,6 +1575,8 @@ def run_with_ieeg_boundaries(pipeline, run_config=None):
             'predictions':       list(pred),
             'true_sentence_ids': list(per_pid_true_sids[pid]),
             'pred_sentence_ids': list(per_pid_pred_sids[pid]),
+            'true_segments':     list(per_pid_true_segs[pid]),   # (start_s,end_s) per phoneme
+            'pred_segments':     list(per_pid_pred_segs[pid]),
             'accuracy':          accuracy,
             'edit_distance':     ed,
             'per':               ed / max(len(true), 1),
@@ -1616,6 +1631,11 @@ DEFAULT_WEAK_EQUIVALENCE = [
     {'r', 'l'},
     # Schwa-adjacent
     {'ə', 'ɛ'}, {'ə', 'ɪ'},
+    # Glide / labial-velar approximant vs near-back rounded vowel — perceptually
+    # close in Dutch (ʋ is the labio-dental approximant 'w'-like sound)
+    {'ʊ', 'ʋ'},
+    # Velar stop vs glottal/voiceless-velar fricative — close in place
+    {'k', 'h'},
 ]
 
 
@@ -2155,6 +2175,293 @@ def show_matched_sequences(pipeline, pid,
     display_matched_sequences(true, pred, matches, max_per_line=max_per_line,
                                true_sentence_ids=true_sids,
                                pred_sentence_ids=pred_sids)
+
+
+def _time_merge_columns(true_segs, pred_segs, tol_s=0.04):
+    """Two-pointer merge by start_s. Returns list of (t_idx_or_None, p_idx_or_None).
+    Events with |Δstart_s| ≤ tol_s share a column."""
+    def t_of(seg):
+        if seg is None: return None
+        s = seg[0]
+        if s is None or (isinstance(s, float) and np.isnan(s)): return None
+        return s
+    n_t, n_p = len(true_segs), len(pred_segs)
+    cols, i, j = [], 0, 0
+    while i < n_t or j < n_p:
+        t = t_of(true_segs[i]) if i < n_t else None
+        p = t_of(pred_segs[j]) if j < n_p else None
+        if t is None and p is None:
+            # both have nan/None time — pair them by position
+            cols.append((i if i < n_t else None, j if j < n_p else None))
+            if i < n_t: i += 1
+            if j < n_p: j += 1
+        elif p is None or (t is not None and t + tol_s < p):
+            cols.append((i, None)); i += 1
+        elif t is None or (p is not None and p + tol_s < t):
+            cols.append((None, j)); j += 1
+        else:
+            cols.append((i, j)); i += 1; j += 1
+    return cols
+
+
+def display_matched_sequences_with_times(true_seq, pred_seq, matches,
+                                          true_segments=None, pred_segments=None,
+                                          max_per_line=20,
+                                          true_sentence_ids=None,
+                                          pred_sentence_ids=None,
+                                          time_align_tol_s=None,
+                                          sentence_texts=None,
+                                          patient_id=None):
+    """Same as display_matched_sequences but adds time rows.
+
+    true_segments / pred_segments: lists of (start_s, end_s) tuples,
+    one per phoneme in true_seq / pred_seq. If a value is None or NaN,
+    the cell is left blank.
+    """
+    from IPython.display import HTML, display
+
+    n_t, n_p = len(true_seq), len(pred_seq)
+    true_color = [None] * n_t
+    pred_color = [None] * n_p
+    true_kind  = ['exact'] * n_t
+    pred_kind  = ['exact'] * n_p
+    for m in matches:
+        if len(m) == 5:
+            ts, ps, L, color_idx, cell_types = m
+        else:
+            ts, ps, L, color_idx = m
+            cell_types = ('exact',) * L
+        c = PALETTE[color_idx % len(PALETTE)]
+        for k in range(L):
+            if ts + k < n_t:
+                true_color[ts + k] = c
+                true_kind[ts + k]  = cell_types[k]
+            if ps + k < n_p:
+                pred_color[ps + k] = c
+                pred_kind[ps + k]  = cell_types[k]
+
+    def fmt_time(seg):
+        if seg is None: return ''
+        s, e = seg
+        if s is None or (isinstance(s, float) and np.isnan(s)): return ''
+        return f'{s:.2f}'
+
+    chunks = []
+
+    def render_sentence_block(t_lo, t_hi, p_lo, p_hi, sid=None):
+        len_t = t_hi - t_lo
+        len_p = p_hi - p_lo
+
+        if time_align_tol_s is not None and true_segments is not None and pred_segments is not None:
+            # time-merged column layout — each column is a time slot
+            cols = _time_merge_columns(
+                true_segments[t_lo:t_hi], pred_segments[p_lo:p_hi],
+                tol_s=time_align_tol_s)
+        else:
+            # legacy: column k pairs true[t_lo+k] with pred[p_lo+k]
+            L = max(len_t, len_p)
+            cols = [((k if k < len_t else None),
+                     (k if k < len_p else None)) for k in range(L)]
+
+        L = len(cols)
+        if sid is not None:
+            mode = " (time-aligned)" if time_align_tol_s is not None else ""
+            text = sentence_texts.get(sid) if sentence_texts else None
+            text_html = (f'<div style="font-family:sans-serif; font-size:13px; '
+                          f'color:#222; margin-top:4px;">{text}</div>'
+                          if text else '')
+            chunks.append(
+                f'<div style="margin:8px 0 2px 0; font-family:monospace; '
+                f'font-size:11px; color:#555;">'
+                f'{patient_id + "  " if patient_id else ""}'
+                f'sentence {sid}  (true={len_t}, pred={len_p}){mode}'
+                f'{text_html}'
+                f'</div>'
+            )
+        for chunk_start in range(0, L, max_per_line):
+            chunk_end = min(chunk_start + max_per_line, L)
+            pos_row, true_row, pred_row = '', '', ''
+            t_time_row, p_time_row = '', ''
+            for k in range(chunk_start, chunk_end):
+                ti, pi = cols[k]
+                pos_row += _cell_html(str(k), is_pos=True)
+                if ti is not None:
+                    gi = t_lo + ti
+                    t_time_row += _cell_html(
+                        fmt_time(true_segments[gi]) if true_segments else '',
+                        is_pos=True)
+                    true_row += _cell_html(true_seq[gi], true_color[gi],
+                                            cell_kind=true_kind[gi])
+                else:
+                    t_time_row += _cell_html('', None)
+                    true_row += _cell_html('', None)
+                if pi is not None:
+                    gi = p_lo + pi
+                    p_time_row += _cell_html(
+                        fmt_time(pred_segments[gi]) if pred_segments else '',
+                        is_pos=True)
+                    pred_row += _cell_html(pred_seq[gi], pred_color[gi],
+                                            cell_kind=pred_kind[gi])
+                else:
+                    p_time_row += _cell_html('', None)
+                    pred_row += _cell_html('', None)
+            rows = [
+                f'<tr>{_cell_html("pos",  is_label=True)}{pos_row}</tr>',
+            ]
+            if true_segments is not None:
+                rows.append(f'<tr>{_cell_html("t_true (s)", is_label=True)}{t_time_row}</tr>')
+            rows.append(f'<tr>{_cell_html("true", is_label=True)}{true_row}</tr>')
+            if pred_segments is not None:
+                rows.append(f'<tr>{_cell_html("t_pred (s)", is_label=True)}{p_time_row}</tr>')
+            rows.append(f'<tr>{_cell_html("pred", is_label=True)}{pred_row}</tr>')
+            chunks.append(
+                '<table style="border-collapse:collapse; margin-bottom:4px">' +
+                ''.join(rows) + '</table>'
+            )
+
+    if true_sentence_ids is not None and pred_sentence_ids is not None:
+        i_t = 0; i_p = 0
+        while i_t < n_t or i_p < n_p:
+            sid_t = true_sentence_ids[i_t] if i_t < n_t else None
+            sid_p = pred_sentence_ids[i_p] if i_p < n_p else None
+            if sid_t is None: sid = sid_p
+            elif sid_p is None: sid = sid_t
+            elif sid_t == sid_p: sid = sid_t
+            else: sid = min(sid_t, sid_p)
+            t_lo = i_t
+            while i_t < n_t and true_sentence_ids[i_t] == sid: i_t += 1
+            p_lo = i_p
+            while i_p < n_p and pred_sentence_ids[i_p] == sid: i_p += 1
+            render_sentence_block(t_lo, i_t, p_lo, i_p, sid=sid)
+    else:
+        render_sentence_block(0, n_t, 0, n_p)
+    display(HTML(''.join(chunks)))
+
+
+def show_matched_sequences_with_times(pipeline, pid,
+                                       shift_by_len=None,
+                                       max_per_line=30,
+                                       n_phonemes=None,
+                                       collapse_repeats=True,
+                                       time_align_tol_s=None):
+    """Same as show_matched_sequences but renders time rows for true and pred
+    phonemes. Uses 'true_segments' and 'pred_segments' fields from
+    pipeline.patient_results[pid] if present.
+    """
+    res = pipeline.patient_results[pid]
+    true       = list(res['true_labels'])
+    pred       = list(res['predictions'])
+    true_sids  = res.get('true_sentence_ids')
+    pred_sids  = res.get('pred_sentence_ids')
+    true_segs  = res.get('true_segments')
+    pred_segs  = res.get('pred_segments')
+
+    if n_phonemes is not None:
+        true = true[:n_phonemes]; pred = pred[:n_phonemes]
+        if true_sids is not None: true_sids = true_sids[:n_phonemes]
+        if pred_sids is not None: pred_sids = pred_sids[:n_phonemes]
+        if true_segs is not None: true_segs = true_segs[:n_phonemes]
+        if pred_segs is not None: pred_segs = pred_segs[:n_phonemes]
+
+    if collapse_repeats:
+        # collapse phoneme sequences AND keep the first time of each run
+        true, true_sids, true_segs = _collapse_consecutive_repeats_with_segs(
+            true, true_sids, true_segs)
+        pred, pred_sids, pred_segs = _collapse_consecutive_repeats_with_segs(
+            pred, pred_sids, pred_segs)
+
+    matches = find_color_matches(
+        true, pred, shift_by_len=shift_by_len,
+        true_sentence_ids=true_sids, pred_sentence_ids=pred_sids,
+    )
+
+    n_2plus  = sum(1 for m in matches if m[2] >= 2)
+    n_1grams = sum(1 for m in matches if m[2] == 1)
+    n_covered = sum(m[2] for m in matches)
+
+    n_classes = len(set(true))
+    chance = 1.0 / n_classes if n_classes > 0 else 0
+    acc = res.get('accuracy', float('nan'))
+    lift = acc / chance if chance > 0 else 0
+    ed   = res.get('edit_distance', edit_distance(true, pred))
+    per  = res.get('per', ed / max(len(true), 1))
+
+    sb = shift_by_len or DEFAULT_SHIFT_BY_LEN
+    shift_descr = ', '.join(f'{k}-gram±{v}' for k, v in sorted(sb.items()))
+
+    print(f"\n  {pid}  acc={acc:.2%}  lift={lift:.2f}×  "
+          f"({n_classes} classes)   edit={ed}  PER={per:.2%}")
+    print(f"  {len(matches)} matched n-grams: "
+          f"{n_2plus} of length ≥2  +  {n_1grams} exact 1-grams  "
+          f"(shift tolerance: {shift_descr})")
+    print(f"  Coverage: {n_covered}/{len(true)} phonemes "
+          f"({100*n_covered/max(len(true),1):.1f}% in matched n-grams)")
+    print()
+
+    # Build {sid: text} from pipeline.split_result for this patient
+    sentence_texts = {}
+    try:
+        sl = pipeline.split_result['word_segments_dict'][pid]['sentence_list']
+        for i, entry in enumerate(sl):
+            if isinstance(entry, dict):
+                sentence_texts[i] = entry.get('text', '')
+            else:
+                sentence_texts[i] = str(entry)
+    except Exception:
+        pass
+
+    display_matched_sequences_with_times(
+        true, pred, matches,
+        true_segments=true_segs, pred_segments=pred_segs,
+        max_per_line=max_per_line,
+        true_sentence_ids=true_sids,
+        pred_sentence_ids=pred_sids,
+        time_align_tol_s=time_align_tol_s,
+        sentence_texts=sentence_texts,
+        patient_id=pid,
+    )
+
+
+def _collapse_consecutive_repeats_with_segs(seq, sids, segs):
+    """Like _collapse_consecutive_repeats but also collapses parallel segs list.
+    Keeps the start_s of the first occurrence and end_s of the last.
+    If segs is shorter than seq, missing entries are filled with (nan, nan)."""
+    if not seq:
+        return seq, sids, segs
+    def _get_seg(i):
+        if segs is None: return None
+        if i < len(segs): return list(segs[i])
+        return [float('nan'), float('nan')]
+    out_seq = [seq[0]]
+    out_sids = [sids[0]] if sids is not None else None
+    out_segs = [_get_seg(0)] if segs is not None else None
+    for i in range(1, len(seq)):
+        same = (seq[i] == out_seq[-1] and
+                (sids is None or sids[i] == out_sids[-1]))
+        if same:
+            if segs is not None:
+                end = _get_seg(i)[1]
+                out_segs[-1][1] = end
+        else:
+            out_seq.append(seq[i])
+            if sids is not None: out_sids.append(sids[i])
+            if segs is not None: out_segs.append(_get_seg(i))
+    if segs is not None: out_segs = [tuple(s) for s in out_segs]
+    return out_seq, out_sids, out_segs
+
+
+def show_all_patients_with_times(pipeline, shift_by_len=None, max_per_line=30,
+                                  n_phonemes=None, collapse_repeats=True,
+                                  time_align_tol_s=None):
+    """Time-aware version of show_all_patients."""
+    pids = sorted(pipeline.patient_results.keys())
+    for pid in pids:
+        show_matched_sequences_with_times(pipeline, pid,
+                                           shift_by_len=shift_by_len,
+                                           max_per_line=max_per_line,
+                                           n_phonemes=n_phonemes,
+                                           collapse_repeats=collapse_repeats,
+                                           time_align_tol_s=time_align_tol_s)
 
 
 def show_all_patients(pipeline, shift_by_len=None, max_per_line=50,

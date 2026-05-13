@@ -142,6 +142,53 @@ the test split.**
 > those are vestigial — no pipeline code reads them. Channel quality is purely
 > from the hand-curated JSON above.
 
+## Evaluation Metric — Longest Contiguous Exact Match
+
+The single most informative measure of decoding quality on this dataset is the
+**longest contiguous exact phoneme match between prediction and gold, per
+sentence, with shift tolerance**. PER and per-position accuracy underweight
+"bursty correctness" — a model that nails 5–6 phonemes in a row then drifts
+looks similar in PER to one that's diffuse, but only the first is doing real
+sequence decoding.
+
+Use it as: max over sentences of the longest run of identical consecutive
+phonemes between `pred[i:i+L]` and `gold[j:j+L]`, allowing any shift `(i, j)`.
+A length of 5–6 on this dataset is well above chance for two phoneme-prior
+streams; length 7+ would be a clear positive result.
+
+**Important: max_run alone is necessary but not sufficient.** A model that
+emits the phoneme prior heavily can produce length-5 matches by chance — the
+same matches a random shuffle of its predictions would produce. Always pair
+max_run with a **rarity-weighted permutation null**: for each matched n-gram,
+score it as `−Σ log P(phoneme)` (sum of self-information), compare real total
+to a null computed by shuffling predictions across positions while preserving
+the marginal. A clean positive result requires both max_run ≥ 5 *and* a
+surprise z above ~+5. We've seen models hit max_run=5 with z = −1
+(prior-collapse, not decoding) and others hit max_run=5 with z = +13.9
+(real decoding); only the second case generalises.
+
+**Critical: never compute it on concatenated sequences across sentences.**
+Concatenation lets matches span sentence boundaries in the flat stream — a
+chance "ɛ r d eː" at the end of one sentence's prediction can align with
+the start of another sentence's gold via the shift loop, producing
+spurious 7- and 8-grams that look like decoding wins but are aggregation
+artefacts. Earlier in this project we reported 8-gram matches that turned
+out to be entirely cross-sentence concatenation noise. Always compute
+matches per `(pred_sentence, gold_sentence)` pair; max across sentences,
+never over the flat concatenated streams.
+
+The shift-tolerant exact-match function `find_color_matches` in
+`e2e_brain_decoder.py` is also permissive in two other ways worth knowing
+when reading its output:
+- **Equivalences** (r↔l, ɛ↔ɪ, etc.) — counted as "weak" matches; the
+  reported length includes them.
+- **Introns** — small mismatches inside a span are tolerated up to a limit;
+  the reported length is the span, not the count of exact agreements.
+A length-6 match from `find_color_matches` may contain only 2–3 contiguous
+exact agreements. For a strict reading, use a per-sentence
+`longest_contiguous_exact` that requires `pred[i+k] == gold[j+k]` at every
+position.
+
 ## Test Data Leakage — Sacred Rules
 
 Test-data leakage silently inflates reported accuracy. A model that "looks great" because the training pipeline peeked at test statistics will not generalize, and the lift will evaporate the moment it sees genuinely held-out data. Treat the rules below as inviolable. Any change that could let test-side information influence training requires explicit review.
@@ -185,6 +232,8 @@ pynwb                # NWB format I/O for Dutch_10patients
 ```
 
 There are no tests, no linting config, and no CI. Do not suggest running `pytest`, `flake8`, or similar — they are not set up.
+
+**Do not use `librosa` in this project.** Although `librosa` is listed above and imports OK, calls into it (notably `librosa.feature.mfcc`) hang silently on this machine in the user's notebook environment. Use `scipy.signal` for STFT / spectrogram work and compute MFCCs manually from a mel filterbank if needed.
 
 ## Step 5 Feature Stacking Pipeline
 

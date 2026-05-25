@@ -242,6 +242,69 @@ Test-data leakage silently inflates reported accuracy. A model that "looks great
 
 When in doubt, recompute on train-only data and check whether the headline metric moves. If it doesn't, you've simply confirmed clean separation. If it does, the previous version was leaking.
 
+## Portability — moving the project between machines
+
+The pipeline is portable; **MFA alignments never need to be regenerated** because the
+TextGrids live inside the code repo (see `MFA_OUTPUT_PATH` in `config.py:41`,
+which points to `./mfa_output/` next to the code, not into the data dir).
+
+### What lives where
+
+| component | path | size | mandatory? |
+|---|---|---|---|
+| MFA alignments | `./mfa_output/` (in repo) | ~4 MB | yes — but bundled with code |
+| Channel exclusions | `./channel_exclusions.json` | <2 KB | yes (in repo) |
+| Patient split | `./dutch30_patient_split.json` | <1 KB | yes (in repo) |
+| Raw EEG / audio | `../SingleWordProductionDutch/Dutch_30patients/raw/` | ~10 GB | yes |
+| Unique-words dict | `../SingleWordProductionDutch/Dutch_30patients/unique_words.{npy,txt}` | ~300 KB | yes |
+| Trained SSL encoders | `./bio_models/*_ssl_encoder*.pt` | ~50–200 MB | optional (can retrain in ~30 min/patient) |
+| Old BIO-CRF artefacts | `./bio_models/*_biocrf*.pkl` | ~1.5 GB | skippable — not used by the SSL pipeline |
+| `_aux` encoders | `./bio_models/*_ssl_encoder_aux.pt` | — | skip — aux finetune hurts, don't use |
+
+### Required directory layout on the new machine
+
+`config.py` auto-resolves data paths based on folder name: a code dir whose name
+contains `"step2"` or `"clean"` expects data one level up. Replicate the
+parent-sibling layout:
+
+```
+<parent>/
+├── SingleWordProductionDutch/          # data (~10 GB)
+│   └── Dutch_30patients/
+│       ├── raw/                        # P{21..30}_sEEG.npy, _audio.npy, _stimuli.npy
+│       └── unique_words.{npy,txt}
+└── SingleWordProductionDutch_step2/    # code + mfa_output/ + bio_models/
+```
+
+If both folders are siblings, no path edits are needed — `config.py` resolves
+`DUTCH_30_PATH` correctly on its own.
+
+### Sanity check after copy
+
+Single cell verifies paths resolve, MFA loads, raw EEG loads, encoder loads:
+
+```python
+from config import DUTCH_30_PATH
+from run_pipeline import load_mfa_alignments
+import os, numpy as np, torch
+
+pid = 'P22'
+raw = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
+mfa = load_mfa_alignments(pid)
+ck  = torch.load(f'bio_models/{pid}_ssl_encoder.pt',
+                 map_location='cpu', weights_only=False)
+print(f"raw EEG {raw.shape} | MFA {len(mfa)} sentences | encoder n_in={ck['n_in']}")
+```
+
+If those three numbers print sensibly, the full state is restored.
+
+### What the new machine does NOT need
+
+- **MFA / Kaldi / G2P install** — alignments are already serialized as TextGrids
+- **Wav2vec / HuBERT downloads** — `use_wav2vec=False` is the default for the SSL pipeline
+- **Any of the legacy `parse_features_*.ipynb` notebooks** unless you specifically use them
+- **NWB tooling (`pynwb`)** — only needed for the Dutch_10patients dataset, not Dutch_30
+
 ## Dependencies
 
 No `requirements.txt` exists — install manually. **Version pins matter:**
@@ -365,6 +428,138 @@ substantive differences are the **envelope method** (power vs Hilbert),
 
 When comparing MFA-CRF and frame-level features, use `extractHG` from
 `extract_features.py` directly to match the MFA-CRF features faithfully.
+
+## SSL Phoneme Decoder (v1 Real-Time Recipe)
+
+A self-supervised pretraining + LDA pipeline for per-frame phoneme decoding from
+sEEG, developed for real-time use. Main notebook: `ssl_pretrain_encoder.py`
+(ten cells with `# %%` markers; copy-paste blocks into Jupyter).
+
+### Recipe
+
+1. **Features** — `extractHG` from `extract_features.py` (the MFA-CRF recipe:
+   power → 10 Hz LP → 15 ms boxcar → sqrt; notches 100 + 150 Hz). **Do not**
+   use `extract_hg_frames` (Hilbert + log1p + 50/150 notches) — that's the
+   BIO-CRF recipe and is a different feature space; mixing them breaks
+   downstream reuse.
+2. **Encoder** — per-patient causal TCN, 4 blocks (kernel 5, dilations 1/2/4/8),
+   hidden 128, learnable mask token in latent space. `CausalConv1d` pads only
+   on the left so output[t] depends only on input[≤t] (real-time safe).
+3. **SSL pretrain** — masked-frame MSE, 15 % mask in spans of 10 frames
+   (≈50 ms ≈ phoneme length), ~80 epochs, AdamW lr=3e-4, cosine LR. Span
+   masking is critical — single-frame masks are trivially predicted from
+   neighbours and the encoder learns nothing.
+4. **No cross-patient sharing** — independent encoder per patient. Cross-patient
+   transfer doesn't work on this data scale (verified; consistent with
+   BrainBERT and "Brain's Bitter Lesson" cross-subject results being weak).
+5. **No aux multi-task finetune** — joint training with silence/speech +
+   word-onset heads degrades the SSL representation. Use SSL-only checkpoints
+   (`bio_models/{pid}_ssl_encoder.pt`), not the `_aux` variants.
+6. **Classifier** — `StandardScaler` + `LinearDiscriminantAnalysis(solver='lsqr',
+   shrinkage='auto')` on per-phoneme-averaged 128-d embeddings. Train scaler
+   on fit-set only, transform val/test.
+7. **Decoder** — 31-frame log-prob smoothing + scalar self-loop Viterbi with
+   auto-tuned bonus. **`TARGET_RATIO ≈ 1.7–1.8`** (not 1.0) — this single
+   knob accounts for the largest lift in the project.
+8. **No boundary constraints** — both word-onset and syllable-onset Viterbi
+   modifications inflate raw match rate but degrade chain decoding (Σ(n≥3)
+   drops, diversity drops, z drops). Plain scalar Viterbi wins.
+9. **No speech gate** — operational no-op in practice (`dropped_silence=0`
+   across all patients). The existing `predict_speech_prob` from
+   `LDA_on_frames_clean` was trained on `extract_hg_frames` features so its
+   inputs don't match the SSL pipeline anyway.
+
+### Headline numbers (10-patient cohort, NW alignment, no oracle boundaries)
+
+| metric | value |
+|---|---|
+| cohort match (NW) | ~34.5 % |
+| cohort z (NW permutation) | +0.96 |
+| Σ(n≥3) chains | ~18 |
+| length-4 chains | 4, across 4 different patients, all unique patterns |
+
+Baseline (stacked-HG LDA + scalar Viterbi TR=1.0): ~29 % match, ~17 Σ(n≥3),
+0 length-4 chains. The lift is real and per-patient diverse.
+
+### Evaluation discipline — read NW results in three columns, not one
+
+NW match rate alone is gameable. Always check three signals together:
+
+1. **`nw_metrics(out)['match_rate']`** — headline
+2. **`nw_metrics(out)['z_match']`** — permutation z; catches marginal-spam.
+   Negative z means worse than shuffling your own predictions.
+3. **n3/n4 chain count + diversity ratio** (`extract_match_ngrams` /
+   `diversity_stats` helpers in `ssl_pretrain_encoder.py`):
+   - Σ(n≥3) — total length-3+ chains across cohort
+   - `uniq_n3 / n3_total` — diversity ratio; <60 % means the model is
+     repeating a few common Dutch trigrams (e.g. `/ɛnt/`, `/eːnɛ/`)
+   - `top-n3` printout — actually shows the dominant patterns
+
+If match climbs but z drops below ~+1 or diversity drops below ~60 %, the
+gain is the marginal trap, not real decoding. We hit this trap multiple
+times in the original exploration; treat it as the default failure mode.
+
+### Negative findings — do not retry without new ideas
+
+These were systematically tested and ruled out on this dataset/pipeline:
+
+| ruled out | notes |
+|---|---|
+| cross-patient SSL transfer | per-patient electrode coverage + small per-patient data |
+| multi-task aux finetune (speech + word + syllable heads on encoder) | overwrites SSL representation |
+| phoneme-onset detection from EEG | physiologically unrecoverable — vSMC encodes coarticulated gestures (Bouchard 2013) |
+| token bigram in Viterbi | bigrams over phoneme tokens (not frame stream) discourage self-loops; broken |
+| frame bigram in Viterbi | no cohort lift over scalar bonus |
+| multiband amplitude (HG+LG, HG+LG+theta, HG+beta) | encoder underfits wider inputs at per-patient scale; HG-only equals or beats all variants |
+| theta phase as syllable signal | ITC < 0.11 on all 10 patients — no usable phase locking in vSMC |
+| word-onset Viterbi constraint | helps some patients but breaks chains overall |
+| syllable-onset Viterbi constraint (oracle and deployable) | inflates match via more predictions, reduces chain count and diversity |
+| combined word + syllable constraints | same trap, larger |
+| CTC head on random-init encoder | mode-collapses to top-5 phonemes (per earlier work) — not retried with SSL backbone, may be worth revisiting |
+| SSL mask fraction > 15 % | degrades downstream; causal encoder + small data can't reconstruct larger gaps |
+| SSL epochs ≫ 80 | reconstruction MSE keeps dropping but downstream match degrades (pretext-vs-downstream tension) |
+
+### Methodology gotchas learned
+
+- **`TARGET_RATIO` is the single most impactful Viterbi knob.** Auto-tuner uses
+  it to scale predicted count vs val gold. Default 1.0 underpredicts;
+  1.7–1.8 hits the sweet spot. Above ~2.0 the auto-tuner pushes bonus to ~0
+  and Viterbi predicts the marginal everywhere — match keeps climbing but z
+  goes negative.
+- **`ONSET_WEIGHT` for boundary constraints must scale with onset density.**
+  Word onsets (rare): ow≈2.0. Syllable onsets (3–5× denser): ow≈0.5–1.0.
+  Mismatched ow gives spurious negative results (we initially "ruled out"
+  syllable constraints using word-onset ow=2.0 — wrong).
+- **Imported constants from `LDA_on_frames_clean` must be re-bound in the
+  notebook's globals to take effect on functions defined locally.** Module-
+  level rebinding (`L.X = ...`) doesn't propagate to functions that imported
+  `X` by name into the notebook namespace.
+- **SSL pretext loss is anti-correlated with downstream phoneme decoding past
+  ~80 epochs.** More reconstruction training → worse embeddings for LDA on
+  this data scale. Range 30–80 ep is the usable zone; per-patient optimum
+  varies (P22 ~30, P30 ~60) but the cohort-aggregate optimum is ~80 because
+  late-peak patients win more from extra training than early-peak patients
+  lose.
+- **Bigrams operate on the actual stream Viterbi sees.** Frame-level Viterbi
+  needs frame-aligned bigram (self-transitions dominate). A token-level
+  bigram from MFA actively discourages self-loops and breaks decoding.
+- **Seed variance is ~2 pp on individual patients.** P22 went from match 26.0 %
+  to 28.0 % just by swapping SSL seed 0 → 1. Don't over-interpret single-
+  patient deltas below ~3 pp; don't lock recipes based on one patient.
+- **Reload checkpoints with `weights_only=False`** — they bundle numpy arrays
+  (`mu`, `sd`) alongside the torch state dict. PyTorch 2.6 default of
+  `weights_only=True` rejects these.
+
+### Files
+
+- `ssl_pretrain_encoder.py` — main notebook, ten cells with `# %%` markers
+- `bio_models/{pid}_ssl_encoder.pt` — per-patient encoder + standardisation
+  stats (HG-only, ~80 epochs, 15 % mask). **Use these.**
+- `bio_models/{pid}_ssl_encoder_aux.pt` — encoder after aux finetune.
+  **Do not use** — aux finetune hurts downstream.
+- `bio_models/{pid}_word_onset_head.pt`, `_syl_onset_head.pt` — auxiliary
+  detectors; usable as features but their Viterbi-constraint application
+  didn't lift cohort numbers.
 
 ## Codebase Conventions
 

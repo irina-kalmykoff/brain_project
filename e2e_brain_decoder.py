@@ -1935,10 +1935,12 @@ def _merge_adjacent_with_introns(matches, true_seq, pred_seq, weak_map,
 
 
 def _cell_html(content, color=None, is_pos=False, is_label=False,
-                cell_kind='exact'):
+                cell_kind='exact', row_kind=None):
     """cell_kind: 'exact' = solid background fill; 'weak' = dashed border
     in the match color, light fill, italic text. Only relevant when color
-    is set."""
+    is set.
+    row_kind: 'true' or 'pred' — affects only the text color for unmatched
+    cells, so gold reads slightly darker than pred."""
     base = ("text-align:center; padding:3px 8px; border:1px solid #eee; "
             "font-family:monospace;")
     if is_label:
@@ -1964,7 +1966,13 @@ def _cell_html(content, color=None, is_pos=False, is_label=False,
                     f'color:#888;">{content}</td>')
         return (f'<td style="{base} background:{color}; '
                 f'font-weight:bold;">{content}</td>')
-    return f'<td style="{base} color:#bbb;">{content}</td>'
+    if row_kind == 'true':
+        return (f'<td style="{base} color:#222; '
+                f'background:#ededed;">{content}</td>')
+    if row_kind == 'pred':
+        return (f'<td style="{base} color:#5a6b80; '
+                f'background:#eaf2fb;">{content}</td>')
+    return f'<td style="{base} color:#888;">{content}</td>'
 
 
 def display_matched_sequences(true_seq, pred_seq, matches,
@@ -2026,15 +2034,17 @@ def display_matched_sequences(true_seq, pred_seq, matches,
                 if k < len_t:
                     gi = t_lo + k
                     true_row += _cell_html(true_seq[gi], true_color[gi],
-                                            cell_kind=true_kind[gi])
+                                            cell_kind=true_kind[gi],
+                                            row_kind='true')
                 else:
-                    true_row += _cell_html('', None)
+                    true_row += _cell_html('', None, row_kind='true')
                 if k < len_p:
                     gi = p_lo + k
                     pred_row += _cell_html(pred_seq[gi], pred_color[gi],
-                                            cell_kind=pred_kind[gi])
+                                            cell_kind=pred_kind[gi],
+                                            row_kind='pred')
                 else:
-                    pred_row += _cell_html('', None)
+                    pred_row += _cell_html('', None, row_kind='pred')
             chunks.append(f"""
             <table style="border-collapse:collapse; margin-bottom:4px">
               <tr>{_cell_html("pos",  is_label=True)}{pos_row}</tr>
@@ -2083,12 +2093,14 @@ def display_matched_sequences(true_seq, pred_seq, matches,
             true_row = ''.join(_cell_html(
                                     true_seq[i] if i < n_t else '',
                                     true_color[i] if i < n_t else None,
-                                    cell_kind=(true_kind[i] if i < n_t else 'exact'))
+                                    cell_kind=(true_kind[i] if i < n_t else 'exact'),
+                                    row_kind='true')
                                 for i in idxs)
             pred_row = ''.join(_cell_html(
                                     pred_seq[i] if i < n_p else '',
                                     pred_color[i] if i < n_p else None,
-                                    cell_kind=(pred_kind[i] if i < n_p else 'exact'))
+                                    cell_kind=(pred_kind[i] if i < n_p else 'exact'),
+                                    row_kind='pred')
                                 for i in idxs)
             chunks.append(f"""
             <table style="border-collapse:collapse; margin-bottom:6px">
@@ -2291,20 +2303,22 @@ def display_matched_sequences_with_times(true_seq, pred_seq, matches,
                         fmt_time(true_segments[gi]) if true_segments else '',
                         is_pos=True)
                     true_row += _cell_html(true_seq[gi], true_color[gi],
-                                            cell_kind=true_kind[gi])
+                                            cell_kind=true_kind[gi],
+                                            row_kind='true')
                 else:
                     t_time_row += _cell_html('', None)
-                    true_row += _cell_html('', None)
+                    true_row += _cell_html('', None, row_kind='true')
                 if pi is not None:
                     gi = p_lo + pi
                     p_time_row += _cell_html(
                         fmt_time(pred_segments[gi]) if pred_segments else '',
                         is_pos=True)
                     pred_row += _cell_html(pred_seq[gi], pred_color[gi],
-                                            cell_kind=pred_kind[gi])
+                                            cell_kind=pred_kind[gi],
+                                            row_kind='pred')
                 else:
                     p_time_row += _cell_html('', None)
-                    pred_row += _cell_html('', None)
+                    pred_row += _cell_html('', None, row_kind='pred')
             rows = [
                 f'<tr>{_cell_html("pos",  is_label=True)}{pos_row}</tr>',
             ]

@@ -189,6 +189,28 @@ exact agreements. For a strict reading, use a per-sentence
 `longest_contiguous_exact` that requires `pred[i+k] == gold[j+k]` at every
 position.
 
+### Implementation details (refined during the BIO-CRF work)
+
+- **Permutation null**: shuffle predictions *within each sentence* (preserves
+  sentence-length distribution and the marginal while destroying temporal
+  alignment), recompute surprise, repeat ~2000 times. The observed z is
+  `(observed − null_mean) / null_std`.
+- **Marginal source**: use the **gold-stream phoneme distribution** as the
+  marginal, not the prediction stream. This makes z values comparable across
+  different model regimes — a gated and ungated model otherwise have different
+  prediction marginals and incomparable z scales. Earlier code used the
+  pred-stream marginal; switch to gold for any cross-regime comparison.
+- **Match length threshold**: only count matches of length ≥ 3 toward the
+  observed surprise. Shorter matches happen too often by chance to carry
+  information.
+- **Shift tolerance**: `shift_max = 3` (allow `|i − j| ≤ 3`) is the default in
+  per-sentence `longest_run_with_shift`. Wider tolerance lets the metric
+  catch real matches that drift by 1–3 phonemes but starts to produce false
+  positives beyond ~5.
+- **Reference function**: `score_run` in the BIO-CRF notebook surprise cell;
+  the segment-level path uses `find_color_matches` in `e2e_brain_decoder.py`
+  with weak-equivalence and intron handling.
+
 ## Test Data Leakage — Sacred Rules
 
 Test-data leakage silently inflates reported accuracy. A model that "looks great" because the training pipeline peeked at test statistics will not generalize, and the lift will evaporate the moment it sees genuinely held-out data. Treat the rules below as inviolable. Any change that could let test-side information influence training requires explicit review.
@@ -287,6 +309,62 @@ To iterate sentences: use `word_data['sentence_list']` and index into `audio_seg
 - Hilbert transform for amplitude envelope
 - Boundary detection: spectral distance + RMS change + optional wav2vec
 - `n_boundaries_needed = len(words) - 1` (word-level boundary count)
+
+### MFA-CRF feature extraction — exact recipe
+
+The MFA-CRF segment-level pipeline (the one that hit z=+13.9 on P22) uses
+`extractHG` from `extract_features.py`. It is **not** Hilbert+boxcar; it
+is a power-based recipe that replaced the legacy Hilbert path. The exact
+steps for one EEG slice:
+
+1. **detrend** (linear) along time axis
+2. **70–170 Hz bandpass** — Butterworth-4, applied with `sosfiltfilt`
+   (zero-phase)
+3. **100 Hz notch** — Butterworth-4 bandstop (98–102 Hz), zero-phase.
+   **Note: notches 100 + 150 Hz, NOT 50 + 150 Hz.** The fundamental at
+   50 Hz is left intact; only the harmonics are attenuated. For Dutch
+   data this is unusual (line noise is 50 Hz) but is what the working
+   pipeline does.
+4. **150 Hz notch** — Butterworth-4 bandstop (148–152 Hz), zero-phase
+5. **x²** — instantaneous power (replaces `|hilbert(x)|`). This is the
+   key change from the legacy recipe.
+6. **10 Hz lowpass** — Butterworth-4, zero-phase, `smoothing_hz=10.0`.
+   This is what does the actual envelope smoothing. The 10 Hz cutoff
+   has a clean −24 dB/oct rolloff matched to the phoneme rate (5–10 Hz).
+7. **`abs()`** — clean up tiny negatives from zero-phase filter
+   roundoff.
+8. **15 ms boxcar window-mean at 5 ms frameshift** — samples the
+   already-smooth envelope at 200 Hz. The window here is only a sampler;
+   the smoothing was done in step 6.
+9. **`sqrt`** — back to amplitude-like units (not `log1p`).
+
+Per-phoneme features: for each MFA-aligned phoneme interval, slice the
+EEG between `ph['start_s']` and `ph['end_s']`, zero-pad if shorter than
+the window length, run through the recipe above, and the result is one
+`(T_frames, n_channels)` array per phoneme. Then `step5c_collapse_to_phoneme_level`
+averages these to one vector per phoneme.
+
+### Differences from `extract_hg_frames` used in BIO-CRF v2/v3
+
+The frame-level BIO-CRF pipeline uses a different recipe — see
+`extract_hg_frames` defined in the BIO-CRF notebooks. The differences:
+
+| Step | MFA-CRF `extractHG` | BIO-CRF `extract_hg_frames` |
+|------|---------------------|-----------------------------|
+| Notches | 100 + 150 Hz | **50 + 150 Hz** |
+| Envelope | `√(LP(x²))` (power+LP) | `\|hilbert(x)\|` (Hilbert magnitude) |
+| LP cutoff | **10 Hz** | 12 Hz |
+| Window length | 15 ms | 30 ms |
+| Compression | `sqrt` | `log1p` |
+
+Both use Butterworth-4 bandpasses and Butterworth-4 lowpasses with
+`sosfiltfilt`. Both end with mean-window downsampling to 200 Hz. The
+substantive differences are the **envelope method** (power vs Hilbert),
+**LP cutoff** (10 vs 12), **window length** (15 ms vs 30 ms), and
+**compression** (sqrt vs log1p).
+
+When comparing MFA-CRF and frame-level features, use `extractHG` from
+`extract_features.py` directly to match the MFA-CRF features faithfully.
 
 ## Codebase Conventions
 

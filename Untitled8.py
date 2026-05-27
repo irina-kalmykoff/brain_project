@@ -2951,24 +2951,3 @@ def run_mae_phoneme_for_patient(pid, seed=0,
                       'nw_rate': rates[i]} for i in range(len(rates))],
         history_mae=hist_mae, history_cls=hist_cls,
     )
-
-import inspect
-print(inspect.getsource(extract_features_multiband))
-print('\nDEFAULT_FEATURE_SPEC =', DEFAULT_FEATURE_SPEC)
-print('MO =', MO, ' SS =', SS)
-
-# inspect one sentence
-s = splits['train'][0]
-print('\nfeatures shape:', s['features'].shape)
-print('feature_fps   :', s['feature_fps'])
-
-res_mae = run_mae_phoneme_for_patient(
-    'P22', seed=0,
-    mae_epochs=80, mae_lr=1e-3,
-    patch_len=10, d_model=64, n_layers=2, dropout=0.3,
-    mask_ratio=0.5,
-    cls_epochs=40, cls_lr=1e-3, cls_hidden_dim=128,
-    freeze_encoder=True,                 # try True first; switch to False to fine-tune
-    batch_size=8, noise_std=0.2,
-    viterbi_bonus=0.3,
-)

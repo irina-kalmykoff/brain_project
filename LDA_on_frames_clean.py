@@ -1,6 +1,4 @@
-# LDA-on-frames pipeline — clean version (LDA only, no RF / decoder / LM branches).
-# Kept: original run_for_patient + speech-gated run_for_patient_sd, all NW analysis,
-#       one visualization, permutation null, cohort sweep skeleton.
+# Converted from LDA_on_frames_clean.ipynb
 
 # ============================================================
 # 1. Setup
@@ -40,7 +38,7 @@ pipeline.apply_channel_exclusions()
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# ============================================================
+
 # 2. Constants
 # ============================================================
 # ── dataset + split ─────────────────────────────────────────
@@ -83,8 +81,8 @@ DEFAULT_FEATURE_SPEC = {
 # ── post-LDA decoding ───────────────────────────────────────
 SMOOTH_LOGP_W   = 31
 SELF_LOOP_BONUS = None        # None ⇒ auto-tune on val
-TARGET_RATIO    = 1.0
-MIN_PRED_FRAMES = 3
+TARGET_RATIO    = 1.25
+MIN_PRED_FRAMES = 2
 
 # ── speech gating (LOCKED — do not change without retraining the detector) ──
 SD_LP_HZ           = 12.0
@@ -97,7 +95,7 @@ SPEECH_FRAC_MIN    = 0.5
 # ── misc ────────────────────────────────────────────────────
 RARE_TOP_N = 5
 
-# ============================================================
+
 # 3. Formatting & lightweight helpers
 # ============================================================
 ANSI_RE = re.compile(r'\x1b\[[0-9;]*m')
@@ -133,7 +131,7 @@ def by_sentence(arr_labels, arr_sids):
         out.setdefault(int(sid), []).append(lbl)
     return out
 
-# ============================================================
+
 # 4. Smoothing, Viterbi, bonus tuning
 # ============================================================
 def smooth_cols(logp, w):
@@ -216,7 +214,6 @@ def auto_tune_bonus_masked(logp_list, mask_list, target_count, min_pred_frames,
         else:                          hi = mid
     return (lo + hi) / 2
 
-# ============================================================
 # 5. Sequence-level analysis helpers (z stats, n-grams, permutation null)
 # ============================================================
 def longest_run_with_shift(pred, gold, shift_max=3):
@@ -294,7 +291,6 @@ def perm_z(pred_sents, gold_sents, n_perm=500, seed=0):
     mu, sd = nulls.mean(), nulls.std() + 1e-9
     return (obs - mu) / sd, obs, mu, sd
 
-# ============================================================
 # 6. Feature extraction: extract_features_multiband
 # ============================================================
 def extract_features_multiband(eeg_slice, sr=EEG_SR, win_s=WIN_S, shift_s=SHIFT_S,
@@ -382,7 +378,6 @@ def extract_features_multiband(eeg_slice, sr=EEG_SR, win_s=WIN_S, shift_s=SHIFT_
 
     return np.concatenate(blocks, axis=1).astype(np.float32)
 
-# ============================================================
 # 7. Speech detector (LOCKED at training time — do not modify the SD_* signal-proc chain)
 # ============================================================
 class CrossPatientSpeechDetector(nn.Module):
@@ -445,7 +440,51 @@ def predict_speech_prob(raw_eeg_slice, pid):
     x_t = torch.from_numpy((hg_stk - mu) / sd_safe).float().to(DEVICE)
     return torch.softmax(sd_model(x_t, pid), dim=-1)[:, 1].cpu().numpy()
 
+# %% Cell 7b — recovery: rebuild datasets + reload encoders + re-extract embeddings
 # ============================================================
+# NOTE: This block is notebook-only code that was accidentally pasted into the
+# module.  It references symbols (build_sentence_dataset, CausalTCNEncoder,
+# AuxHeads, HIDDEN_DIM, extract_embeddings, standardize_inplace, MODEL_DIR,
+# DEVICE) that live in the SSL notebook, not in this library file.  Wrapped in
+# `if False:` so `from LDA_on_frames_clean import ...` no longer triggers it.
+# Copy the body into a notebook cell if you want to use it as the recovery
+# snippet.
+if False:
+    datasets = {}
+    for pid in TARGET_PIDS:
+        print(f"Building {pid}...")
+        datasets[pid] = build_sentence_dataset(pid)
+
+    encoders, mus, sds, aux_heads = {}, {}, {}, {}
+    for pid in TARGET_PIDS:
+        ckpt_path = os.path.join(MODEL_DIR, f'{pid}_ssl_encoder_aux.pt')
+        if not os.path.exists(ckpt_path):
+            # fall back to SSL-only checkpoint if you skipped the aux finetune
+            ckpt_path = os.path.join(MODEL_DIR, f'{pid}_ssl_encoder.pt')
+        ckpt = torch.load(ckpt_path, map_location=DEVICE)
+        n_in = datasets[pid]['train'][0]['X'].shape[1]
+        enc = CausalTCNEncoder(n_in).to(DEVICE)
+        enc.load_state_dict(ckpt['enc'])
+        encoders[pid] = enc
+        mus[pid] = ckpt['mu']; sds[pid] = ckpt['sd']
+        # standardize in place using the SAVED stats (NOT recomputed)
+        standardize_inplace(datasets[pid]['train'], mus[pid], sds[pid])
+        standardize_inplace(datasets[pid]['test'],  mus[pid], sds[pid])
+        if 'heads' in ckpt:
+            heads = AuxHeads(HIDDEN_DIM).to(DEVICE)
+            heads.load_state_dict(ckpt['heads'])
+            aux_heads[pid] = heads
+        print(f"  [{pid}] loaded encoder from {os.path.basename(ckpt_path)}")
+
+    # re-extract embeddings (fast — pure forward pass)
+    embeddings = {}
+    for pid in TARGET_PIDS:
+        ds = datasets[pid]
+        emb_tr = extract_embeddings(pid, ds['train'])
+        emb_te = extract_embeddings(pid, ds['test'])
+        embeddings[pid] = {**emb_tr, **emb_te}
+    print("Recovered datasets + encoders + embeddings.")
+
 # 8. Per-patient pipelines
 # ============================================================
 def run_for_patient(pid, test_offset=TEST_OFFSET, smoothing_hz=10.0):
@@ -739,7 +778,230 @@ def run_for_patient_sd(pid, test_offset=TEST_OFFSET, feature_spec=None,
         'n_dropped_silence': n_dropped_silence,
     }, None
 
+
+# %% Cell 8.5 — bigram-Viterbi variant of run_for_patient_ssl
 # ============================================================
+def fit_bigram_logprob(mfa_by_sid, sent_ids, classes, alpha=1.0):
+    """Estimate log P(phone_j | phone_i) from train MFA sentences only.
+    `alpha` is add-alpha (Laplace) smoothing on the count matrix."""
+    K = len(classes); idx = {c: i for i, c in enumerate(classes)}
+    counts = np.full((K, K), alpha, dtype=np.float64)
+    for sid in sent_ids:
+        if sid not in mfa_by_sid: continue
+        seq = [idx[p['phone']] for p in mfa_by_sid[sid] if p['phone'] in idx]
+        for a, b in zip(seq[:-1], seq[1:]):
+            counts[a, b] += 1
+    return np.log(counts / counts.sum(axis=1, keepdims=True))
+
+
+def viterbi_decode_bigram(logp, log_trans):
+    """Viterbi over phoneme states with a full bigram transition matrix.
+    logp:      (T, K) per-frame log-class-probs (from LDA + smoothing)
+    log_trans: (K, K) log P(j | i), scaled by your chosen LM weight."""
+    T, K = logp.shape
+    dp = logp[0].copy()
+    bp = np.zeros((T, K), dtype=np.int32)
+    for t in range(1, T):
+        prev = dp[:, None] + log_trans          # (K, K), broadcasts (K,) + (K,K)
+        bp[t] = prev.argmax(axis=0)
+        dp    = prev.max(axis=0) + logp[t]
+    path = np.empty(T, dtype=np.int32); path[-1] = dp.argmax()
+    for t in range(T - 1, 0, -1):
+        path[t - 1] = bp[t, path[t]]
+    return path
+
+
+def auto_tune_lm_weight(logp_list, log_trans, target_count, min_pred_frames,
+                         grid=(0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0)):
+    """Pick the LM weight λ whose predicted run-count on val is closest to
+    `target_count`.  Same auto-tune contract as the original scalar bonus."""
+    def runs_at(lam):
+        n = 0
+        for logp in logp_list:
+            path = viterbi_decode_bigram(logp, lam * log_trans)
+            i = 0; T = len(path)
+            while i < T:
+                ci = path[i]; j = i + 1
+                while j < T and path[j] == ci: j += 1
+                if (j - i) >= min_pred_frames: n += 1
+                i = j
+        return n
+    best, best_err = grid[0], float('inf')
+    for lam in grid:
+        err = abs(runs_at(lam) - target_count)
+        if err < best_err: best, best_err = lam, err
+    return best
+
+
+def run_for_patient_ssl_bigram(pid, use_speech_gate=USE_SPEECH_GATE,
+                                speech_thresh=SPEECH_THRESHOLD,
+                                speech_frac_min=SPEECH_FRAC_MIN,
+                                lm_grid=(0.0, 0.25, 0.5, 0.75, 1.0,
+                                         1.5, 2.0, 3.0, 5.0)):
+    """Copy of run_for_patient_ssl, but replaces the scalar self-loop bonus
+    with a learned bigram transition matrix, λ auto-tuned on val."""
+    ds  = datasets[pid]
+    mfa_by_sid = {s['sent_idx']: s['mfa'] for s in ds['train'] + ds['test']}
+    per_sent   = embeddings[pid]
+
+    all_real      = sorted(per_sent.keys())
+    test_sent_ids = set(s['sent_idx'] for s in ds['test'])
+    train_sent_ids = [i for i in all_real if i not in test_sent_ids]
+    rng = np.random.RandomState(0); rng.shuffle(train_sent_ids)
+    n_val = max(1, int(len(train_sent_ids) * VAL_FRAC))
+    val_sent_ids = set(train_sent_ids[:n_val])
+    fit_sent_ids = set(train_sent_ids[n_val:])
+
+    def build_set(sent_id_set):
+        X, y = [], []
+        for sid in sent_id_set:
+            if sid not in per_sent: continue
+            emb = per_sent[sid]; T = emb.shape[0]
+            for ph in mfa_by_sid[sid]:
+                k_s = max(0, time_to_frame(ph['start_s']))
+                k_e = min(T - 1, time_to_frame(ph['end_s']))
+                n_fr = k_e - k_s + 1
+                if n_fr < max(MN_FRAMES, 1) or n_fr > MX_FRAMES: continue
+                X.append(emb[k_s:k_e + 1].mean(axis=0))
+                y.append(ph['phone'])
+        return np.array(X), np.array(y)
+
+    X_fit, y_fit = build_set(fit_sent_ids)
+    if len(X_fit) < 50: return None, f"too few fit samples ({len(X_fit)})"
+
+    sc_fit  = StandardScaler().fit(X_fit)
+    clf_fit = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto')
+    clf_fit.fit(sc_fit.transform(X_fit), y_fit)
+    fit_classes = list(clf_fit.classes_)
+
+    # bigram matrix from the fit set (no val, no test)
+    log_trans_fit = fit_bigram_logprob(mfa_by_sid, fit_sent_ids,
+                                       fit_classes, alpha=1.0)
+
+    # auto-tune LM weight on val
+    val_logps, val_target = [], 0
+    for sid in val_sent_ids:
+        if sid not in per_sent: continue
+        logp = clf_fit.predict_log_proba(sc_fit.transform(per_sent[sid]))
+        logp = smooth_cols(logp, SMOOTH_LOGP_W)
+        val_logps.append(logp)
+        val_target += sum(1 for ph in mfa_by_sid[sid]
+                          if ph['phone'] in set(fit_classes))
+    if not val_logps: return None, "no val sentences"
+    val_target = int(val_target * TARGET_RATIO)
+    lam = auto_tune_lm_weight(val_logps, log_trans_fit,
+                              val_target, MIN_PRED_FRAMES, grid=lm_grid)
+
+    # refit LDA on all train, rebuild bigram on all train
+    X_tr, y_tr = build_set(set(all_real) - test_sent_ids)
+    scaler = StandardScaler().fit(X_tr)
+    clf = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto')
+    clf.fit(scaler.transform(X_tr), y_tr)
+    train_classes = list(clf.classes_); train_classes_set = set(train_classes)
+    log_trans = fit_bigram_logprob(mfa_by_sid,
+                                   set(all_real) - test_sent_ids,
+                                   train_classes, alpha=1.0)
+    scaled_trans = lam * log_trans
+
+    # speech-gate raw cache
+    raw_eeg = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
+    if raw_eeg.ndim == 2 and raw_eeg.shape[0] < raw_eeg.shape[1]:
+        raw_eeg = raw_eeg.T
+    keep = _channel_mask(pid)
+    if keep is not None: raw_eeg = raw_eeg[:, keep]
+    wd = pipeline.split_result['word_segments_dict'][pid]
+
+    predictions, pred_sentence_ids, pred_segments = [], [], []
+    true_labels, true_sentence_ids, true_segments = [], [], []
+    n_dropped_silence = 0
+    for sid in test_sent_ids:
+        if sid not in per_sent: continue
+        emb = per_sent[sid]; T = emb.shape[0]
+        logp = clf.predict_log_proba(scaler.transform(emb))
+        logp = smooth_cols(logp, SMOOTH_LOGP_W)
+        path = viterbi_decode_bigram(logp, scaled_trans)
+
+        if use_speech_gate:
+            s = wd['sentence_list'][sid]
+            s0, s1 = s['stim_start_idx'], s['stim_end_idx']
+            try:
+                p_speech = predict_speech_prob(raw_eeg[s0:s1], pid)
+            except Exception:
+                p_speech = None
+            if p_speech is not None and len(p_speech) >= T:
+                speech_mask = (p_speech[:T] >= speech_thresh)
+            else:
+                speech_mask = np.ones(T, dtype=bool)
+        else:
+            speech_mask = np.ones(T, dtype=bool)
+
+        i = 0
+        while i < T:
+            ci = path[i]; j = i + 1
+            while j < T and path[j] == ci: j += 1
+            if (j - i) >= MIN_PRED_FRAMES:
+                if speech_mask[i:j].mean() < speech_frac_min:
+                    n_dropped_silence += 1
+                else:
+                    predictions.append(train_classes[ci])
+                    pred_sentence_ids.append(sid)
+                    pred_segments.append((ssl_frame_to_time_s(i),
+                                          ssl_frame_to_time_s(j - 1)))
+            i = j
+        for ph in mfa_by_sid[sid]:
+            if ph['phone'] not in train_classes_set: continue
+            true_labels.append(ph['phone'])
+            true_sentence_ids.append(sid)
+            true_segments.append((ph['start_s'], ph['end_s']))
+
+    if not true_labels: return None, "no test gold labels"
+    true_arr = np.array(true_labels); pred_arr = np.array(predictions)
+    ed  = edit_distance(list(true_arr), list(pred_arr))
+    per = ed / max(len(true_arr), 1)
+    return {
+        'true_labels':       true_arr,
+        'predictions':       pred_arr,
+        'true_sentence_ids': np.array(true_sentence_ids),
+        'pred_sentence_ids': np.array(pred_sentence_ids),
+        'true_segments':     true_segments,
+        'pred_segments':     pred_segments,
+        'accuracy':          float('nan'),
+        'edit_distance':     ed,
+        'per':               per,
+        'n_test':            len(true_arr),
+        'n_pred':            len(pred_arr),
+        'n_train':           len(X_tr),
+        'lm_weight':         lam,
+        'n_dropped_silence': n_dropped_silence,
+    }, None
+
+
+# NOTE: notebook-only orchestration block — wrapped in `if False:` so
+# importing this module doesn't try to run it.  Copy the body into a
+# notebook cell if you want to actually invoke `run_for_patient_ssl_bigram`.
+if False:
+    # Run it & stash results — use a different key so you can compare against
+    # the scalar-bonus run already in pipeline.patient_results
+    ssl_bigram_results = {}
+    for pid in TARGET_PIDS:
+        out, err = run_for_patient_ssl_bigram(pid)
+        if err:
+            print(f"  {pid}: SKIP — {err}"); continue
+        ssl_bigram_results[pid] = out
+        print(f"  {pid}: PER={100*out['per']:5.1f}%  "
+              f"n_pred={out['n_pred']}/{out['n_test']}  λ={out['lm_weight']:.2f}  "
+              f"dropped_silence={out['n_dropped_silence']}")
+
+    # z-table
+    print(f"\n{'pid':<5} {'match':>7} {'z':>6} {'n2':>4} {'n3':>4} {'n4':>4}  pred/gold  λ")
+    for pid in TARGET_PIDS:
+        if pid not in ssl_bigram_results: continue
+        out = ssl_bigram_results[pid]
+        m = nw_metrics(out)
+        print(f"{pid:<5} {100*m['match_rate']:6.1f}% {m['z_match']:+5.2f} "
+              f"{m['n2']:>4} {m['n3']:>4} {m['n4']:>4}  "
+              f"{out['n_pred']:>3}/{out['n_test']:>3}  {out['lm_weight']:.2f}")
+
 # 9. Phoneme manner (minimal stub — extend or replace as needed)
 # ============================================================
 # Dutch IPA manner groups; '?' means unknown phoneme.
@@ -764,7 +1026,6 @@ _DUTCH_MANNER = {
 def manner_of(ph):
     return _DUTCH_MANNER.get(ph, '?')
 
-# ============================================================
 # 10. NW alignment + sequence metrics
 # ============================================================
 def needleman_wunsch(gold, pred, match=1, mismatch=-1, gap=-1):
@@ -954,7 +1215,6 @@ def print_nw_metrics(m, label=""):
     print(f"    null mean = {100 * m['null_mean']:.1f}%   null std = {100 * m['null_std']:.2f}pp")
     print(f"\n  NW-aligned consecutive runs:  n2={m['n2']}  n3={m['n3']}  n4={m['n4']}")
 
-# ============================================================
 # 11. Visualization (HTML — works in Jupyter)
 # ============================================================
 COL_MATCH = '#a6e3a1'    # green
@@ -1055,43 +1315,105 @@ def stats_nw(out, label):
           f"del={n_del} ({100 * n_del / max(n_gold, 1):.1f}%)  "
           f"ins={n_ins}")
 
-# ============================================================
-# 12. Example usage / cohort sweep
-# ============================================================
-# Single patient — original LDA pipeline
-# ---------------------------------------
-# out, err = run_for_patient('P22', smoothing_hz=10.0)
-# if out is None:
-#     print(f"P22 skipped: {err}")
-# else:
-#     print(f"P22: PER={100*out['per']:.1f}%  n_pred={out['n_pred']}/{out['n_test']}  "
-#           f"bonus={out['bonus']:.2f}")
-#     m = nw_metrics(out, manner_fn=manner_of)
-#     print_nw_metrics(m, label="P22 (LDA)")
+import numpy as np
+from IPython.display import display, HTML
 
-# Single patient — LDA + multiband features + speech gating
-# ---------------------------------------------------------
-# out, err = run_for_patient_sd('P22', feature_spec={'hg_amp': True},
-#                                use_speech_gate=True)
+def ctc_results_to_out(predictions_list):
+    """Convert a list of per-sentence dicts
+       [{'sent_idx': int, 'pred': [...], 'gold': [...], ...}, ...]
+    into the flat `out` format used by compare_predictions_html, nw_metrics, etc.
+    """
+    true_labels, true_sids = [], []
+    preds, pred_sids = [], []
+    for p in predictions_list:
+        sid = p['sent_idx']
+        for ph in p['gold']:
+            true_labels.append(ph); true_sids.append(sid)
+        for ph in p['pred']:
+            preds.append(ph); pred_sids.append(sid)
+    return {
+        'true_labels':       np.array(true_labels),
+        'predictions':       np.array(preds),
+        'true_sentence_ids': np.array(true_sids),
+        'pred_sentence_ids': np.array(pred_sids),
+    }
 
-# Cohort sweep
-# -------------
-# results = {}
-# for pid in TARGET_PIDS:
-#     t0 = time.time()
-#     out, err = run_for_patient(pid)
-#     if out is None:
-#         print(f"  {pid}: SKIP — {err}", flush=True)
-#         continue
-#     m = nw_metrics(out, manner_fn=manner_of)
-#     results[pid] = (out, m)
-#     print(f"  {pid}: PER={100*out['per']:5.1f}%  match={100*m['match_rate']:5.1f}%  "
-#           f"z={m['z_match']:+5.2f}  bonus={out['bonus']:.2f}  "
-#           f"({time.time()-t0:.0f}s)", flush=True)
 
-# Cohort summary
-# ---------------
-# print(f"\n{'pid':<5} {'PER':>7} {'match':>7} {'z':>6} {'n_gold':>7}")
-# for pid, (out, m) in results.items():
-#     print(f"{pid:<5} {100*out['per']:>6.1f}% {100*m['match_rate']:>6.1f}% "
-#           f"{m['z_match']:>+6.2f} {m['n_gold']:>7}")
+def show_predictions_html(out, label='model', max_sentences=10):
+    """Single-model wrapper around compare_predictions_html."""
+    return compare_predictions_html(out, out_b=None,
+                                    label_a=label,
+                                    max_sentences=max_sentences)
+
+# NOTE: notebook-only orchestration / visualization block — wrapped in
+# `if False:` so importing this module doesn't try to run it.  Copy the
+# body into a notebook cell to actually invoke `run_for_patient` across the
+# cohort and produce the inline HTML viz.
+if False:
+    results = {}
+    for pid in TARGET_PIDS:
+        t0 = time.time()
+        out, err = run_for_patient(pid)
+        if out is None:
+            print(f"  {pid}: SKIP — {err}", flush=True)
+            continue
+        m = nw_metrics(out, manner_fn=manner_of)
+        results[pid] = (out, m)
+        print(f"  {pid}: PER={100*out['per']:5.1f}%  match={100*m['match_rate']:5.1f}%  "
+              f"z={m['z_match']:+5.2f}  bonus={out['bonus']:.2f}  "
+              f"({time.time()-t0:.0f}s)", flush=True)
+
+    print(f"\n{'pid':<5} {'PER':>7} {'match':>7} {'z':>6} {'n_gold':>7}")
+    for pid, (out, m) in results.items():
+        print(f"{pid:<5} {100*out['per']:>6.1f}% {100*m['match_rate']:>6.1f}% "
+              f"{m['z_match']:>+6.2f} {m['n_gold']:>7}")
+
+    out, err = run_for_patient('P23')
+    display(HTML(f"<h3>P22 — LDA (PER={100*out['per']:.1f}%)</h3>"))
+    display(HTML(show_predictions_html(out, label='LDA', max_sentences=10)))
+
+    # import the original function (already used by other notebooks)
+    from e2e_brain_decoder import show_matched_sequences_with_times
+
+    # make sure the pipeline has somewhere to stash results
+    if not hasattr(pipeline, 'patient_results'):
+        pipeline.patient_results = {}
+
+    # run one patient and cache the result on the pipeline
+    out, err = run_for_patient('P27')
+    if out is None:
+        print(f"P23 skipped: {err}")
+    else:
+        pipeline.patient_results['P27'] = out
+        show_matched_sequences_with_times(pipeline, 'P27',
+                                          max_per_line=40,
+                                          collapse_repeats=False)
+
+    for pid in TARGET_PIDS:
+        if pid not in pipeline.patient_results: continue
+        m = nw_metrics(pipeline.patient_results[pid])
+        print(f"{pid}: match={100*m['match_rate']:5.1f}%  z={m['z_match']:+5.2f}  "
+              f"n2={m['n2']:>3} n3={m['n3']:>3} n4={m['n4']:>3}  "
+              f"pred/gold={pipeline.patient_results[pid]['n_pred']}/"
+              f"{pipeline.patient_results[pid]['n_test']}")
+
+    from e2e_brain_decoder import show_matched_sequences_with_times
+
+    if not hasattr(pipeline, 'patient_results'):
+        pipeline.patient_results = {}
+
+    for pid in TARGET_PIDS:
+        out, err = run_for_patient(pid)
+        if out is None:
+            print(f"  {pid}: SKIP — {err}")
+            continue
+        pipeline.patient_results[pid] = out
+        print(f"  {pid}: PER={100*out['per']:.1f}%  bonus={out['bonus']:.2f}")
+
+    # Now any pid can be visualized
+    show_matched_sequences_with_times(pipeline, 'P23',
+                                      max_per_line=40,
+                                      collapse_repeats=False)
+    show_matched_sequences_with_times(pipeline, 'P22',
+                                      max_per_line=40,
+                                      collapse_repeats=True)   # cleaner view

@@ -131,283 +131,565 @@ pipeline = Dutch30Pipeline(
     use_multifeature=False,
 )
 
-extractor = Dutch30FeatureExtractor()
-pipeline = Dutch30Pipeline(
-    dutch30_extractor=extractor, debug_mode=False,
-    feature_extraction_method=run_config['feature_extraction_method'],
-    use_wav2vec=False,
-    subtract_baseline=run_config['subtract_baseline'],
-    use_rms_boundaries=False,
-    use_multifeature=False,
-)
+from run_pipeline import run_path_b, _run_crf_experiment
 
-# DECODING (no audio at test time)
-from run_pipeline import DEFAULT_RUN_CONFIG, run_with_mfa_boundaries
-# Step 1 — Load patient data + MFA-aligned features into the pipeline.
-# MFA as training label source: each per-phoneme feature
-# vector in pipeline.train is iEEG sliced at MFA's timestamps.
-cached_train, cached_test = run_with_mfa_boundaries(pipeline, run_config)
+cached_train, cached_test = run_path_b(pipeline, run_config)
+pipeline.patient_results = _run_crf_experiment(pipeline, run_config)
 
-# Step 2 — Train brain-only models and run inference.
-#   Train phase: CRF (per patient) + v6 boundary detector — supervised by MFA
-#   Test phase:  iEEG → v6 → boundaries → features → CRF (NO MFA, NO audio)
-#   Score phase: compare predicted phonemes vs MFA ground truth (oracle)
-# Step 2a — Train CRFs + v6 (uses MFA as supervision, NOT as test input)
-import importlib, e2e_brain_decoder
-importlib.reload(e2e_brain_decoder)
-from e2e_brain_decoder import (
-    train_brain_only_models,
-    predict_one_sentence_brain_only,
-    get_mfa_oracle_labels,
-)
-# use iEEG based prediction
-classifiers, v6_model, detector_test_ds = train_brain_only_models(pipeline)
+from e2e_brain_decoder import edit_distance, show_matched_sequences_with_times
 
-# Step 2b — Inspect one sentence's brain-only prediction
+# sanity check: confirm the CRF emitted sentence ids
+n_with_sids = sum('true_sentence_ids' in r
+                  for r in pipeline.patient_results.values())
+print(f"sentence ids present for {n_with_sids}/{len(pipeline.patient_results)} patients")
+
+# visualize every patient
+for pid in sorted(pipeline.patient_results):
+    show_matched_sequences_with_times(pipeline, pid,
+                                      max_per_line=50,
+                                      collapse_repeats=True,
+                                      time_align_tol_s=0.10)
+
+# %% Cell A (fast) — extract sentence HG ONCE, shift HG frames per permutation
+import os, io, contextlib
+import numpy as np
+from collections import Counter
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn_crfsuite import CRF
 from config import DUTCH_30_PATH
-from e2e_brain_decoder import get_pipeline_channel_mask
+from run_pipeline import load_mfa_alignments
+from extract_features import extractHG
 
-item = detector_test_ds[0]
-pid, sent_idx = item['pid'], item['sentence_idx']
 
-# Load raw iEEG with the SAME channel mask the CRF was trained on
-mask = get_pipeline_channel_mask(pipeline, pid)
-raw  = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
-raw_eeg = raw[:, mask] if mask is not None else raw
+def _crf_to_seqs(X, labels, words):
+    seqs, ys, cx, cy, prev = [], [], [], [], None
+    for x, l, w in zip(X, labels, words):
+        if w != prev and prev is not None and cx:
+            seqs.append(cx); ys.append(cy); cx, cy = [], []
+        cx.append({f'f{j}': float(v) for j, v in enumerate(x)}); cy.append(l); prev = w
+    if cx: seqs.append(cx); ys.append(cy)
+    return seqs, ys
 
-wd = pipeline.split_result['word_segments_dict'][pid]
-sent_info = wd['sentence_list'][sent_idx]
-sentence_eeg = raw_eeg[int(sent_info['stim_start_idx']):int(sent_info['stim_end_idx'])]
 
-y_pred, segments = predict_one_sentence_brain_only(
-    v6_model, classifiers,
-    sentence_eeg=sentence_eeg,
-    detector_input_frames=item['eeg'],
-    pid=pid,
-    pipeline_config=pipeline.config,
-)
+def pvalue_crf_shift_features(pid, pipeline, run_config, n_perm=500, seed=0,
+                              n_pca=50, buffer_frac=0.10, verbose=False):
+    rng = np.random.RandomState(seed)
+    cfg = pipeline.config
+    eeg_sr, win_s, shift_s = cfg.eeg_sr, cfg.window_length, cfg.frameshift
+    win = int(round(win_s * eeg_sr)); hop = int(round(shift_s * eeg_sr))
+    model_order = run_config['stacking_order']; step_size = run_config['stacking_step_size']
+    min_class = run_config.get('min_class_samples', 5)
 
-# Step 2c — Score against MFA oracle (only place MFA is used at test)
-y_true = get_mfa_oracle_labels(pid, sent_idx,
-                                 classifiers[pid]['valid_classes'])
+    # ── frozen model on REAL train features ──────────────────────────────────
+    trm = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+    tr_feat = [pipeline.train['features'][i]       for i, m in enumerate(trm) if m]
+    tr_lbl  = [pipeline.train['phoneme_labels'][i] for i, m in enumerate(trm) if m]
+    tr_wrd  = [pipeline.train['phoneme_words'][i]  for i, m in enumerate(trm) if m]
+    valid = {c for c, n in Counter(tr_lbl).items() if n >= min_class}
+    ktr = [i for i, l in enumerate(tr_lbl) if l in valid]
+    tr_feat = [tr_feat[i] for i in ktr]; tr_lbl = [tr_lbl[i] for i in ktr]; tr_wrd = [tr_wrd[i] for i in ktr]
+    if len(tr_feat) < 10:
+        return {'error': f'too few train ({len(tr_feat)})'}
+    Xtr = np.array([np.asarray(f).flatten() for f in tr_feat])
+    scaler = StandardScaler().fit(Xtr); Xtr = scaler.transform(Xtr)
+    pca = PCA(n_components=min(n_pca, Xtr.shape[1], Xtr.shape[0])).fit(Xtr); Xtr = pca.transform(Xtr)
+    crf = CRF(algorithm='lbfgs', c1=0.1, c2=0.1, max_iterations=100, all_possible_transitions=True)
+    crf.fit(*_crf_to_seqs(Xtr, tr_lbl, tr_wrd)); classes = set(crf.classes_)
 
-print(f"Sentence {pid}/{sent_idx}")
-print(f"  predicted ({len(y_pred)}):  {' '.join(y_pred)}")
-print(f"  true      ({len(y_true)}):  {' '.join(y_true)}")
+    def ce_of(feats, labels, words):
+        k = [i for i, l in enumerate(labels) if l in valid]
+        if len(k) < 5:
+            return None
+        feats = [feats[i] for i in k]; labels = [labels[i] for i in k]; words = [words[i] for i in k]
+        X = pca.transform(scaler.transform(np.array([np.asarray(f).flatten() for f in feats])))
+        Xs, ys = _crf_to_seqs(X, labels, words)
+        marg = crf.predict_marginals(Xs); s, n = 0.0, 0
+        for ms, gs in zip(marg, ys):
+            for tm, g in zip(ms, gs):
+                if g in classes:
+                    s += -np.log(max(tm.get(g, 1e-12), 1e-12)); n += 1
+        return s / max(n, 1)
 
-# train CTC frame-level decoder
-# CTC was investigated but did not generalize well on ~750 training sentences
-# even with regularization or warm-start from v6's encoder. v6 (above) gives
-# the same ceiling with cleaner len_ratio. Comment in the block below if you
-# want to retry CTC.
-
-# %% Cell — (optional) Train CTC frame-level decoder
-# import os, glob
-# for f in glob.glob('frame_ctc_v3_*.pt'):
-#     os.remove(f); print(f'removed {f}')
-#
-# import importlib, frame_level_decoder as fld
-# importlib.reload(fld)
-# fld.HIDDEN_DIM      = 192
-# fld.N_LSTM_LAYERS   = 2
-# fld.PROJ_DIM        = 64
-# fld.DROPOUT         = 0.3
-# fld.WEIGHT_DECAY    = 1e-3
-# fld.CHANNEL_MASK_PROB = 0.05
-# fld.PER_EPOCH_CHANNEL_DROPOUT = True
-# fld.N_EPOCHS_TOTAL  = 80
-# fld.EARLY_STOP_PATIENCE = 15
-# fld.WARM_START_FROM_V6 = True
-# _ = fld.run_path_ctc(pipeline)
-
-# %% Cell — (optional) Hybrid decoder: v6 boundaries + CTC frame logits
-# import importlib, hybrid_decoder
-# importlib.reload(hybrid_decoder)
-# from hybrid_decoder import run_path_hybrid
-# _ = run_path_hybrid(pipeline)
-
-# %% Cell — (optional) Diagnostic: evaluate CTC on TRAIN data to check overfit
-# import torch, glob
-# from frame_level_decoder import (
-#     FrameCTCModel, build_ctc_dataset, attach_target_indices, Vocab,
-#     HIDDEN_DIM, N_LSTM_LAYERS, DROPOUT, PROJ_DIM, DEVICE,
-#     evaluate_ctc, ALL_PIDS,
-# )
-# from boundary_detector_joint_audio import (
-#     split_by_sentence, fit_train_stats, apply_stats,
-# )
-# ckpt_path = sorted(glob.glob('frame_ctc_v3_*.pt'))[-1]
-# ckpt = torch.load(ckpt_path, map_location=DEVICE)
-# vocab = Vocab(set())
-# vocab.itos = ckpt['vocab_itos']; vocab.stoi = {p: i for i, p in enumerate(vocab.itos)}
-# model = FrameCTCModel(
-#     per_patient_eeg_n_ch=ckpt['per_patient_eeg_n_ch'],
-#     vocab_size=ckpt['vocab_size'],
-#     hidden_dim=HIDDEN_DIM, n_layers=N_LSTM_LAYERS,
-#     dropout=DROPOUT, proj_dim=PROJ_DIM,
-# ).to(DEVICE)
-# model.load_state_dict(ckpt['model_state'])
-# model.eval()
-# full_ds = build_ctc_dataset(pipeline, ALL_PIDS)
-# train_ds, _ = split_by_sentence(full_ds)
-# eeg_stats  = fit_train_stats(train_ds, 'eeg')
-# mfcc_stats = fit_train_stats(train_ds, 'mfcc')
-# apply_stats(train_ds, eeg_stats, mfcc_stats)
-# attach_target_indices(train_ds, vocab)
-# print("\n=== CTC v3 evaluated on TRAIN data ===")
-# train_summary = evaluate_ctc(model, vocab, train_ds)
-
-from collections import defaultdict
-from e2e_brain_decoder import edit_distance
-
-per_pid_pred = defaultdict(list)
-per_pid_true = defaultdict(list)
-per_pid_pred_sids = defaultdict(list)
-per_pid_true_sids = defaultdict(list)
-
-raw_cache = {}
-for item in detector_test_ds:           # held-out test sentences (set up by train_brain_only_models)
-    pid = item['pid']; sent_idx = item['sentence_idx']
-    
-    # Load raw iEEG from channels not in channel_exclusions.json
-    if pid not in raw_cache:
-        mask = get_pipeline_channel_mask(pipeline, pid)
-        raw  = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
-        raw_cache[pid] = raw[:, mask] if mask is not None else raw
-    
-    # Get sentence-level iEEG slice using stimulus presentation window indices 
+    # ── load raw ONCE; extract each test sentence's HG ONCE; precompute frame ranges
     wd = pipeline.split_result['word_segments_dict'][pid]
-    sent_info = wd['sentence_list'][sent_idx]
-    sentence_eeg = raw_cache[pid][int(sent_info['stim_start_idx']):
-                                    int(sent_info['stim_end_idx'])]
-    
-    # predict based on iEEG signal
-    y_pred, _ = predict_one_sentence_brain_only(
-        v6_model, classifiers,
-        sentence_eeg=sentence_eeg,        # raw iEEG 
-        detector_input_frames=item['eeg'],  # preprocessed iEEG (z-scored 200Hz frames)
-        pid=pid,
-        pipeline_config=pipeline.config,
-    )
-    if not y_pred: continue
-    
-    # uses MFA for scoring
-    y_true = get_mfa_oracle_labels(pid, sent_idx, classifiers[pid]['valid_classes'])
-    y_true = get_mfa_oracle_labels(pid, sent_idx, classifiers[pid]['valid_classes'])
+    words_dict, sentence_list = wd['words'], wd['sentence_list']
+    def sent_ids(sp):
+        s = set()
+        for w, idxs in sp.items():
+            for i in idxs:
+                s.add(words_dict[w]['instances'][i]['sentence_idx'])
+        return s
+    mfa = load_mfa_alignments(pid)
+    tr_ids = sent_ids(pipeline.split_result['train'][pid])
+    te_ids = sent_ids(pipeline.split_result['test'][pid])
+    overlap = tr_ids & te_ids
+    if overlap:
+        return {'error': f'train/test sentence overlap: {len(overlap)} '
+                         f'sentence(s), e.g. {sorted(overlap)[:5]}'}
+    test_sids = sorted(te_ids & set(mfa))
+    raw = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
+    if hasattr(pipeline, 'patient_data') and pid in pipeline.patient_data:
+        pdat = pipeline.patient_data[pid]
+        if 'channel_mask' in pdat:        raw = raw[:, pdat['channel_mask']]
+        elif 'included_channels' in pdat: raw = raw[:, pdat['included_channels']]
 
-    per_pid_pred[pid].extend(y_pred);   per_pid_pred_sids[pid].extend([sent_idx]*len(y_pred))
-    per_pid_true[pid].extend(y_true);   per_pid_true_sids[pid].extend([sent_idx]*len(y_true))
+    sent_HG, ph_ranges = {}, {}
+    for sid in test_sids:
+        s = sentence_list[sid]
+        if not (isinstance(s, dict) and s['stim_end_idx'] <= raw.shape[0]):
+            continue
+        hg = extractHG(raw[s['stim_start_idx']:s['stim_end_idx']], eeg_sr,
+                       windowLength=win_s, frameshift=shift_s).astype(np.float32)
+        T = hg.shape[0]
+        if T == 0:                      # sentence too short to yield any HG frame
+            continue
+        rngs = []
+        for ph in mfa[sid]:
+            k_s = int(round((ph['start_s'] * eeg_sr - win / 2) / hop))
+            k_e = int(round((ph['end_s']   * eeg_sr - win / 2) / hop))
+            k_s = min(max(0, k_s), T - 1)          # 0 <= k_s <= T-1
+            k_e = min(max(k_s, k_e), T - 1)        # k_s <= k_e <= T-1  -> >=1 frame
+            rngs.append((ph['phone'], ph['word'].lower() if ph['word'] else '?', k_s, k_e))
+        sent_HG[sid] = hg; ph_ranges[sid] = rngs
+    test_sids = [s for s in test_sids if s in sent_HG]
+    del raw
 
-pipeline.patient_results = {}
-for pid in sorted(per_pid_pred):
-    true, pred = per_pid_true[pid], per_pid_pred[pid]
-    if not true: continue
-    ed = edit_distance(true, pred)
-    common = min(len(true), len(pred))
-    pipeline.patient_results[pid] = {
-        'true_labels':       list(true),
-        'predictions':       list(pred),
-        'true_sentence_ids': list(per_pid_true_sids[pid]),
-        'pred_sentence_ids': list(per_pid_pred_sids[pid]),
-        'accuracy':   sum(t == p for t, p in zip(true[:common], pred[:common])) / max(len(true), 1),
-        'edit_distance': ed,
-        'per':        ed / max(len(true), 1),
-        'n_test':     len(true),
-        'n_pred':     len(pred),
-    }
-show_all_patients(pipeline)
+    # ── build test feats from (optionally frame-shifted) sentence HG, real step5
+    def build_and_step5(shift):
+        d = {k: [] for k in ('features', 'phoneme_labels', 'phoneme_words', 'phoneme_positions',
+                             'phoneme_participant_ids', 'phoneme_sentence_indices')}
+        for sid in test_sids:
+            hg = sent_HG[sid]
+            if shift:
+                T = hg.shape[0]; buf = max(1, int(np.floor(buffer_frac * T)))
+                if T - 2 * buf >= 1:
+                    hg = np.roll(hg, int(rng.randint(buf, T - buf + 1)), axis=0)
+            for phone, word, k_s, k_e in ph_ranges[sid]:
+                feat = hg[k_s:k_e + 1]
+                if feat.shape[0] == 0:          # safety; should not happen after clamping
+                    continue
+                d['features'].append(feat)
+                d['phoneme_labels'].append(phone); d['phoneme_words'].append(word)
+                d['phoneme_positions'].append(0); d['phoneme_participant_ids'].append(pid)
+                d['phoneme_sentence_indices'].append(sid)
+        saved_tr, saved_te = pipeline.train, pipeline.test
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                pipeline.train = None; pipeline.test = d
+                pipeline.step5a_filter_by_frame_count(min_frames=run_config['min_frames'],
+                                                      max_frames=run_config['max_frames'])
+                pipeline.step5b_stack_features(model_order=model_order, step_size=step_size)
+                pipeline.step5c_collapse_to_phoneme_level()
+                out = (list(pipeline.test['features']), list(pipeline.test['phoneme_labels']),
+                       list(pipeline.test['phoneme_words']))
+        finally:
+            pipeline.train, pipeline.test = saved_tr, saved_te
+        return out
 
-from e2e_brain_decoder import find_color_matches
-from collections import defaultdict
+    # ── observed + null ──────────────────────────────────────────────────────
+    ce_obs = ce_of(*build_and_step5(shift=False))
+    if ce_obs is None:
+        return {'error': 'too few test phonemes'}
+    nulls = np.empty(n_perm)
+    for b in range(n_perm):
+        nulls[b] = ce_of(*build_and_step5(shift=True))
+        if verbose and ((b + 1) % 100 == 0 or b == 0):
+            print(f"    perm {b+1}/{n_perm}  null CE={nulls[b]:.4f}", flush=True)
 
-for pid, r in sorted(pipeline.patient_results.items()):
-    # split flat lists back into per-sentence
-    by_sid_pred, by_sid_true = defaultdict(list), defaultdict(list)
-    for tok, sid in zip(r['predictions'],  r['pred_sentence_ids']): by_sid_pred[sid].append(tok)
-    for tok, sid in zip(r['true_labels'],  r['true_sentence_ids']): by_sid_true[sid].append(tok)
+    z = (nulls.mean() - ce_obs) / (nulls.std(ddof=1) + 1e-9)
+    p = (np.sum(nulls <= ce_obs) + 1) / (n_perm + 1)
+    return {'pid': pid, 'ce_obs': float(ce_obs), 'null_mean': float(nulls.mean()),
+            'null_std': float(nulls.std(ddof=1)), 'z': float(z), 'p_one_sided': float(p),
+            'n_perm': n_perm}
 
-    longest_any, longest_exact, best_sid = 0, 0, None
-    for sid in by_sid_true:
-        pred, gold = by_sid_pred.get(sid, []), by_sid_true[sid]
-        if not pred: continue
-        m = find_color_matches(pred, gold)
-        L_any   = max([x[2] for x in m], default=0)
-        L_exact = max([x[2] for x in m if 'weak' not in x[4]], default=0)
-        if L_any > longest_any:
-            longest_any, longest_exact, best_sid = L_any, L_exact, sid
+import numpy as np, scipy.stats as ss
 
-    print(f"{pid}: longest within-sentence match — any={longest_any}, exact={longest_exact}  (sent {best_sid})")
+crf_shift_results = {}
+print(f"{'pid':<5} {'CE_obs':>8} {'null_mu':>8} {'null_sd':>8} {'z':>7} {'p':>9}")
+print('-' * 55)
+for pid in sorted(pipeline.patient_results):
+    r = pvalue_crf_shift_features(pid, pipeline, run_config, n_perm=2000, seed=0)
+    if 'error' in r:
+        print(f"{pid:<5} SKIP — {r['error']}"); continue
+    crf_shift_results[pid] = r
+    print(f"{pid:<5} {r['ce_obs']:8.3f} {r['null_mean']:8.3f} {r['null_std']:8.4f} "
+          f"{r['z']:+7.2f} {r['p_one_sided']:9.4f}")
 
-def longest_contiguous_exact(pred, gold):
-    n, m = len(pred), len(gold)
-    best = 0
-    for i in range(n):
-        for j in range(m):
-            k = 0
-            while i+k < n and j+k < m and pred[i+k] == gold[j+k]:
-                k += 1
-            if k > best: best = k
-    return best
+pv   = np.clip([r['p_one_sided'] for r in crf_shift_results.values()], 1e-300, 1.0)
+q_bh = ss.false_discovery_control(pv, method='bh')
+chi2 = -2 * np.log(pv).sum(); df = 2 * len(pv)
+print('-' * 55)
+print(f"BH-FDR significant: {(q_bh < 0.05).sum()}/{len(pv)}")
+print(f"Fisher combined p:  {1 - ss.chi2.cdf(chi2, df):.2e}")
 
-for pid, r in sorted(pipeline.patient_results.items()):
-    by_sid_pred, by_sid_true = defaultdict(list), defaultdict(list)
-    for tok, s in zip(r['predictions'], r['pred_sentence_ids']): by_sid_pred[s].append(tok)
-    for tok, s in zip(r['true_labels'], r['true_sentence_ids']): by_sid_true[s].append(tok)
-    best = max((longest_contiguous_exact(by_sid_pred.get(s, []), g)
-                for s, g in by_sid_true.items() if by_sid_pred.get(s)), default=0)
-    print(f"{pid}: longest contiguous all-exact within-sentence run = {best}")
+# %% Cell — contribution ablations: shared helpers
+import numpy as np
+from collections import Counter
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn_crfsuite import CRF
 
-import importlib, e2e_brain_decoder; importlib.reload(e2e_brain_decoder)
-from e2e_brain_decoder import show_matched_sequences, show_all_patients
+def _runs(seq):
+    """Run-length list of consecutive-equal items (== to_sequences word grouping)."""
+    out, prev, c = [], object(), 0
+    for x in seq:
+        if x == prev: c += 1
+        else:
+            if c: out.append(c)
+            prev, c = x, 1
+    if c: out.append(c)
+    return out
 
-show_matched_sequences(pipeline, 'P29')                          # collapse on by default
+def _seqs(X, labels, group_lengths):
+    seqs, ys, i = [], [], 0
+    for L in group_lengths:
+        seqs.append([{f'f{j}': float(v) for j, v in enumerate(X[k])} for k in range(i, i + L)])
+        ys.append(list(labels[i:i + L])); i += L
+    return seqs, ys
+
+def _fit_crf(Xseq, yseq):
+    crf = CRF(algorithm='lbfgs', c1=0.1, c2=0.1, max_iterations=100,
+              all_possible_transitions=True)
+    crf.fit(Xseq, yseq); return crf
+
+def _prepare_crf_data(pid, pipeline, run_config, n_pca=50):
+    """Filter to pid, drop rare classes (train counts), fit StandardScaler+PCA on
+    TRAIN, transform test. Returns projected X + labels/words/sentence-ids."""
+    mc = run_config.get('min_class_samples', 5)
+    def col(split, key):
+        m = [p == pid for p in getattr(pipeline, split)['phoneme_participant_ids']]
+        return [getattr(pipeline, split)[key][i] for i, x in enumerate(m) if x]
+    trf, trl, trw = col('train','features'), col('train','phoneme_labels'), col('train','phoneme_words')
+    tef, tel, tew = col('test','features'),  col('test','phoneme_labels'),  col('test','phoneme_words')
+    tes = col('test','phoneme_sentence_indices') if 'phoneme_sentence_indices' in pipeline.test else None
+    valid = {c for c, n in Counter(trl).items() if n >= mc}
+    ktr = [i for i, l in enumerate(trl) if l in valid]
+    kte = [i for i, l in enumerate(tel) if l in valid]
+    trf=[trf[i] for i in ktr]; trl=[trl[i] for i in ktr]; trw=[trw[i] for i in ktr]
+    tef=[tef[i] for i in kte]; tel=[tel[i] for i in kte]; tew=[tew[i] for i in kte]
+    if tes is not None: tes=[tes[i] for i in kte]
+    if len(trf) < 10 or len(tef) < 5:
+        return None
+    Xtr = np.array([np.asarray(f).flatten() for f in trf])
+    Xte = np.array([np.asarray(f).flatten() for f in tef])
+    sc = StandardScaler().fit(Xtr); Xtr, Xte = sc.transform(Xtr), sc.transform(Xte)
+    pca = PCA(n_components=min(n_pca, Xtr.shape[1], Xtr.shape[0])).fit(Xtr)
+    return dict(Xtr=pca.transform(Xtr), trl=trl, trw=trw,
+                Xte=pca.transform(Xte), tel=tel, tew=tew, tes=tes)
+
+# %% Cell — contribution of MFA word borders & priors
+def contribution_word_borders(pid, pipeline, run_config, n_perm=1000, seed=0, n_pca=50):
+    """Frozen CRF (real borders). Null = scramble test word-segment lengths
+    WITHIN each sentence. Measures the decode-time value of correct borders."""
+    d = _prepare_crf_data(pid, pipeline, run_config, n_pca)
+    if d is None: return {'error': 'too few samples'}
+    if d['tes'] is None: return {'error': 'no phoneme_sentence_indices — rebuild via run_path_b'}
+    rng = np.random.RandomState(seed)
+    crf = _fit_crf(*_seqs(d['Xtr'], d['trl'], _runs(d['trw'])))
+
+    # contiguous per-sentence blocks of the test stream
+    sids = d['tes']; blocks, i = [], 0
+    while i < len(sids):
+        j = i
+        while j < len(sids) and sids[j] == sids[i]: j += 1
+        blocks.append((i, j)); i = j
+
+    def acc(group_lengths):
+        seqs, _ = _seqs(d['Xte'], d['tel'], group_lengths)
+        yp = [p for s in crf.predict(seqs) for p in s]
+        return np.mean([a == b for a, b in zip(yp, d['tel'])])
+
+    real_gl = [L for a, b in blocks for L in _runs(d['tew'][a:b])]
+    obs = acc(real_gl)
+    nulls = np.empty(n_perm)
+    for k in range(n_perm):
+        gl = []
+        for a, b in blocks:
+            r = _runs(d['tew'][a:b]); rng.shuffle(r); gl += r
+        nulls[k] = acc(gl)
+    z = (obs - nulls.mean()) / (nulls.std(ddof=1) + 1e-9)
+    p = (np.sum(nulls >= obs) + 1) / (n_perm + 1)   # borders help if obs > null
+    return dict(pid=pid, obs_acc=float(obs), null_mean=float(nulls.mean()),
+                null_std=float(nulls.std(ddof=1)), z=float(z), p=float(p),
+                border_contribution=float(obs - nulls.mean()), n_perm=n_perm)
+
+
+def contribution_priors(pid, pipeline, run_config, n_perm=200, seed=0, n_pca=50):
+    """Null = shuffle TRAIN labels (keeps class prior, destroys feature->label),
+    retrain CRF, decode test. Separates prior-only acc from feature decoding."""
+    d = _prepare_crf_data(pid, pipeline, run_config, n_pca)
+    if d is None: return {'error': 'too few samples'}
+    rng = np.random.default_rng(seed)
+    tr_gl, te_gl = _runs(d['trw']), _runs(d['tew'])
+    te_seqs, _ = _seqs(d['Xte'], d['tel'], te_gl)
+
+    def fit_predict(train_labels):
+        crf = _fit_crf(*_seqs(d['Xtr'], train_labels, tr_gl))
+        yp = [p for s in crf.predict(te_seqs) for p in s]
+        return np.mean([a == b for a, b in zip(yp, d['tel'])])
+
+    obs = fit_predict(d['trl'])
+    chance = 1.0 / len(set(d['tel']))
+    nulls = np.empty(n_perm)
+    for k in range(n_perm):
+        shuf = list(d['trl']); rng.shuffle(shuf)
+        nulls[k] = fit_predict(shuf)
+    z = (obs - nulls.mean()) / (nulls.std(ddof=1) + 1e-9)
+    p = (np.sum(nulls >= obs) + 1) / (n_perm + 1)   # features add beyond prior if obs > null
+    return dict(pid=pid, obs_acc=float(obs), prior_only_mean=float(nulls.mean()),
+                prior_only_std=float(nulls.std(ddof=1)), chance=float(chance),
+                z=float(z), p=float(p),
+                prior_contribution=float(nulls.mean() - chance),
+                feature_contribution=float(obs - nulls.mean()), n_perm=n_perm)
+
+# %% Cell — run both ablations across the cohort
+import numpy as np, scipy.stats as ss
+
+border, prior = {}, {}
+print(f"{'pid':<5} {'chance':>7} {'prior':>7} {'real':>7} "
+      f"{'Δprior':>7} {'Δfeat':>7} {'p_feat':>8} {'Δbord':>7} {'p_bord':>8}")
+print('-' * 76)
+for pid in sorted(pipeline.patient_results):
+    rb = contribution_word_borders(pid, pipeline, run_config, n_perm=1000)
+    rp = contribution_priors(pid, pipeline, run_config, n_perm=200)
+    if 'error' in rb or 'error' in rp:
+        print(f"{pid:<5} SKIP — {rb.get('error', rp.get('error'))}"); continue
+    border[pid], prior[pid] = rb, rp
+    print(f"{pid:<5} {rp['chance']:7.3f} {rp['prior_only_mean']:7.3f} {rp['obs_acc']:7.3f} "
+          f"{rp['prior_contribution']:+7.3f} {rp['feature_contribution']:+7.3f} {rp['p']:8.4f} "
+          f"{rb['border_contribution']:+7.3f} {rb['p']:8.4f}")
+
+def _agg(d, name):
+    pv = np.clip([r['p'] for r in d.values()], 1e-300, 1.0)
+    q = ss.false_discovery_control(pv, method='bh')
+    chi2 = -2 * np.log(pv).sum(); df = 2 * len(pv)
+    print(f"{name}: BH-FDR sig {(q < 0.05).sum()}/{len(pv)}   "
+          f"Fisher p={1 - ss.chi2.cdf(chi2, df):.2e}")
+print('-' * 76)
+_agg(prior,  "features-beyond-prior")
+_agg(border, "word-border")
+
+# from e2e_brain_decoder import find_color_matches
+# from collections import defaultdict
+
+# for pid, r in sorted(pipeline.patient_results.items()):
+#     # split flat lists back into per-sentence
+#     by_sid_pred, by_sid_true = defaultdict(list), defaultdict(list)
+#     for tok, sid in zip(r['predictions'],  r['pred_sentence_ids']): by_sid_pred[sid].append(tok)
+#     for tok, sid in zip(r['true_labels'],  r['true_sentence_ids']): by_sid_true[sid].append(tok)
+
+#     longest_any, longest_exact, best_sid = 0, 0, None
+#     for sid in by_sid_true:
+#         pred, gold = by_sid_pred.get(sid, []), by_sid_true[sid]
+#         if not pred: continue
+#         m = find_color_matches(pred, gold)
+#         L_any   = max([x[2] for x in m], default=0)
+#         L_exact = max([x[2] for x in m if 'weak' not in x[4]], default=0)
+#         if L_any > longest_any:
+#             longest_any, longest_exact, best_sid = L_any, L_exact, sid
+
+#     print(f"{pid}: longest within-sentence match — any={longest_any}, exact={longest_exact}  (sent {best_sid})")
+
+# def longest_contiguous_exact(pred, gold):
+#     n, m = len(pred), len(gold)
+#     best = 0
+#     for i in range(n):
+#         for j in range(m):
+#             k = 0
+#             while i+k < n and j+k < m and pred[i+k] == gold[j+k]:
+#                 k += 1
+#             if k > best: best = k
+#     return best
+
+# for pid, r in sorted(pipeline.patient_results.items()):
+#     by_sid_pred, by_sid_true = defaultdict(list), defaultdict(list)
+#     for tok, s in zip(r['predictions'], r['pred_sentence_ids']): by_sid_pred[s].append(tok)
+#     for tok, s in zip(r['true_labels'], r['true_sentence_ids']): by_sid_true[s].append(tok)
+#     best = max((longest_contiguous_exact(by_sid_pred.get(s, []), g)
+#                 for s, g in by_sid_true.items() if by_sid_pred.get(s)), default=0)
+#     print(f"{pid}: longest contiguous all-exact within-sentence run = {best}")
+
+# import importlib, e2e_brain_decoder; importlib.reload(e2e_brain_decoder)
+# from e2e_brain_decoder import show_matched_sequences, show_all_patients
+
+# show_matched_sequences(pipeline, 'P29')                          # collapse on by default
 # show_matched_sequences(pipeline, 'P24', collapse_repeats=False)  # turn it 
 
-#diagnostic
-# Check MFA coverage across all sentences
-from collections import defaultdict
+# %% Cell — MFA-CRF Approach B null using pipeline's true feature extraction
+# ============================================================
 import numpy as np
+import scipy.stats as ss
+from collections import Counter
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn_crfsuite import CRF
+
+from config import DUTCH_30_PATH
 from run_pipeline import load_mfa_alignments
+from extract_features import extractHG
 
-eeg_sr = pipeline.config.eeg_sr
-patient_stats = defaultdict(list)
 
-for pid in [f'P{i:02d}' for i in range(21, 31)]:
-    wd = pipeline.split_result.get('word_segments_dict', {}).get(pid)
-    if wd is None: continue
-    mfa = load_mfa_alignments(pid)
-    for sent_idx, sent_info in enumerate(wd['sentence_list']):
-        text = sent_info['text'] if isinstance(sent_info, dict) else sent_info
-        if not text: continue
-        if sent_idx not in mfa or not mfa[sent_idx]: continue
-        orig_dur = (sent_info['stim_end_idx'] - sent_info['stim_start_idx']) / eeg_sr
-        mfa_last = mfa[sent_idx][-1]['end_s']
-        coverage = mfa_last / orig_dur
-        patient_stats[pid].append((coverage, len(mfa[sent_idx]), text))
+def pvalue_crf_optionB(pid, pipeline, n_perm=2000, seed=0,
+                       n_pca=50, min_class=5, buffer_frac=0.1,
+                       eeg_sr=1024, shift_samp=5, verbose=False):
+    """Approach B null for MFA-CRF: shift raw HG per sentence, re-extract
+    features using the production pipeline path, run frozen CRF."""
+    rng = np.random.RandomState(seed)
 
-print(f"  {'pid':<5} {'n':>4} {'mean_cov':>9} {'<50%':>5} {'<80%':>5}  worst sentence")
-for pid in sorted(patient_stats):
-    xs = patient_stats[pid]
-    covs = [c for c, _, _ in xs]
-    worst = min(xs, key=lambda t: t[0])
-    print(f"  {pid:<5} {len(xs):>4} {np.mean(covs):>8.1%} "
-          f"{sum(1 for c in covs if c < 0.5):>5} "
-          f"{sum(1 for c in covs if c < 0.8):>5}  "
-          f"cov={worst[0]:.0%} \"{worst[2][:60]}\"")
+    # ── A. Resolve test sentence ids
+    wd = pipeline.split_result['word_segments_dict'][pid]
+    words_dict = wd['words']
+    def sent_ids_from_split(split_pid):
+        ids = set()
+        for word_text, inst_idx_list in split_pid.items():
+            for i in inst_idx_list:
+                ids.add(words_dict[word_text]['instances'][i]['sentence_idx'])
+        return ids
+    tr_ids = sent_ids_from_split(pipeline.split_result['train'][pid])
+    te_ids = sent_ids_from_split(pipeline.split_result['test'][pid])
+    if tr_ids & te_ids: return {'error': "train/test overlap"}
 
-import importlib, e2e_brain_decoder
-importlib.reload(e2e_brain_decoder)
-from e2e_brain_decoder import show_all_patients, show_matched_sequences
+    mfa_all = load_mfa_alignments(pid)
+    train_sent_ids = sorted(tr_ids & set(mfa_all.keys()))
+    test_sent_ids  = sorted(te_ids & set(mfa_all.keys()))
 
-from datetime import datetime
-print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    # ── B. Train features come from the live pipeline (don't re-extract)
+    tr_mask = [p == pid for p in pipeline.train['phoneme_participant_ids']]
+    tr_feat = [pipeline.train['features'][i]       for i, m in enumerate(tr_mask) if m]
+    tr_lbl  = [pipeline.train['phoneme_labels'][i] for i, m in enumerate(tr_mask) if m]
+    tr_wrd  = [pipeline.train['phoneme_words'][i]  for i, m in enumerate(tr_mask) if m]
 
-print('train rows:',  len(pipeline.train['features'])  if hasattr(pipeline, 'train')  and pipeline.train  else 'none')
-print('test rows:',   len(pipeline.test['features'])   if hasattr(pipeline, 'test')   and pipeline.test   else 'none')
-print('patient_results?', hasattr(pipeline, 'patient_results'))
+    # ── C. Load raw HG ONCE
+    if verbose: print(f"  [{pid}] loading raw HG ...")
+    raw = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
+    if raw.ndim == 2 and raw.shape[0] < raw.shape[1]: raw = raw.T
+    keep = pipeline.channel_masks.get(pid, {}).get('keep_indices')
+    if keep is not None: raw = raw[:, np.asarray(keep)]
+    hg = extractHG(raw, sr=eeg_sr, windowLength=0.015,
+                   frameshift=0.005, smoothing_hz=10.0).astype(np.float32)
+    if verbose: print(f"    HG shape: {hg.shape}")
+
+    # ── D. Per-sentence frame spans from MFA (compute once)
+    win_samp = 15
+    def ph_range(ph):
+        k_s = max(0, int(round((ph['start_s']*eeg_sr - win_samp/2)/shift_samp)))
+        k_e = min(hg.shape[0]-1,
+                  int(round((ph['end_s']*eeg_sr   - win_samp/2)/shift_samp)))
+        return k_s, k_e
+    sent_spans = {}
+    for sid in test_sent_ids:
+        ph_list = mfa_all[sid]
+        lo = min(ph_range(p)[0] for p in ph_list)
+        hi = max(ph_range(p)[1] for p in ph_list)
+        sent_spans[sid] = (lo, hi)
+
+    # ── E. Reusable: re-extract test features from a given HG
+    def reextract(hg_arr):
+        data = pipeline.reextract_test_features_from_hg(
+            pid, hg_arr, mfa_all, test_sent_ids,
+            model_order=4, step_size=5,
+            eeg_sr=eeg_sr, win_samp=win_samp, shift_samp=shift_samp)
+        return (data['features'], data['phoneme_labels'],
+                data['phoneme_words'], data['phoneme_sentence_indices'])
+
+    # ── F. Observed (unshifted) features + CE
+    te_feat, te_lbl, te_wrd, te_sent = reextract(hg)
+    if verbose: print(f"    test phonemes: {len(te_feat)}")
+
+    # ── G. Class filter on train counts, applied to both
+    valid = {c for c, n in Counter(tr_lbl).items() if n >= min_class}
+    keep_tr = [i for i, l in enumerate(tr_lbl) if l in valid]
+    tr_feat = [tr_feat[i] for i in keep_tr]; tr_lbl = [tr_lbl[i] for i in keep_tr]; tr_wrd = [tr_wrd[i] for i in keep_tr]
+
+    def filter_te(feats, lbls, wrds, sids):
+        keep = [i for i, l in enumerate(lbls) if l in valid]
+        return ([feats[i] for i in keep], [lbls[i] for i in keep],
+                [wrds[i]  for i in keep], [sids[i] for i in keep])
+    te_feat, te_lbl, te_wrd, te_sent = filter_te(te_feat, te_lbl, te_wrd, te_sent)
+    if len(tr_feat) < 10 or len(te_feat) < 5:
+        return {'error': f'too few after filter (tr={len(tr_feat)} te={len(te_feat)})'}
+
+    # ── H. Scale + PCA on train (frozen)
+    X_tr = np.array([np.array(f).flatten() for f in tr_feat])
+    scaler = StandardScaler().fit(X_tr); X_tr = scaler.transform(X_tr)
+    pca = PCA(n_components=min(n_pca, X_tr.shape[1], X_tr.shape[0])).fit(X_tr)
+    X_tr = pca.transform(X_tr)
+
+    def project(feat_list):
+        X = np.array([np.array(f).flatten() for f in feat_list])
+        return pca.transform(scaler.transform(X))
+    X_te = project(te_feat)
+
+    # ── I. Sequences + CRF fit (frozen)
+    def to_sequences(X, labels, words):
+        seqs, lbl_seqs = [], []
+        cur_x, cur_y, prev = [], [], None
+        for x, l, w in zip(X, labels, words):
+            if w != prev and prev is not None and cur_x:
+                seqs.append(cur_x); lbl_seqs.append(cur_y); cur_x, cur_y = [], []
+            cur_x.append({f'f{j}': float(v) for j, v in enumerate(x)})
+            cur_y.append(l); prev = w
+        if cur_x: seqs.append(cur_x); lbl_seqs.append(cur_y)
+        return seqs, lbl_seqs
+    X_tr_seq, y_tr_seq = to_sequences(X_tr, tr_lbl, tr_wrd)
+    X_te_seq, y_te_seq = to_sequences(X_te, te_lbl, te_wrd)
+    crf = CRF(algorithm='lbfgs', c1=0.1, c2=0.1, max_iterations=100,
+              all_possible_transitions=True)
+    crf.fit(X_tr_seq, y_tr_seq)
+    classes = set(crf.classes_)
+
+    def ce_from_seqs(seqs_X, seqs_y):
+        marg = crf.predict_marginals(seqs_X); s, n = 0.0, 0
+        for m_seq, g_seq in zip(marg, seqs_y):
+            for t_m, g in zip(m_seq, g_seq):
+                if g not in classes: continue
+                s += -np.log(max(t_m.get(g, 1e-12), 1e-12)); n += 1
+        return s / max(n, 1)
+
+    ce_obs = ce_from_seqs(X_te_seq, y_te_seq)
+    if verbose: print(f"    CE_obs = {ce_obs:.4f}")
+
+    # ── J. Null: shift raw HG per sentence, re-extract, re-evaluate
+    nulls = np.empty(n_perm)
+    for b in range(n_perm):
+        hg_perm = hg.copy()
+        for sid, (lo, hi) in sent_spans.items():
+            span = hi - lo + 1
+            if span < 10: continue
+            buf = max(1, int(np.floor(buffer_frac * span)))
+            if span - 2*buf < 1: continue
+            s = rng.randint(buf, span - buf + 1)
+            hg_perm[lo:hi+1] = np.roll(hg[lo:hi+1], shift=s, axis=0)
+        te_feat_p, te_lbl_p, te_wrd_p, _ = reextract(hg_perm)
+        te_feat_p, te_lbl_p, te_wrd_p, _ = filter_te(te_feat_p, te_lbl_p, te_wrd_p,
+                                                      [None]*len(te_lbl_p))
+        X_te_p = project(te_feat_p)
+        X_te_p_seq, _ = to_sequences(X_te_p, te_lbl_p, te_wrd_p)
+        nulls[b] = ce_from_seqs(X_te_p_seq, y_te_seq)
+        if verbose and (b+1) % 200 == 0:
+            print(f"    perm {b+1}/{n_perm}  null CE = {nulls[b]:.4f}")
+
+    z = (nulls.mean() - ce_obs) / (nulls.std(ddof=1) + 1e-9)
+    p = (np.sum(nulls <= ce_obs) + 1) / (n_perm + 1)
+    return {'pid': pid, 'ce_obs': float(ce_obs),
+            'null_mean': float(nulls.mean()), 'null_std': float(nulls.std(ddof=1)),
+            'z': float(z), 'p_one_sided': float(p), 'n_perm': n_perm,
+            'n_test_phonemes': len(te_feat),
+            'n_test_sentences': len(sent_spans)}
+
+r_test = pvalue_crf_optionB('P21', pipeline, n_perm=50, seed=0, verbose=True)
+print(r_test)
+
+
+from e2e_brain_decoder import edit_distance, show_matched_sequences_with_times
+show_matched_sequences_with_times(pipeline, pid,
+                                       max_per_line=45,
+                                       collapse_repeats=True,
+                                       time_align_tol_s=0.10)
 
 # Re-run the viz — pipeline.patient_results is still in memory
-show_all_patients(pipeline)
+show_all_patients(pipeline, )
 
 # show_matched_sequences(pipeline, 'P21',
 #                         shift_by_len={1: 3, 2: 5, 3: 10, 4: 20})

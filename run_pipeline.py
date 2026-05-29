@@ -257,8 +257,15 @@ def load_mfa_alignments(pid, mfa_output_dir=None):
 #  MFA: BUILD FEATURES (Path B — replaces step4 + step5_accumulate)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def build_mfa_features(pipeline, run_config):
+def build_mfa_features(pipeline, run_config, eeg_transform=None, keep_splits=None):
     """Build phoneme-level HG features using MFA-aligned segments.
+
+    eeg_transform: optional callable (sentence_eeg, sent_idx, split) -> sentence_eeg
+        applied to each sentence's EEG slice *before* per-phoneme extraction.
+        Default None = unchanged behaviour. Used by the permutation test to
+        inject a per-sentence circular shift through the real feature path.
+    keep_splits: optional iterable like ('test',) to only build those splits
+        (skips the others for speed). Default None = build both.
 
     For each patient:
       1. Load MFA TextGrids (precise per-phoneme timestamps).
@@ -281,6 +288,7 @@ def build_mfa_features(pipeline, run_config):
             'features', 'phoneme_labels', 'phoneme_words',
             'phoneme_positions', 'phoneme_participant_ids',
             'phoneme_instance_ids', 'phoneme_durations_samples',
+            'phoneme_sentence_indices', 'phoneme_segments',
             'phone_sequences',
         )}
         for split in ('train', 'test')
@@ -361,6 +369,11 @@ def build_mfa_features(pipeline, run_config):
             else:
                 sent_split = 'train'    # fallback for unmatched sentences
 
+            if keep_splits is not None and sent_split not in keep_splits:
+                continue
+            if eeg_transform is not None:
+                sentence_eeg = eeg_transform(sentence_eeg, sent_list_idx, sent_split)
+
             # Collect the full phone sequence for this sentence
             # (used to build Viterbi transition model from MFA phone set)
             sent_phones = [ph['phone'] for ph in alignments[sent_list_idx]]
@@ -404,6 +417,8 @@ def build_mfa_features(pipeline, run_config):
                 accum[split]['phoneme_participant_ids'].append(pid)
                 accum[split]['phoneme_instance_ids'].append(global_iid)
                 accum[split]['phoneme_durations_samples'].append(n_samp)
+                accum[split]['phoneme_sentence_indices'].append(sent_list_idx)
+                accum[split]['phoneme_segments'].append((ph['start_s'], ph['end_s']))
 
                 global_iid += 1
                 pid_count  += 1
@@ -1037,6 +1052,19 @@ def _run_crf_experiment(pipeline, run_config):
         te_wrd  = [pipeline.test['phoneme_words'][i]
                    for i, m in enumerate(te_mask) if m]
 
+        # Per-phoneme sentence ids (carried from build_mfa_features through
+        # step5). Used downstream to restrict match-scoring to within-sentence.
+        # Absent on the wav2vec / Path-A flow — fall back to None in that case.
+        has_sent_ids = 'phoneme_sentence_indices' in pipeline.test
+        if has_sent_ids:
+            te_sid = [pipeline.test['phoneme_sentence_indices'][i]
+                      for i, m in enumerate(te_mask) if m]
+        # Per-phoneme MFA time spans (start_s, end_s), for time-aligned viz.
+        has_segments = 'phoneme_segments' in pipeline.test
+        if has_segments:
+            te_seg = [pipeline.test['phoneme_segments'][i]
+                      for i, m in enumerate(te_mask) if m]
+
         if len(tr_feat) < 10 or len(te_feat) < 5:
             continue
 
@@ -1050,6 +1078,10 @@ def _run_crf_experiment(pipeline, run_config):
         te_feat = [te_feat[i] for i in keep_te]
         te_lbl  = [te_lbl[i]  for i in keep_te]
         te_wrd  = [te_wrd[i]  for i in keep_te]
+        if has_sent_ids:
+            te_sid = [te_sid[i] for i in keep_te]
+        if has_segments:
+            te_seg = [te_seg[i] for i in keep_te]
 
         if len(tr_feat) < 10 or len(te_feat) < 5:
             continue
@@ -1120,6 +1152,17 @@ def _run_crf_experiment(pipeline, run_config):
             'predictions': y_pred,
             'true_labels': y_true,
         }
+        # Emit within-sentence ids aligned 1:1 with y_true / y_pred.
+        # to_sequences groups by word then flattens in order (lossless), so
+        # the filtered te_sid order matches y_true exactly.
+        if has_sent_ids and len(te_sid) == len(y_true):
+            results[pid]['true_sentence_ids'] = list(te_sid)
+            results[pid]['pred_sentence_ids'] = list(te_sid)
+        # Per-phoneme MFA time spans, same 1:1 alignment. The CRF predicts one
+        # label per gold phoneme, so pred shares the gold phoneme's time span.
+        if has_segments and len(te_seg) == len(y_true):
+            results[pid]['true_segments'] = list(te_seg)
+            results[pid]['pred_segments'] = list(te_seg)
         print(f"  {pid}: acc={accuracy:.3f}  adj={adj_accuracy:.3f}  "
               f"classes={len(pred_classes & true_classes)}/{len(true_classes)}  "
               f"(train={len(tr_lbl)}, test={len(te_lbl)})")

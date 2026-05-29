@@ -140,14 +140,8 @@ class MarkovPhonemeModel(DebugMixin):
             - 'extra_trees': ExtraTreesClassifier
             - 'gradient_boosting': GradientBoostingClassifier
             - 'logistic_regression': LogisticRegression
-            - 'svm_linear': LinearSVC + CalibratedClassifierCV (fast)
-            - 'svm_rbf': SVC with RBF kernel (slower, often better)
             - 'knn': KNeighborsClassifier
             - 'gaussian_nb': GaussianNB
-            - 'mlp': MLPClassifier (sklearn, 2 hidden layers)
-            - 'lda': LinearDiscriminantAnalysis
-            - 'nn_relu': PyTorch MLP with ReLU
-            - 'nn_snake': PyTorch MLP with Snake activation
         """
         super().__init__(class_name="MarkovPhonemeModel", debug_mode=debug_mode)
         if debug_mode is not None:
@@ -199,11 +193,10 @@ class MarkovPhonemeModel(DebugMixin):
         
         self.log(f"Initialized MarkovPhonemeModel with order={order}")
     
-    def train(self, features: list, phoneme_labels: list, words=None,
-              participant_ids=None, phone_sequences=None) -> dict:
+    def train(self, features: list, phoneme_labels: list, words=None, participant_ids=None) -> dict:
         """
         Train the Markov chain model.
-
+        
         Parameters:
         -----------
         features : list
@@ -214,12 +207,6 @@ class MarkovPhonemeModel(DebugMixin):
             List of words each phoneme belongs to
         participant_ids : list or None
             List of participant IDs
-        phone_sequences : list of lists of str, or None
-            Explicit phoneme sequences for building Viterbi transition
-            probabilities (e.g. from MFA TextGrid alignments).  When
-            provided, these are used instead of the IPA phonetic dictionary
-            corpus, ensuring the transition model uses the same phone set
-            as the classifier labels.
         """
         self.log("Training Markov chain model")
         
@@ -279,15 +266,8 @@ class MarkovPhonemeModel(DebugMixin):
         label_counter = Counter(training_labels)
         self.log(f"Group distribution: {dict(label_counter)}")
         
-        # Build transition model for Viterbi decoding
-        if phone_sequences is not None:
-            # Use explicit sequences (e.g. from MFA TextGrids) — ensures
-            # transition model uses same phone set as the classifier labels
-            self._build_transition_model_from_sequences(phone_sequences)
-        else:
-            # Default: build from IPA phonetic dictionary corpus
-            self._build_corpus_transition_model()
-
+        # Rest of the training continues as normal
+        self._build_corpus_transition_model()
         self._build_neural_classifier(features, training_labels)
 
         
@@ -389,69 +369,6 @@ class MarkovPhonemeModel(DebugMixin):
                     class_weight=self.class_weight,
                     random_state=37,
                     n_jobs=-1
-                )
-            elif self.classifier_type == 'gradient_boosting':
-                from sklearn.ensemble import GradientBoostingClassifier
-                self.neural_classifier = GradientBoostingClassifier(
-                    n_estimators=200,
-                    max_depth=5,
-                    learning_rate=0.1,
-                    subsample=0.8,
-                    random_state=37,
-                )
-            elif self.classifier_type == 'svm_linear':
-                from sklearn.svm import LinearSVC
-                from sklearn.calibration import CalibratedClassifierCV
-                base = LinearSVC(
-                    C=0.1,
-                    max_iter=2000,
-                    class_weight=self.class_weight,
-                    random_state=37,
-                    dual='auto',
-                )
-                # Wrap in CalibratedClassifierCV so predict_proba works
-                # Use cv=2 + ensemble=False to handle rare classes
-                self.neural_classifier = CalibratedClassifierCV(
-                    base, cv=2, method='sigmoid', ensemble=False)
-            elif self.classifier_type == 'svm_rbf':
-                from sklearn.svm import SVC
-                self.neural_classifier = SVC(
-                    C=1.0,
-                    kernel='rbf',
-                    gamma='scale',
-                    class_weight=self.class_weight,
-                    probability=True,
-                    random_state=37,
-                )
-            elif self.classifier_type == 'knn':
-                from sklearn.neighbors import KNeighborsClassifier
-                self.neural_classifier = KNeighborsClassifier(
-                    n_neighbors=7,
-                    weights='distance',
-                    metric='euclidean',
-                    n_jobs=-1,
-                )
-            elif self.classifier_type == 'gaussian_nb':
-                from sklearn.naive_bayes import GaussianNB
-                self.neural_classifier = GaussianNB()
-            elif self.classifier_type == 'mlp':
-                from sklearn.neural_network import MLPClassifier
-                self.neural_classifier = MLPClassifier(
-                    hidden_layer_sizes=(256, 128),
-                    activation='relu',
-                    solver='adam',
-                    alpha=1e-3,
-                    batch_size=64,
-                    learning_rate='adaptive',
-                    max_iter=300,
-                    early_stopping=True,
-                    validation_fraction=0.1,
-                    random_state=37,
-                )
-            elif self.classifier_type == 'lda':
-                from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-                self.neural_classifier = LinearDiscriminantAnalysis(
-                    solver='svd',
                 )
             elif self.classifier_type in ('nn_relu', 'nn_snake'):
                 activation = 'snake' if self.classifier_type == 'nn_snake' else 'relu'
@@ -828,114 +745,8 @@ class MarkovPhonemeModel(DebugMixin):
             self.initial_probs[state] = (
                 (count + smoothing_alpha) / (total_initial + smoothing_alpha * num_states)
             )
-
-        #self.log(f"  Transition contexts: {len(self.transition_probs)}")
-        #self.log(f"  Initial prob states: {len(self.initial_probs)}")
-        #self.log(f"  Smoothing alpha: {smoothing_alpha}")
-
-    def _build_transition_model_from_sequences(self, phone_sequences,
-                                                smoothing_alpha=None):
-        """Build transition and initial probabilities from explicit phone sequences.
-
-        Used instead of ``_build_corpus_transition_model`` when the caller has
-        actual phoneme sequences — e.g. from MFA TextGrid alignments.  This
-        ensures that the transition model uses the *same* phone set as the
-        classifier labels (dutch_cv phones for MFA, IPA for Path A).
-
-        Args:
-            phone_sequences: list of lists of phone strings, each inner list
-                being one sentence/word phoneme sequence.
-                Example: [['d', 'eː', 'k', 'ɑ', 't'], ['h', 'ɛ', 't'], ...]
-            smoothing_alpha: Laplace smoothing constant (default from config
-                or 0.1).
-        """
-        from collections import defaultdict, Counter
-
-        self.log("Building transition model from explicit phone sequences "
-                 f"({len(phone_sequences)} sequences)...")
-
-        if smoothing_alpha is None:
-            if hasattr(self, 'config') and hasattr(self.config, 'laplace_smoothing_alpha'):
-                smoothing_alpha = self.config.laplace_smoothing_alpha
-            else:
-                smoothing_alpha = 0.1
-
-        transition_counts = defaultdict(lambda: defaultdict(int))
-        initial_counts = Counter()
-        total_sequences = 0
-
-        for sequence in phone_sequences:
-            if not sequence:
-                continue
-
-            # Map to groups if configured
-            if self.use_groups:
-                mapped = []
-                for phoneme in sequence:
-                    if phoneme in self.phoneme_to_group:
-                        mapped.append(self.phoneme_to_group[phoneme])
-                sequence = mapped
-
-            if len(sequence) < 1:
-                continue
-
-            total_sequences += 1
-            initial_counts[sequence[0]] += 1
-
-            for i in range(len(sequence) - self.order):
-                context = tuple(sequence[i:i + self.order])
-                next_state = sequence[i + self.order]
-                transition_counts[context][next_state] += 1
-
-        if total_sequences == 0:
-            self.log("WARNING: No valid phone sequences provided, "
-                     "falling back to corpus transition model")
-            self._build_corpus_transition_model(smoothing_alpha)
-            return
-
-        # State space = all phones seen in sequences + trained classes
-        all_states_set = set()
-        for seq in phone_sequences:
-            if self.use_groups:
-                for ph in seq:
-                    if ph in self.phoneme_to_group:
-                        all_states_set.add(self.phoneme_to_group[ph])
-            else:
-                all_states_set.update(seq)
-        # Also include trained classes so Viterbi can transition to any label
-        if self.trained_classes:
-            all_states_set.update(self.trained_classes)
-        all_states = sorted(all_states_set)
-        num_states = len(all_states)
-
-        # Normalize with Laplace smoothing
-        self.transition_probs = {}
-        for context, next_state_counts in transition_counts.items():
-            total = sum(next_state_counts.values())
-            self.transition_probs[context] = {}
-            for state in all_states:
-                count = next_state_counts.get(state, 0)
-                self.transition_probs[context][state] = (
-                    (count + smoothing_alpha) / (total + smoothing_alpha * num_states)
-                )
-
-        self.default_transition = {
-            state: 1.0 / num_states for state in all_states
-        }
-
-        total_initial = sum(initial_counts.values())
-        self.initial_probs = {}
-        for state in all_states:
-            count = initial_counts.get(state, 0)
-            self.initial_probs[state] = (
-                (count + smoothing_alpha) / (total_initial + smoothing_alpha * num_states)
-            )
-
-        self.log(f"  Sequences: {total_sequences}, "
-                 f"States: {num_states}, "
-                 f"Transition contexts: {len(self.transition_probs)}")
-
-
+        
+        
 class DTWKNNClassifier:
     """K-Nearest Neighbors classifier using Dynamic Time Warping distance.
     

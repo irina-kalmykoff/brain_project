@@ -442,48 +442,43 @@ def predict_speech_prob(raw_eeg_slice, pid):
 
 # %% Cell 7b — recovery: rebuild datasets + reload encoders + re-extract embeddings
 # ============================================================
-# NOTE: This block is notebook-only code that was accidentally pasted into the
-# module.  It references symbols (build_sentence_dataset, CausalTCNEncoder,
-# AuxHeads, HIDDEN_DIM, extract_embeddings, standardize_inplace, MODEL_DIR,
-# DEVICE) that live in the SSL notebook, not in this library file.  Wrapped in
-# `if False:` so `from LDA_on_frames_clean import ...` no longer triggers it.
-# Copy the body into a notebook cell if you want to use it as the recovery
-# snippet.
-if False:
-    datasets = {}
-    for pid in TARGET_PIDS:
-        print(f"Building {pid}...")
-        datasets[pid] = build_sentence_dataset(pid)
+# Run this after a kernel restart instead of re-running Cells 2/4/6/7.
+# Assumes bio_models/{pid}_ssl_encoder_aux.pt exists from your earlier run.
 
-    encoders, mus, sds, aux_heads = {}, {}, {}, {}
-    for pid in TARGET_PIDS:
-        ckpt_path = os.path.join(MODEL_DIR, f'{pid}_ssl_encoder_aux.pt')
-        if not os.path.exists(ckpt_path):
-            # fall back to SSL-only checkpoint if you skipped the aux finetune
-            ckpt_path = os.path.join(MODEL_DIR, f'{pid}_ssl_encoder.pt')
-        ckpt = torch.load(ckpt_path, map_location=DEVICE)
-        n_in = datasets[pid]['train'][0]['X'].shape[1]
-        enc = CausalTCNEncoder(n_in).to(DEVICE)
-        enc.load_state_dict(ckpt['enc'])
-        encoders[pid] = enc
-        mus[pid] = ckpt['mu']; sds[pid] = ckpt['sd']
-        # standardize in place using the SAVED stats (NOT recomputed)
-        standardize_inplace(datasets[pid]['train'], mus[pid], sds[pid])
-        standardize_inplace(datasets[pid]['test'],  mus[pid], sds[pid])
-        if 'heads' in ckpt:
-            heads = AuxHeads(HIDDEN_DIM).to(DEVICE)
-            heads.load_state_dict(ckpt['heads'])
-            aux_heads[pid] = heads
-        print(f"  [{pid}] loaded encoder from {os.path.basename(ckpt_path)}")
+datasets = {}
+for pid in TARGET_PIDS:
+    print(f"Building {pid}...")
+    datasets[pid] = build_sentence_dataset(pid)
 
-    # re-extract embeddings (fast — pure forward pass)
-    embeddings = {}
-    for pid in TARGET_PIDS:
-        ds = datasets[pid]
-        emb_tr = extract_embeddings(pid, ds['train'])
-        emb_te = extract_embeddings(pid, ds['test'])
-        embeddings[pid] = {**emb_tr, **emb_te}
-    print("Recovered datasets + encoders + embeddings.")
+encoders, mus, sds, aux_heads = {}, {}, {}, {}
+for pid in TARGET_PIDS:
+    ckpt_path = os.path.join(MODEL_DIR, f'{pid}_ssl_encoder_aux.pt')
+    if not os.path.exists(ckpt_path):
+        # fall back to SSL-only checkpoint if you skipped the aux finetune
+        ckpt_path = os.path.join(MODEL_DIR, f'{pid}_ssl_encoder.pt')
+    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    n_in = datasets[pid]['train'][0]['X'].shape[1]
+    enc = CausalTCNEncoder(n_in).to(DEVICE)
+    enc.load_state_dict(ckpt['enc'])
+    encoders[pid] = enc
+    mus[pid] = ckpt['mu']; sds[pid] = ckpt['sd']
+    # standardize in place using the SAVED stats (NOT recomputed)
+    standardize_inplace(datasets[pid]['train'], mus[pid], sds[pid])
+    standardize_inplace(datasets[pid]['test'],  mus[pid], sds[pid])
+    if 'heads' in ckpt:
+        heads = AuxHeads(HIDDEN_DIM).to(DEVICE)
+        heads.load_state_dict(ckpt['heads'])
+        aux_heads[pid] = heads
+    print(f"  [{pid}] loaded encoder from {os.path.basename(ckpt_path)}")
+
+# re-extract embeddings (fast — pure forward pass)
+embeddings = {}
+for pid in TARGET_PIDS:
+    ds = datasets[pid]
+    emb_tr = extract_embeddings(pid, ds['train'])
+    emb_te = extract_embeddings(pid, ds['test'])
+    embeddings[pid] = {**emb_tr, **emb_te}
+print("Recovered datasets + encoders + embeddings.")
 
 # 8. Per-patient pipelines
 # ============================================================
@@ -976,31 +971,27 @@ def run_for_patient_ssl_bigram(pid, use_speech_gate=USE_SPEECH_GATE,
     }, None
 
 
-# NOTE: notebook-only orchestration block — wrapped in `if False:` so
-# importing this module doesn't try to run it.  Copy the body into a
-# notebook cell if you want to actually invoke `run_for_patient_ssl_bigram`.
-if False:
-    # Run it & stash results — use a different key so you can compare against
-    # the scalar-bonus run already in pipeline.patient_results
-    ssl_bigram_results = {}
-    for pid in TARGET_PIDS:
-        out, err = run_for_patient_ssl_bigram(pid)
-        if err:
-            print(f"  {pid}: SKIP — {err}"); continue
-        ssl_bigram_results[pid] = out
-        print(f"  {pid}: PER={100*out['per']:5.1f}%  "
-              f"n_pred={out['n_pred']}/{out['n_test']}  λ={out['lm_weight']:.2f}  "
-              f"dropped_silence={out['n_dropped_silence']}")
+# Run it & stash results — use a different key so you can compare against
+# the scalar-bonus run already in pipeline.patient_results
+ssl_bigram_results = {}
+for pid in TARGET_PIDS:
+    out, err = run_for_patient_ssl_bigram(pid)
+    if err:
+        print(f"  {pid}: SKIP — {err}"); continue
+    ssl_bigram_results[pid] = out
+    print(f"  {pid}: PER={100*out['per']:5.1f}%  "
+          f"n_pred={out['n_pred']}/{out['n_test']}  λ={out['lm_weight']:.2f}  "
+          f"dropped_silence={out['n_dropped_silence']}")
 
-    # z-table
-    print(f"\n{'pid':<5} {'match':>7} {'z':>6} {'n2':>4} {'n3':>4} {'n4':>4}  pred/gold  λ")
-    for pid in TARGET_PIDS:
-        if pid not in ssl_bigram_results: continue
-        out = ssl_bigram_results[pid]
-        m = nw_metrics(out)
-        print(f"{pid:<5} {100*m['match_rate']:6.1f}% {m['z_match']:+5.2f} "
-              f"{m['n2']:>4} {m['n3']:>4} {m['n4']:>4}  "
-              f"{out['n_pred']:>3}/{out['n_test']:>3}  {out['lm_weight']:.2f}")
+# z-table
+print(f"\n{'pid':<5} {'match':>7} {'z':>6} {'n2':>4} {'n3':>4} {'n4':>4}  pred/gold  λ")
+for pid in TARGET_PIDS:
+    if pid not in ssl_bigram_results: continue
+    out = ssl_bigram_results[pid]
+    m = nw_metrics(out)
+    print(f"{pid:<5} {100*m['match_rate']:6.1f}% {m['z_match']:+5.2f} "
+          f"{m['n2']:>4} {m['n3']:>4} {m['n4']:>4}  "
+          f"{out['n_pred']:>3}/{out['n_test']:>3}  {out['lm_weight']:.2f}")
 
 # 9. Phoneme manner (minimal stub — extend or replace as needed)
 # ============================================================
@@ -1345,75 +1336,70 @@ def show_predictions_html(out, label='model', max_sentences=10):
                                     label_a=label,
                                     max_sentences=max_sentences)
 
-# NOTE: notebook-only orchestration / visualization block — wrapped in
-# `if False:` so importing this module doesn't try to run it.  Copy the
-# body into a notebook cell to actually invoke `run_for_patient` across the
-# cohort and produce the inline HTML viz.
-if False:
-    results = {}
-    for pid in TARGET_PIDS:
-        t0 = time.time()
-        out, err = run_for_patient(pid)
-        if out is None:
-            print(f"  {pid}: SKIP — {err}", flush=True)
-            continue
-        m = nw_metrics(out, manner_fn=manner_of)
-        results[pid] = (out, m)
-        print(f"  {pid}: PER={100*out['per']:5.1f}%  match={100*m['match_rate']:5.1f}%  "
-              f"z={m['z_match']:+5.2f}  bonus={out['bonus']:.2f}  "
-              f"({time.time()-t0:.0f}s)", flush=True)
-
-    print(f"\n{'pid':<5} {'PER':>7} {'match':>7} {'z':>6} {'n_gold':>7}")
-    for pid, (out, m) in results.items():
-        print(f"{pid:<5} {100*out['per']:>6.1f}% {100*m['match_rate']:>6.1f}% "
-              f"{m['z_match']:>+6.2f} {m['n_gold']:>7}")
-
-    out, err = run_for_patient('P23')
-    display(HTML(f"<h3>P22 — LDA (PER={100*out['per']:.1f}%)</h3>"))
-    display(HTML(show_predictions_html(out, label='LDA', max_sentences=10)))
-
-    # import the original function (already used by other notebooks)
-    from e2e_brain_decoder import show_matched_sequences_with_times
-
-    # make sure the pipeline has somewhere to stash results
-    if not hasattr(pipeline, 'patient_results'):
-        pipeline.patient_results = {}
-
-    # run one patient and cache the result on the pipeline
-    out, err = run_for_patient('P27')
+results = {}
+for pid in TARGET_PIDS:
+    t0 = time.time()
+    out, err = run_for_patient(pid)
     if out is None:
-        print(f"P23 skipped: {err}")
-    else:
-        pipeline.patient_results['P27'] = out
-        show_matched_sequences_with_times(pipeline, 'P27',
-                                          max_per_line=40,
-                                          collapse_repeats=False)
+        print(f"  {pid}: SKIP — {err}", flush=True)
+        continue
+    m = nw_metrics(out, manner_fn=manner_of)
+    results[pid] = (out, m)
+    print(f"  {pid}: PER={100*out['per']:5.1f}%  match={100*m['match_rate']:5.1f}%  "
+          f"z={m['z_match']:+5.2f}  bonus={out['bonus']:.2f}  "
+          f"({time.time()-t0:.0f}s)", flush=True)
 
-    for pid in TARGET_PIDS:
-        if pid not in pipeline.patient_results: continue
-        m = nw_metrics(pipeline.patient_results[pid])
-        print(f"{pid}: match={100*m['match_rate']:5.1f}%  z={m['z_match']:+5.2f}  "
-              f"n2={m['n2']:>3} n3={m['n3']:>3} n4={m['n4']:>3}  "
-              f"pred/gold={pipeline.patient_results[pid]['n_pred']}/"
-              f"{pipeline.patient_results[pid]['n_test']}")
+print(f"\n{'pid':<5} {'PER':>7} {'match':>7} {'z':>6} {'n_gold':>7}")
+for pid, (out, m) in results.items():
+    print(f"{pid:<5} {100*out['per']:>6.1f}% {100*m['match_rate']:>6.1f}% "
+          f"{m['z_match']:>+6.2f} {m['n_gold']:>7}")
 
-    from e2e_brain_decoder import show_matched_sequences_with_times
+out, err = run_for_patient('P23')
+display(HTML(f"<h3>P22 — LDA (PER={100*out['per']:.1f}%)</h3>"))
+display(HTML(show_predictions_html(out, label='LDA', max_sentences=10)))
 
-    if not hasattr(pipeline, 'patient_results'):
-        pipeline.patient_results = {}
+# import the original function (already used by other notebooks)
+from e2e_brain_decoder import show_matched_sequences_with_times
 
-    for pid in TARGET_PIDS:
-        out, err = run_for_patient(pid)
-        if out is None:
-            print(f"  {pid}: SKIP — {err}")
-            continue
-        pipeline.patient_results[pid] = out
-        print(f"  {pid}: PER={100*out['per']:.1f}%  bonus={out['bonus']:.2f}")
+# make sure the pipeline has somewhere to stash results
+if not hasattr(pipeline, 'patient_results'):
+    pipeline.patient_results = {}
 
-    # Now any pid can be visualized
-    show_matched_sequences_with_times(pipeline, 'P23',
+# run one patient and cache the result on the pipeline
+out, err = run_for_patient('P27')
+if out is None:
+    print(f"P23 skipped: {err}")
+else:
+    pipeline.patient_results['P27'] = out
+    show_matched_sequences_with_times(pipeline, 'P27',
                                       max_per_line=40,
                                       collapse_repeats=False)
-    show_matched_sequences_with_times(pipeline, 'P22',
-                                      max_per_line=40,
-                                      collapse_repeats=True)   # cleaner view
+
+for pid in TARGET_PIDS:
+    if pid not in pipeline.patient_results: continue
+    m = nw_metrics(pipeline.patient_results[pid])
+    print(f"{pid}: match={100*m['match_rate']:5.1f}%  z={m['z_match']:+5.2f}  "
+          f"n2={m['n2']:>3} n3={m['n3']:>3} n4={m['n4']:>3}  "
+          f"pred/gold={pipeline.patient_results[pid]['n_pred']}/"
+          f"{pipeline.patient_results[pid]['n_test']}")
+
+from e2e_brain_decoder import show_matched_sequences_with_times
+
+if not hasattr(pipeline, 'patient_results'):
+    pipeline.patient_results = {}
+
+for pid in TARGET_PIDS:
+    out, err = run_for_patient(pid)
+    if out is None:
+        print(f"  {pid}: SKIP — {err}")
+        continue
+    pipeline.patient_results[pid] = out
+    print(f"  {pid}: PER={100*out['per']:.1f}%  bonus={out['bonus']:.2f}")
+
+# Now any pid can be visualized
+show_matched_sequences_with_times(pipeline, 'P23',
+                                  max_per_line=40,
+                                  collapse_repeats=False)
+show_matched_sequences_with_times(pipeline, 'P22',
+                                  max_per_line=40,
+                                  collapse_repeats=True)   # cleaner view

@@ -140,16 +140,16 @@ def build_speech_only_labels(mfa_phones, n_frames):
 # ═════════════════════════════════════════════════════════════════════════════
 # STEP 4 — Linear-chain CRF
 # ═════════════════════════════════════════════════════════════════════════════
-# A CRF on top of per-frame logits enforces sequence-level structure. Two
-# pieces matter here:
-#
-# (a) Structural mask: I-X may *only* follow B-X or I-X (of the same X).
-#     This bakes the BIO grammar in as hard constraints. Without it the
-#     model is free to emit nonsense like "B-a I-t" (start /a/, continue
-#     /t/) and learns slowly.
-#
-# (b) Bigram-initialized transition matrix: B-X → B-Y entries seeded from
-#     phoneme-pair frequencies. Gives the optimizer a head start.
+    # A CRF on top of per-frame logits enforces sequence-level structure. Two
+    # pieces matter here:
+    #
+    # (a) Structural mask: I-X may *only* follow B-X or I-X (of the same X).
+    #     This bakes the BIO grammar in as hard constraints. Without it the
+    #     model is free to emit nonsense like "B-a I-t" (start /a/, continue
+    #     /t/) and learns slowly.
+    #
+    # (b) Bigram-initialized transition matrix: B-X → B-Y entries seeded from
+    #     phoneme-pair frequencies. Gives the optimizer a head start.
 
 class LinearChainCRF(nn.Module):
     def __init__(self, n_tags, transition_mask, transition_init):

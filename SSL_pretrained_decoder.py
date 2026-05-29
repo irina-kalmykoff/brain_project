@@ -84,8 +84,8 @@ except NameError:
     pipeline.step3_load_channel_exclusions('channel_exclusions.json')
     pipeline.apply_channel_exclusions()
 
-# %% Cell 2 — build per-patient sentence dataset with extractHG
-# ============================================================
+# # %% Cell 2 — build per-patient sentence dataset with extractHG
+# # ============================================================
 def _channel_mask(pid):
     """Return the keep_indices array (or None) for this patient."""
     cm = getattr(pipeline, 'channel_masks', {}).get(pid, None)
@@ -142,10 +142,10 @@ def build_sentence_dataset(pid):
     return out
 
 
-datasets = {}
-for pid in TARGET_PIDS:
-    print(f"\nBuilding {pid}...")
-    datasets[pid] = build_sentence_dataset(pid)
+# datasets = {}
+# for pid in TARGET_PIDS:
+#     print(f"\nBuilding {pid}...")
+#     datasets[pid] = build_sentence_dataset(pid)
 
 # %% Cell 3 — causal TCN encoder + masked-frame head
 # ============================================================
@@ -281,95 +281,14 @@ def ssl_pretrain_one(pid, ds, epochs=SSL_EPOCHS, seed=0):
                   f"  lr={opt.param_groups[0]['lr']:.2e}"
                   f"  ({time.time()-t0:.1f}s)")
     return enc, mu, sd
-
-
-encoders, mus, sds = {}, {}, {}
-for pid in TARGET_PIDS:
-    enc, mu, sd = ssl_pretrain_one(pid, datasets[pid])
-    encoders[pid] = enc; mus[pid] = mu; sds[pid] = sd
-    torch.save({'enc': enc.state_dict(), 'mu': mu, 'sd': sd,
-                'n_in': enc.proj_in.in_channels},
-               os.path.join(MODEL_DIR, f'{pid}_ssl_encoder.pt'))
-    print(f"  [{pid}] saved encoder")
-
-
-# # %% Cell 4b — mask-fraction sweep
-# # ============================================================
-# # Vary SSL_MASK_FRAC and (optionally) SSL_MASK_SPAN.
-# # Trains a fresh encoder per (pid, frac, span), reuses Cell 7/8 inference.
-# # Restores the original encoder afterwards so downstream cells still work.
-
-# from copy import deepcopy
-
-# SWEEP_PIDS  = ['P22', 'P30']
-# SWEEP_FRACS = [0.10, 0.15, 0.25, 0.40, 0.60]
-# SWEEP_SPANS = [10]                  # add 5, 20 if you also want to vary span
-# SWEEP_EPOCHS = 50                   # shorter than full SSL to save time
-
-# # stash the current encoders so the sweep doesn't clobber them
-# _saved_enc = {pid: encoders[pid] for pid in SWEEP_PIDS}
-# _saved_mu  = {pid: mus[pid]      for pid in SWEEP_PIDS}
-# _saved_sd  = {pid: sds[pid]      for pid in SWEEP_PIDS}
-# _saved_emb = {pid: embeddings[pid] for pid in SWEEP_PIDS}
-
-# # patch the global mask constants used by ssl_pretrain_one via make_span_mask
-# _orig_frac, _orig_span = SSL_MASK_FRAC, SSL_MASK_SPAN
-
-# def ssl_pretrain_with_mask(pid, ds_clean, frac, span, epochs):
-#     """Train a fresh encoder with a specific mask config.  Returns enc, mu, sd
-#     Re-standardises a copy of the dataset to avoid contaminating ds in place."""
-#     global SSL_MASK_FRAC, SSL_MASK_SPAN
-#     SSL_MASK_FRAC, SSL_MASK_SPAN = frac, span
-#     ds = {'train': deepcopy(ds_clean['train']),
-#           'test':  deepcopy(ds_clean['test'])}
-#     # need un-standardised X for ssl_pretrain_one's fit_mu_sd to work cleanly
-#     # (it standardises in place); easiest: reload raw HG for these two pids
-#     fresh = build_sentence_dataset(pid)
-#     return ssl_pretrain_one(pid, fresh, epochs=epochs)
-
-# sweep_results = {}
-# for pid in SWEEP_PIDS:
-#     for span in SWEEP_SPANS:
-#         for frac in SWEEP_FRACS:
-#             tag = f"{pid}_f{int(frac*100):02d}_s{span:02d}"
-#             print(f"\n=== {tag}: training (frac={frac}, span={span}) ===")
-#             enc, mu, sd = ssl_pretrain_with_mask(pid, datasets[pid],
-#                                                   frac, span, SWEEP_EPOCHS)
-#             encoders[pid] = enc; mus[pid] = mu; sds[pid] = sd
-#             # re-standardise + re-extract embeddings for this pid
-#             ds = build_sentence_dataset(pid)
-#             standardize_inplace(ds['train'], mu, sd)
-#             standardize_inplace(ds['test'],  mu, sd)
-#             datasets[pid] = ds
-#             emb_tr = extract_embeddings(pid, ds['train'])
-#             emb_te = extract_embeddings(pid, ds['test'])
-#             embeddings[pid] = {**emb_tr, **emb_te}
-#             # downstream LDA + scalar-bonus Viterbi
-#             out, err = run_for_patient_ssl(pid)
-#             if err:
-#                 print(f"   SKIP — {err}"); continue
-#             m = nw_metrics(out)
-#             sweep_results[tag] = {
-#                 'pid': pid, 'frac': frac, 'span': span,
-#                 'match': m['match_rate'], 'z': m['z_match'],
-#                 'n2': m['n2'], 'n3': m['n3'], 'n4': m['n4'],
-#                 'n_pred': out['n_pred'], 'n_test': out['n_test'],
-#             }
-#             print(f"   match={100*m['match_rate']:5.1f}%  z={m['z_match']:+5.2f}  "
-#                   f"n2={m['n2']} n3={m['n3']} n4={m['n4']}")
-
-# # restore
-# SSL_MASK_FRAC, SSL_MASK_SPAN = _orig_frac, _orig_span
-# for pid in SWEEP_PIDS:
-#     encoders[pid] = _saved_enc[pid]
-#     mus[pid] = _saved_mu[pid]; sds[pid] = _saved_sd[pid]
-#     embeddings[pid] = _saved_emb[pid]
-
-# # summary
-# print(f"\n{'tag':<18} {'frac':>5} {'span':>5} {'match':>7} {'z':>6} {'n3':>3} {'n4':>3}")
-# for tag, r in sweep_results.items():
-#     print(f"{tag:<18} {r['frac']:>5.2f} {r['span']:>5d} "
-#           f"{100*r['match']:6.1f}% {r['z']:+5.2f} {r['n3']:>3} {r['n4']:>3}")
+# encoders, mus, sds = {}, {}, {}
+# for pid in TARGET_PIDS:
+#     enc, mu, sd = ssl_pretrain_one(pid, datasets[pid])
+#     encoders[pid] = enc; mus[pid] = mu; sds[pid] = sd
+#     torch.save({'enc': enc.state_dict(), 'mu': mu, 'sd': sd,
+#                 'n_in': enc.proj_in.in_channels},
+#                os.path.join(MODEL_DIR, f'{pid}_ssl_encoder.pt'))
+#     print(f"  [{pid}] saved encoder")
 
 # %% Cell 5 — auxiliary labels: silence/speech, word-onset, syllable-onset
 # ============================================================
@@ -461,92 +380,156 @@ def build_aux_labels_for_sent(sent):
     }
 
 
-# 6. Feature extraction: extract_features_multiband
+# %% Cell — multiband feature extractor + dataset builder
 # ============================================================
-def extract_features_multiband(eeg_slice, sr=EEG_SR, win_s=WIN_S, shift_s=SHIFT_S,
-                               hg_amp=False, lg_amp=False,
-                               theta_phase=False,
-                               theta_hg_pac=False, lg_theta_pac=False,
-                               hg_x_lg=False,
-                               hg_lp_hz=12.0, lg_lp_hz=10.0,
-                               phase_lp_hz=20.0,
-                               pac_lp_hz=10.0, lg_pac_lp_hz=10.0,
-                               causal=False):
-    """Cross-band feature extractor.
+import scipy.signal as sps
 
-    Amplitude features (one block of n_channels each):
-        hg_amp           — HG envelope (70–170 Hz)
-        lg_amp           — LG envelope (30–70 Hz)
-        hg_x_lg          — HG_env × LG_env (cross-band co-activation)
+def _extract_band_amp(data, sr, low, high, lp_hz=10.0, win_s=0.015, shift_s=0.005):
+    """extractHG recipe for one band — power + LP + sqrt at 200 Hz."""
+    x = sps.detrend(data, axis=0)
+    sos = sps.iirfilter(4, [low/(sr/2), high/(sr/2)], btype='bandpass',
+                        output='sos')
+    x = sps.sosfiltfilt(sos, x, axis=0)
+    if high > 95:        # notch only when band touches line-noise harmonics
+        for f0 in (100, 150):
+            sos_n = sps.iirfilter(4, [(f0-2)/(sr/2), (f0+2)/(sr/2)],
+                                  btype='bandstop', output='sos')
+            x = sps.sosfiltfilt(sos_n, x, axis=0)
+    x = x ** 2
+    sos_lp = sps.iirfilter(4, lp_hz/(sr/2), btype='lowpass', output='sos')
+    x = np.abs(sps.sosfiltfilt(sos_lp, x, axis=0))
+    win = int(win_s * sr); hop = int(shift_s * sr)
+    n_win = int(np.floor((x.shape[0] - win) / hop))
+    feat = np.zeros((n_win, x.shape[1]))
+    for i in range(n_win):
+        feat[i] = x[i*hop : i*hop + win].mean(axis=0)
+    return np.sqrt(feat).astype(np.float32)
 
-    Phase / coupling features (two blocks each, cos + sin):
-        theta_phase      — cos/sin of theta phase (4–8 Hz)
-        theta_hg_pac     — HG_env × cos(θ),  HG_env × sin(θ)
-        lg_theta_pac     — LG_env × cos(θ),  LG_env × sin(θ)
-    """
-    filter_fn = sosfilt if causal else sosfiltfilt
 
-    x = scipy.signal.detrend(eeg_slice, axis=0)
-    for f0 in [100, 150]:
-        sos = iirfilter(4, [(f0 - 2) / (sr / 2), (f0 + 2) / (sr / 2)],
-                        btype='bandstop', output='sos')
-        x = filter_fn(sos, x, axis=0)
+def extract_multiband(data, sr, bands, lp_hz=10.0):
+    """bands: list of (low_hz, high_hz). Returns (T, n_channels * n_bands)."""
+    feats = [_extract_band_amp(data, sr, lo, hi, lp_hz=lp_hz)
+             for (lo, hi) in bands]
+    n_min = min(f.shape[0] for f in feats)
+    return np.concatenate([f[:n_min] for f in feats], axis=1).astype(np.float32)
 
-    hg_env = lg_env = theta_ph = None
-    need_hg    = hg_amp or theta_hg_pac or hg_x_lg
-    need_lg    = lg_amp or lg_theta_pac or hg_x_lg
-    need_theta = theta_phase or theta_hg_pac or lg_theta_pac
 
-    if need_hg:
-        sos_hg = butter(4, [70, 170], btype='bandpass', fs=sr, output='sos')
-        x_hg   = filter_fn(sos_hg, x, axis=0)
-        lp     = butter(4, hg_lp_hz, btype='lowpass', fs=sr, output='sos')
-        hg_env = np.sqrt(np.abs(filter_fn(lp, x_hg ** 2, axis=0)))
-    if need_lg:
-        sos_lg = butter(4, [30, 70], btype='bandpass', fs=sr, output='sos')
-        x_lg   = filter_fn(sos_lg, x, axis=0)
-        lp     = butter(4, lg_lp_hz, btype='lowpass', fs=sr, output='sos')
-        lg_env = np.sqrt(np.abs(filter_fn(lp, x_lg ** 2, axis=0)))
-    if need_theta:
-        # hilbert is FFT-based — inherently non-causal.
-        if causal:
-            raise NotImplementedError("Causal mode doesn't support theta_phase/PAC.")
-        sos_th = butter(4, [4, 8], btype='bandpass', fs=sr, output='sos')
-        x_th   = sosfiltfilt(sos_th, x, axis=0)
-        theta_ph = np.angle(hilbert(x_th, axis=0))
+def build_sentence_dataset_multi(pid, bands):
+    """Same shape as build_sentence_dataset but takes a list of bands."""
+    raw_eeg = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
+    if raw_eeg.ndim == 2 and raw_eeg.shape[0] < raw_eeg.shape[1]:
+        raw_eeg = raw_eeg.T
+    keep = _channel_mask(pid)
+    if keep is not None: raw_eeg = raw_eeg[:, keep]
 
-    win_n, shift_n = int(sr * win_s), int(sr * shift_s)
-    n_w = int(np.floor((eeg_slice.shape[0] - win_n) / shift_n))
+    wd  = pipeline.split_result['word_segments_dict'][pid]
+    mfa = load_mfa_alignments(pid)
+    all_real = [i for i, s in enumerate(wd['sentence_list'])
+                if isinstance(s, dict) and s.get('text')]
+    test_sent_ids = set(all_real[TEST_OFFSET::6])
 
-    def wm(arr):
-        out = np.zeros((n_w, arr.shape[1]))
-        for w in range(n_w):
-            s = w * shift_n
-            out[w] = arr[s:s + win_n].mean(axis=0)
-        return out
+    out = {'train': [], 'test': []}
+    for sent_idx in all_real:
+        if sent_idx not in mfa or not mfa[sent_idx]: continue
+        s = wd['sentence_list'][sent_idx]
+        s0, s1 = s['stim_start_idx'], s['stim_end_idx']
+        if s1 > raw_eeg.shape[0]: continue
+        X = extract_multiband(raw_eeg[s0:s1], EEG_SR, bands)
+        if X.shape[0] < 30: continue
+        split = 'test' if sent_idx in test_sent_ids else 'train'
+        out[split].append({'X': torch.from_numpy(X),
+                           'mfa': mfa[sent_idx],
+                           'sent_idx': sent_idx})
+    print(f"  [{pid}] bands={bands}  n_in={out['train'][0]['X'].shape[1] if out['train'] else 0}  "
+          f"train={len(out['train'])}  test={len(out['test'])}")
+    return out
 
-    def lp_smooth(arr, hz):
-        sos = butter(4, hz, btype='lowpass', fs=sr, output='sos')
-        return filter_fn(sos, arr, axis=0)
+# # 6. Feature extraction: extract_features_multiband
+# # ============================================================
+# def extract_features_multiband(eeg_slice, sr=EEG_SR, win_s=WIN_S, shift_s=SHIFT_S,
+#                                hg_amp=False, lg_amp=False,
+#                                theta_phase=False,
+#                                theta_hg_pac=False, lg_theta_pac=False,
+#                                hg_x_lg=False,
+#                                hg_lp_hz=12.0, lg_lp_hz=10.0,
+#                                phase_lp_hz=20.0,
+#                                pac_lp_hz=10.0, lg_pac_lp_hz=10.0,
+#                                causal=False):
+#     """Cross-band feature extractor.
 
-    blocks = []
-    if hg_amp:  blocks.append(wm(hg_env))
-    if lg_amp:  blocks.append(wm(lg_env))
-    if hg_x_lg: blocks.append(wm(hg_env * lg_env))
-    if theta_phase:
-        cos_p = lp_smooth(np.cos(theta_ph), phase_lp_hz)
-        sin_p = lp_smooth(np.sin(theta_ph), phase_lp_hz)
-        blocks.append(wm(cos_p)); blocks.append(wm(sin_p))
-    if theta_hg_pac:
-        pac_c = lp_smooth(hg_env * np.cos(theta_ph), pac_lp_hz)
-        pac_s = lp_smooth(hg_env * np.sin(theta_ph), pac_lp_hz)
-        blocks.append(wm(pac_c)); blocks.append(wm(pac_s))
-    if lg_theta_pac:
-        lpac_c = lp_smooth(lg_env * np.cos(theta_ph), lg_pac_lp_hz)
-        lpac_s = lp_smooth(lg_env * np.sin(theta_ph), lg_pac_lp_hz)
-        blocks.append(wm(lpac_c)); blocks.append(wm(lpac_s))
+#     Amplitude features (one block of n_channels each):
+#         hg_amp           — HG envelope (70–170 Hz)
+#         lg_amp           — LG envelope (30–70 Hz)
+#         hg_x_lg          — HG_env × LG_env (cross-band co-activation)
 
-    return np.concatenate(blocks, axis=1).astype(np.float32)
+#     Phase / coupling features (two blocks each, cos + sin):
+#         theta_phase      — cos/sin of theta phase (4–8 Hz)
+#         theta_hg_pac     — HG_env × cos(θ),  HG_env × sin(θ)
+#         lg_theta_pac     — LG_env × cos(θ),  LG_env × sin(θ)
+#     """
+#     filter_fn = sosfilt if causal else sosfiltfilt
+
+#     x = scipy.signal.detrend(eeg_slice, axis=0)
+#     for f0 in [100, 150]:
+#         sos = iirfilter(4, [(f0 - 2) / (sr / 2), (f0 + 2) / (sr / 2)],
+#                         btype='bandstop', output='sos')
+#         x = filter_fn(sos, x, axis=0)
+
+#     hg_env = lg_env = theta_ph = None
+#     need_hg    = hg_amp or theta_hg_pac or hg_x_lg
+#     need_lg    = lg_amp or lg_theta_pac or hg_x_lg
+#     need_theta = theta_phase or theta_hg_pac or lg_theta_pac
+
+#     if need_hg:
+#         sos_hg = butter(4, [70, 170], btype='bandpass', fs=sr, output='sos')
+#         x_hg   = filter_fn(sos_hg, x, axis=0)
+#         lp     = butter(4, hg_lp_hz, btype='lowpass', fs=sr, output='sos')
+#         hg_env = np.sqrt(np.abs(filter_fn(lp, x_hg ** 2, axis=0)))
+#     if need_lg:
+#         sos_lg = butter(4, [30, 70], btype='bandpass', fs=sr, output='sos')
+#         x_lg   = filter_fn(sos_lg, x, axis=0)
+#         lp     = butter(4, lg_lp_hz, btype='lowpass', fs=sr, output='sos')
+#         lg_env = np.sqrt(np.abs(filter_fn(lp, x_lg ** 2, axis=0)))
+#     if need_theta:
+#         # hilbert is FFT-based — inherently non-causal.
+#         if causal:
+#             raise NotImplementedError("Causal mode doesn't support theta_phase/PAC.")
+#         sos_th = butter(4, [4, 8], btype='bandpass', fs=sr, output='sos')
+#         x_th   = sosfiltfilt(sos_th, x, axis=0)
+#         theta_ph = np.angle(hilbert(x_th, axis=0))
+
+#     win_n, shift_n = int(sr * win_s), int(sr * shift_s)
+#     n_w = int(np.floor((eeg_slice.shape[0] - win_n) / shift_n))
+
+#     def wm(arr):
+#         out = np.zeros((n_w, arr.shape[1]))
+#         for w in range(n_w):
+#             s = w * shift_n
+#             out[w] = arr[s:s + win_n].mean(axis=0)
+#         return out
+
+#     def lp_smooth(arr, hz):
+#         sos = butter(4, hz, btype='lowpass', fs=sr, output='sos')
+#         return filter_fn(sos, arr, axis=0)
+
+#     blocks = []
+#     if hg_amp:  blocks.append(wm(hg_env))
+#     if lg_amp:  blocks.append(wm(lg_env))
+#     if hg_x_lg: blocks.append(wm(hg_env * lg_env))
+#     if theta_phase:
+#         cos_p = lp_smooth(np.cos(theta_ph), phase_lp_hz)
+#         sin_p = lp_smooth(np.sin(theta_ph), phase_lp_hz)
+#         blocks.append(wm(cos_p)); blocks.append(wm(sin_p))
+#     if theta_hg_pac:
+#         pac_c = lp_smooth(hg_env * np.cos(theta_ph), pac_lp_hz)
+#         pac_s = lp_smooth(hg_env * np.sin(theta_ph), pac_lp_hz)
+#         blocks.append(wm(pac_c)); blocks.append(wm(pac_s))
+#     if lg_theta_pac:
+#         lpac_c = lp_smooth(lg_env * np.cos(theta_ph), lg_pac_lp_hz)
+#         lpac_s = lp_smooth(lg_env * np.sin(theta_ph), lg_pac_lp_hz)
+#         blocks.append(wm(lpac_c)); blocks.append(wm(lpac_s))
+
+#     return np.concatenate(blocks, axis=1).astype(np.float32)
 
 # %% Cell 6 — multi-task aux finetune (speech + word-onset + syllable-onset)
 # ============================================================
@@ -623,8 +606,8 @@ for pid in TARGET_PIDS:
                 'mu': mus[pid], 'sd': sds[pid]},
                os.path.join(MODEL_DIR, f'{pid}_ssl_encoder_aux.pt'))
 
-# %% Cell 7 — frozen encoder -> 128-d per-sentence embeddings
-# ============================================================
+# # %% Cell 7 — frozen encoder -> 128-d per-sentence embeddings
+# # ============================================================
 @torch.no_grad()
 def extract_embeddings(pid, sents):
     """Return {sent_idx: (T, HIDDEN_DIM) float32 ndarray} for each sentence."""
@@ -646,7 +629,6 @@ for pid in TARGET_PIDS:
     embeddings[pid] = {**emb_tr, **emb_te}
     print(f"  [{pid}] embeddings: train={len(emb_tr)} test={len(emb_te)}  "
           f"shape e.g. {next(iter(emb_tr.values())).shape}")
-
 
 # %% Cell — re-evaluate with SSL-only encoders (no aux finetune)
 # ============================================================
@@ -706,47 +688,6 @@ for pid in TARGET_PIDS:
     print(f"{pid:<5} {100*m['match_rate']:6.1f}% {m['z_match']:+5.2f} "
           f"{m['n2']:>4} {m['n3']:>4} {m['n4']:>4}  "
           f"{out['n_pred']:>3}/{out['n_test']:>3}")
-
-# %% Cell — P22 seed-1 sanity check
-# ============================================================
-import random
-SEED = 1
-PID  = 'P22'
-
-torch.manual_seed(SEED)
-np.random.seed(SEED)
-random.seed(SEED)
-if DEVICE.type == 'cuda':
-    torch.cuda.manual_seed_all(SEED)
-
-# fresh dataset (un-standardised) so ssl_pretrain_one can fit mu/sd from scratch
-ds = build_sentence_dataset(PID)
-
-# train
-enc, mu, sd = ssl_pretrain_one(PID, ds, epochs=SSL_EPOCHS, seed=SEED)
-
-# save separately
-torch.save({'enc': enc.state_dict(), 'mu': mu, 'sd': sd,
-            'n_in': enc.proj_in.in_channels},
-           os.path.join(MODEL_DIR, f'{PID}_ssl_encoder_seed{SEED}.pt'))
-
-# swap in for inference
-encoders[PID] = enc; mus[PID] = mu; sds[PID] = sd
-datasets[PID] = ds   # already standardised in place by ssl_pretrain_one
-emb_tr = extract_embeddings(PID, ds['train'])
-emb_te = extract_embeddings(PID, ds['test'])
-embeddings[PID] = {**emb_tr, **emb_te}
-
-# run + report
-out, err = run_for_patient_ssl(PID)
-if err:
-    print(f"  {PID}: SKIP — {err}")
-else:
-    m = nw_metrics(out)
-    print(f"\n  {PID} seed={SEED}: match={100*m['match_rate']:5.1f}%  "
-          f"z={m['z_match']:+5.2f}  n2={m['n2']} n3={m['n3']} n4={m['n4']}  "
-          f"pred/gold={out['n_pred']}/{out['n_test']}  bonus={out['bonus']:.2f}")
-    print(f"  for reference, seed=0: match=26.0%  z=+0.75  n2=18 n3=3 n4=0")
 
 # %% Cell 8 — LDA + Viterbi on SSL embeddings (mirrors LDA_on_frames_clean)
 #scalar self-loop bonus
@@ -893,19 +834,18 @@ def run_for_patient_ssl(pid, use_speech_gate=USE_SPEECH_GATE,
 
 
 # run on all patients and stash into pipeline.patient_results
-if not hasattr(pipeline, 'patient_results'):
-    pipeline.patient_results = {}
-ssl_results = {}
-for pid in TARGET_PIDS:
-    out, err = run_for_patient_ssl(pid)
-    if err is not None:
-        print(f"  {pid}: SKIP — {err}"); continue
-    pipeline.patient_results[pid] = out
-    ssl_results[pid] = out
-    print(f"  {pid}: PER={100*out['per']:5.1f}%  "
-          f"n_pred={out['n_pred']}/{out['n_test']}  bonus={out['bonus']:.2f}  "
-          f"dropped_silence={out['n_dropped_silence']}")
-
+# if not hasattr(pipeline, 'patient_results'):
+#     pipeline.patient_results = {}
+# ssl_results = {}
+# for pid in TARGET_PIDS:
+#     out, err = run_for_patient_ssl(pid)
+#     if err is not None:
+#         print(f"  {pid}: SKIP — {err}"); continue
+#     pipeline.patient_results[pid] = out
+#     ssl_results[pid] = out
+#     print(f"  {pid}: PER={100*out['per']:5.1f}%  "
+#           f"n_pred={out['n_pred']}/{out['n_test']}  bonus={out['bonus']:.2f}  "
+#           f"dropped_silence={out['n_dropped_silence']}")
 
 # # %% Cell 8.5b — frame-level bigram replacement (paste after Cell 8.5)
 # # ============================================================
@@ -1083,21 +1023,21 @@ for pid in TARGET_PIDS:
 #           f"{m['n2']:>4} {m['n3']:>4} {m['n4']:>4}  "
 #           f"{out['n_pred']:>3}/{out['n_test']:>3}  {out['lm_weight']:.2f}")
 
-import scipy
-from scipy.signal import sosfiltfilt, iirfilter, butter
-DEFAULT_FEATURE_SPEC = {'hg_amp': True, 'hg_lp_hz': 10.0}
+# import scipy
+# from scipy.signal import sosfiltfilt, iirfilter, butter
+# DEFAULT_FEATURE_SPEC = {'hg_amp': True, 'hg_lp_hz': 10.0}
 
-baseline_results = {}
-for pid in TARGET_PIDS:
-    out, err = run_for_patient_sd(pid,
-                                  feature_spec=DEFAULT_FEATURE_SPEC,
-                                  use_speech_gate=False)
-    if err: print(f"  {pid}: SKIP — {err}"); continue
-    baseline_results[pid] = out
-    m = nw_metrics(out)
-    print(f"{pid}: match={100*m['match_rate']:5.1f}%  z={m['z_match']:+5.2f}  "
-          f"n2={m['n2']:>3} n3={m['n3']:>3} n4={m['n4']:>3}  "
-          f"pred/gold={out['n_pred']}/{out['n_test']}")
+# baseline_results = {}
+# for pid in TARGET_PIDS:
+#     out, err = run_for_patient_sd(pid,
+#                                   feature_spec=DEFAULT_FEATURE_SPEC,
+#                                   use_speech_gate=False)
+#     if err: print(f"  {pid}: SKIP — {err}"); continue
+#     baseline_results[pid] = out
+#     m = nw_metrics(out)
+#     print(f"{pid}: match={100*m['match_rate']:5.1f}%  z={m['z_match']:+5.2f}  "
+#           f"n2={m['n2']:>3} n3={m['n3']:>3} n4={m['n4']:>3}  "
+#           f"pred/gold={out['n_pred']}/{out['n_test']}")
 
 # helper functions for Needleman Wunsch viz
 # ============================================================
@@ -2398,135 +2338,135 @@ for spec in BETA_SPECS:
           f"{sum(r['d']['uniq_n3'] for r in rows):>9}  "
           f"{[r['pid'] for r in rows if r['m']['n4'] > 0]}")
 
-# %% Cell — phase-band sweep on top of v1
-# ============================================================
-import scipy.signal as sps
-import random
+# # %% Cell — phase-band sweep on top of v1
+# # ============================================================
+# import scipy.signal as sps
+# import random
 
-def _extract_phase_pair(data, sr, low, high, win_s=0.015, shift_s=0.005):
-    """Per-electrode Hilbert phase as [sin(φ), cos(φ)] channels, sampled
-    at frame grid centres.  Returns (T, n_ch * 2)."""
-    x = sps.detrend(data, axis=0)
-    sos = sps.iirfilter(4, [low/(sr/2), high/(sr/2)],
-                        btype='bandpass', output='sos')
-    x = sps.sosfiltfilt(sos, x, axis=0)
-    phi = np.angle(sps.hilbert(x, axis=0))                    # (samples, ch)
-    win = int(win_s * sr); hop = int(shift_s * sr)
-    n_win = int(np.floor((x.shape[0] - win) / hop))
-    sins = np.zeros((n_win, phi.shape[1]), dtype=np.float32)
-    coss = np.zeros((n_win, phi.shape[1]), dtype=np.float32)
-    for i in range(n_win):
-        c = i * hop + win // 2
-        sins[i] = np.sin(phi[c])
-        coss[i] = np.cos(phi[c])
-    return np.concatenate([sins, coss], axis=1)
-
-
-def build_sentence_dataset_with_phase(pid, amp_bands, phase_bands):
-    """amp_bands: list of (low, high) for amplitude features (extractHG recipe)
-       phase_bands: list of (low, high) for phase features (sin/cos encoded)"""
-    raw_eeg = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
-    if raw_eeg.ndim == 2 and raw_eeg.shape[0] < raw_eeg.shape[1]:
-        raw_eeg = raw_eeg.T
-    keep = _channel_mask(pid)
-    if keep is not None: raw_eeg = raw_eeg[:, keep]
-
-    wd  = pipeline.split_result['word_segments_dict'][pid]
-    mfa = load_mfa_alignments(pid)
-    all_real = [i for i, s in enumerate(wd['sentence_list'])
-                if isinstance(s, dict) and s.get('text')]
-    test_sent_ids = set(all_real[TEST_OFFSET::6])
-
-    out = {'train': [], 'test': []}
-    for sent_idx in all_real:
-        if sent_idx not in mfa or not mfa[sent_idx]: continue
-        s = wd['sentence_list'][sent_idx]
-        s0, s1 = s['stim_start_idx'], s['stim_end_idx']
-        if s1 > raw_eeg.shape[0]: continue
-        sl = raw_eeg[s0:s1]
-        amp_feats   = [_extract_band_amp(sl, EEG_SR, lo, hi)
-                       for (lo, hi) in amp_bands]
-        phase_feats = [_extract_phase_pair(sl, EEG_SR, lo, hi)
-                       for (lo, hi) in phase_bands]
-        feats = amp_feats + phase_feats
-        n_min = min(f.shape[0] for f in feats)
-        X = np.concatenate([f[:n_min] for f in feats], axis=1).astype(np.float32)
-        if X.shape[0] < 30: continue
-        split = 'test' if sent_idx in test_sent_ids else 'train'
-        out[split].append({'X': torch.from_numpy(X),
-                           'mfa': mfa[sent_idx], 'sent_idx': sent_idx})
-    print(f"  [{pid}] amp={amp_bands} phase={phase_bands}  "
-          f"n_in={out['train'][0]['X'].shape[1] if out['train'] else 0}  "
-          f"train={len(out['train'])}  test={len(out['test'])}")
-    return out
+# def _extract_phase_pair(data, sr, low, high, win_s=0.015, shift_s=0.005):
+#     """Per-electrode Hilbert phase as [sin(φ), cos(φ)] channels, sampled
+#     at frame grid centres.  Returns (T, n_ch * 2)."""
+#     x = sps.detrend(data, axis=0)
+#     sos = sps.iirfilter(4, [low/(sr/2), high/(sr/2)],
+#                         btype='bandpass', output='sos')
+#     x = sps.sosfiltfilt(sos, x, axis=0)
+#     phi = np.angle(sps.hilbert(x, axis=0))                    # (samples, ch)
+#     win = int(win_s * sr); hop = int(shift_s * sr)
+#     n_win = int(np.floor((x.shape[0] - win) / hop))
+#     sins = np.zeros((n_win, phi.shape[1]), dtype=np.float32)
+#     coss = np.zeros((n_win, phi.shape[1]), dtype=np.float32)
+#     for i in range(n_win):
+#         c = i * hop + win // 2
+#         sins[i] = np.sin(phi[c])
+#         coss[i] = np.cos(phi[c])
+#     return np.concatenate([sins, coss], axis=1)
 
 
-def train_phase_cfg(pid, amp_bands, phase_bands, epochs=180, seed=0):
-    torch.manual_seed(seed); np.random.seed(seed); random.seed(seed)
-    if DEVICE.type == 'cuda': torch.cuda.manual_seed_all(seed)
-    ds = build_sentence_dataset_with_phase(pid, amp_bands, phase_bands)
-    enc, _, _ = ssl_pretrain_one(pid, ds, epochs=epochs, seed=seed)
-    enc.eval()
-    emb = {}
-    with torch.no_grad():
-        for s in ds['train'] + ds['test']:
-            h = enc(s['X'].unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy()
-            emb[s['sent_idx']] = h.astype(np.float32)
-    global datasets, encoders, embeddings
-    datasets[pid] = ds; encoders[pid] = enc; embeddings[pid] = emb
-    return run_for_patient_ssl(pid)
+# def build_sentence_dataset_with_phase(pid, amp_bands, phase_bands):
+#     """amp_bands: list of (low, high) for amplitude features (extractHG recipe)
+#        phase_bands: list of (low, high) for phase features (sin/cos encoded)"""
+#     raw_eeg = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
+#     if raw_eeg.ndim == 2 and raw_eeg.shape[0] < raw_eeg.shape[1]:
+#         raw_eeg = raw_eeg.T
+#     keep = _channel_mask(pid)
+#     if keep is not None: raw_eeg = raw_eeg[:, keep]
+
+#     wd  = pipeline.split_result['word_segments_dict'][pid]
+#     mfa = load_mfa_alignments(pid)
+#     all_real = [i for i, s in enumerate(wd['sentence_list'])
+#                 if isinstance(s, dict) and s.get('text')]
+#     test_sent_ids = set(all_real[TEST_OFFSET::6])
+
+#     out = {'train': [], 'test': []}
+#     for sent_idx in all_real:
+#         if sent_idx not in mfa or not mfa[sent_idx]: continue
+#         s = wd['sentence_list'][sent_idx]
+#         s0, s1 = s['stim_start_idx'], s['stim_end_idx']
+#         if s1 > raw_eeg.shape[0]: continue
+#         sl = raw_eeg[s0:s1]
+#         amp_feats   = [_extract_band_amp(sl, EEG_SR, lo, hi)
+#                        for (lo, hi) in amp_bands]
+#         phase_feats = [_extract_phase_pair(sl, EEG_SR, lo, hi)
+#                        for (lo, hi) in phase_bands]
+#         feats = amp_feats + phase_feats
+#         n_min = min(f.shape[0] for f in feats)
+#         X = np.concatenate([f[:n_min] for f in feats], axis=1).astype(np.float32)
+#         if X.shape[0] < 30: continue
+#         split = 'test' if sent_idx in test_sent_ids else 'train'
+#         out[split].append({'X': torch.from_numpy(X),
+#                            'mfa': mfa[sent_idx], 'sent_idx': sent_idx})
+#     print(f"  [{pid}] amp={amp_bands} phase={phase_bands}  "
+#           f"n_in={out['train'][0]['X'].shape[1] if out['train'] else 0}  "
+#           f"train={len(out['train'])}  test={len(out['test'])}")
+#     return out
 
 
-# ── sweep configs ───────────────────────────────────────────────────
-PHASE_SPECS = {
-    'v1_HG+low_beta_amp':              ([(70,170), (13,20)], [],          120),  # control
-    'v1 + low_beta_phase':             ([(70,170), (13,20)], [(13,20)],   180),
-    'v1 + theta_phase':                ([(70,170), (13,20)], [(4,8)],     180),
-}
-SWEEP_PIDS   = ['P22', 'P28', 'P30']
-TARGET_RATIO = 1.7
-MIN_PRED_FRAMES = 3
-SMOOTH_LOGP_W   = 31
+# def train_phase_cfg(pid, amp_bands, phase_bands, epochs=180, seed=0):
+#     torch.manual_seed(seed); np.random.seed(seed); random.seed(seed)
+#     if DEVICE.type == 'cuda': torch.cuda.manual_seed_all(seed)
+#     ds = build_sentence_dataset_with_phase(pid, amp_bands, phase_bands)
+#     enc, _, _ = ssl_pretrain_one(pid, ds, epochs=epochs, seed=seed)
+#     enc.eval()
+#     emb = {}
+#     with torch.no_grad():
+#         for s in ds['train'] + ds['test']:
+#             h = enc(s['X'].unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy()
+#             emb[s['sent_idx']] = h.astype(np.float32)
+#     global datasets, encoders, embeddings
+#     datasets[pid] = ds; encoders[pid] = enc; embeddings[pid] = emb
+#     return run_for_patient_ssl(pid)
 
-_saved = {pid: (datasets.get(pid), encoders.get(pid), embeddings.get(pid))
-          for pid in SWEEP_PIDS}
 
-phase_sweep = {}
-for pid in SWEEP_PIDS:
-    for name, (amp, phase, ep) in PHASE_SPECS.items():
-        tag = f"{pid}_{name}"
-        print(f"\n=== {tag}  ep={ep} ===")
-        out, err = train_phase_cfg(pid, amp, phase, epochs=ep)
-        if err: print(f"  SKIP — {err}"); continue
-        m = nw_metrics(out); d = diversity_stats(out)
-        phase_sweep[tag] = {'pid':pid, 'spec':name, 'epochs':ep,
-                            'out':out, 'm':m, 'd':d}
-        top3 = '  '.join(f"{''.join(g)}×{c}" for g, c in d['top_n3'][:3])
-        print(f"  match={100*m['match_rate']:5.1f}%  z={m['z_match']:+5.2f}  "
-              f"n3={m['n3']} n4={m['n4']}  uniq_n3={d['uniq_n3']}/{d['n3_total']}  "
-              f"top: {top3 or '—'}")
+# # ── sweep configs ───────────────────────────────────────────────────
+# PHASE_SPECS = {
+#     'v1_HG+low_beta_amp':              ([(70,170), (13,20)], [],          120),  # control
+#     'v1 + low_beta_phase':             ([(70,170), (13,20)], [(13,20)],   180),
+#     'v1 + theta_phase':                ([(70,170), (13,20)], [(4,8)],     180),
+# }
+# SWEEP_PIDS   = ['P22', 'P28', 'P30']
+# TARGET_RATIO = 1.7
+# MIN_PRED_FRAMES = 3
+# SMOOTH_LOGP_W   = 31
 
-for pid in SWEEP_PIDS:
-    ds_, enc_, emb_ = _saved[pid]
-    if ds_  is not None: datasets[pid]   = ds_
-    if enc_ is not None: encoders[pid]   = enc_
-    if emb_ is not None: embeddings[pid] = emb_
+# _saved = {pid: (datasets.get(pid), encoders.get(pid), embeddings.get(pid))
+#           for pid in SWEEP_PIDS}
 
-print(f"\n{'spec':<28} {'ep':>4} {'avg_match':>10} {'avg_z':>7} "
-      f"{'Σn3':>5} {'Σn4':>5} {'Σuniq_n3':>9}  n4_pids")
-by_spec = {}
-for tag, r in phase_sweep.items():
-    by_spec.setdefault((r['spec'], r['epochs']), []).append(r)
-for (spec, ep), rows in by_spec.items():
-    am = np.mean([r['m']['match_rate'] for r in rows])
-    az = np.mean([r['m']['z_match']    for r in rows])
-    print(f"{spec:<28} {ep:>4} {100*am:9.1f}% {az:+6.2f} "
-          f"{sum(r['m']['n3'] for r in rows):>5} "
-          f"{sum(r['m']['n4'] for r in rows):>5} "
-          f"{sum(r['d']['uniq_n3'] for r in rows):>9}  "
-          f"{[r['pid'] for r in rows if r['m']['n4'] > 0]}")
+# phase_sweep = {}
+# for pid in SWEEP_PIDS:
+#     for name, (amp, phase, ep) in PHASE_SPECS.items():
+#         tag = f"{pid}_{name}"
+#         print(f"\n=== {tag}  ep={ep} ===")
+#         out, err = train_phase_cfg(pid, amp, phase, epochs=ep)
+#         if err: print(f"  SKIP — {err}"); continue
+#         m = nw_metrics(out); d = diversity_stats(out)
+#         phase_sweep[tag] = {'pid':pid, 'spec':name, 'epochs':ep,
+#                             'out':out, 'm':m, 'd':d}
+#         top3 = '  '.join(f"{''.join(g)}×{c}" for g, c in d['top_n3'][:3])
+#         print(f"  match={100*m['match_rate']:5.1f}%  z={m['z_match']:+5.2f}  "
+#               f"n3={m['n3']} n4={m['n4']}  uniq_n3={d['uniq_n3']}/{d['n3_total']}  "
+#               f"top: {top3 or '—'}")
 
-# %% Cell — full-cohort v1 vs v1+low_beta_phase
+# for pid in SWEEP_PIDS:
+#     ds_, enc_, emb_ = _saved[pid]
+#     if ds_  is not None: datasets[pid]   = ds_
+#     if enc_ is not None: encoders[pid]   = enc_
+#     if emb_ is not None: embeddings[pid] = emb_
+
+# print(f"\n{'spec':<28} {'ep':>4} {'avg_match':>10} {'avg_z':>7} "
+#       f"{'Σn3':>5} {'Σn4':>5} {'Σuniq_n3':>9}  n4_pids")
+# by_spec = {}
+# for tag, r in phase_sweep.items():
+#     by_spec.setdefault((r['spec'], r['epochs']), []).append(r)
+# for (spec, ep), rows in by_spec.items():
+#     am = np.mean([r['m']['match_rate'] for r in rows])
+#     az = np.mean([r['m']['z_match']    for r in rows])
+#     print(f"{spec:<28} {ep:>4} {100*am:9.1f}% {az:+6.2f} "
+#           f"{sum(r['m']['n3'] for r in rows):>5} "
+#           f"{sum(r['m']['n4'] for r in rows):>5} "
+#           f"{sum(r['d']['uniq_n3'] for r in rows):>9}  "
+#           f"{[r['pid'] for r in rows if r['m']['n4'] > 0]}")
+
+# %% Train v1  full-cohort v1 vs v1+low_beta_phase
 # ============================================================
 CONFIGS = [
     ('v1_HG+low_beta_amp',  [(70,170), (13,20)], [],         120),
@@ -2551,3 +2491,152 @@ for spec_name, _, _, _ in CONFIGS:
     sn4 = sum(m['n4'] for m in ms)
     n4p = sum(1 for m in ms if m['n4'] > 0)
     print(f"{spec_name:<24} {100*am:9.1f}% {az:+6.2f} {sn4:>5} {n4p:>3}/{len(outs)}")
+
+# %% Cell — re-save v1 cohort from whichever dict is current
+# ============================================================
+import pickle, json, os
+os.makedirs('results/v1', exist_ok=True)
+
+# pick whichever of these is in your kernel; falls back through in order
+CANDIDATES = [
+    # (dict_name, key_builder) — key_builder takes pid → tuple matching dict key
+    ('phase_ab',            lambda pid: ('v1_HG+low_beta_amp', pid)),
+    ('ab_results',          lambda pid: ('HG+low_beta', pid, 1.7)),
+    ('ssl_tr_div_sweep[1.7]', lambda pid: pid),   # if you locked from a TR sweep
+]
+
+v1_results = {}
+source = None
+for name, kf in CANDIDATES:
+    try:
+        d = eval(name)
+    except Exception:
+        continue
+    test = {pid: d.get(kf(pid)) for pid in TARGET_PIDS}
+    test = {pid: v for pid, v in test.items() if v is not None}
+    if len(test) >= 8:                    # found enough patients in this dict
+        v1_results = test
+        source = name
+        print(f"Using results from `{name}` ({len(test)}/{len(TARGET_PIDS)} patients)")
+        break
+
+if not v1_results:
+    raise RuntimeError("Could not find a current v1 results dict in memory")
+
+# write fresh files (timestamped to avoid overwriting the lock-in if you want
+# to compare versions)
+from datetime import datetime
+stamp = datetime.now().strftime('%Y%m%d_%H%M')
+pkl_path  = f'results/v1/hg_lowbeta_tr17_cohort_{stamp}.pkl'
+json_path = f'results/v1/hg_lowbeta_tr17_summary_{stamp}.json'
+
+with open(pkl_path, 'wb') as f:
+    pickle.dump(v1_results, f)
+
+summary = {'spec': 'HG+low_beta_amp',
+           'bands': [(70, 170), (13, 20)],
+           'SSL_EPOCHS': 120,
+           'TARGET_RATIO': 1.7,
+           'MIN_PRED_FRAMES': 3,
+           'SMOOTH_LOGP_W': 31,
+           'source_dict': source,
+           'timestamp': stamp,
+           'cohort': {}}
+for pid in TARGET_PIDS:
+    if pid not in v1_results: continue
+    out = v1_results[pid]
+    m = nw_metrics(out); d = diversity_stats(out)
+    summary['cohort'][pid] = {
+        'match_rate': float(m['match_rate']),
+        'z_match':    float(m['z_match']),
+        'n2': int(m['n2']), 'n3': int(m['n3']), 'n4': int(m['n4']),
+        'uniq_n3': int(d['uniq_n3']), 'n3_total': int(d['n3_total']),
+        'n_pred': int(out['n_pred']), 'n_test': int(out['n_test']),
+        'bonus': float(out['bonus']),
+    }
+
+with open(json_path, 'w') as f:
+    json.dump(summary, f, indent=2)
+
+print(f"\nWrote {pkl_path}")
+print(f"Wrote {json_path}")
+print(f"\nCohort numbers:")
+print(f"  match  = {100*np.mean([v['match_rate'] for v in summary['cohort'].values()]):.1f}%")
+print(f"  z      = {np.mean([v['z_match']     for v in summary['cohort'].values()]):+.2f}")
+print(f"  Σ(n≥3) = {sum(v['n3']+v['n4'] for v in summary['cohort'].values())}")
+print(f"  n_pat_n4 = {sum(1 for v in summary['cohort'].values() if v['n4']>0)}/{len(summary['cohort'])}")
+
+# %% Cell — visualize v1 (freshly-saved cohort)
+# ============================================================
+import pickle
+from IPython.display import display, HTML
+
+# point at whichever pickle has the numbers you want — your latest is timestamped
+V1_PKL = 'results/v1/hg_lowbeta_tr17_cohort_20260526_2144.pkl'
+
+with open(V1_PKL, 'rb') as f:
+    v1_results = pickle.load(f)
+
+pipeline.patient_results = dict(v1_results)
+
+# cohort table
+print(f"{'pid':<5} {'match':>7} {'z':>6} {'n3':>4} {'n4':>4} "
+      f"{'Σ(n≥3)':>8} {'uniq_n3':>8}  pred/gold")
+print('-' * 65)
+for pid in sorted(v1_results):
+    out = v1_results[pid]; m = nw_metrics(out); d = diversity_stats(out)
+    print(f"{pid:<5} {100*m['match_rate']:6.1f}% {m['z_match']:+5.2f} "
+          f"{m['n3']:>4} {m['n4']:>4} {m['n3']+m['n4']:>8} "
+          f"{d['uniq_n3']:>3}/{d['n3_total']:<3}  {out['n_pred']:>3}/{out['n_test']:>3}")
+
+# per-patient viz
+for pid in sorted(v1_results):
+    out = v1_results[pid]; m = nw_metrics(out); d = diversity_stats(out)
+    top3 = '  '.join(f"{''.join(g)}×{c}" for g, c in d['top_n3'][:3]) or '—'
+    display(HTML(
+        f"<hr><h3>{pid} — v1 (HG + low_beta amp, TR=1.7)</h3>"
+        f"<div style='font-family:monospace;font-size:12px;background:#f4f4f4;"
+        f"padding:6px;border-radius:4px;margin-bottom:8px;'>"
+        f"match={100*m['match_rate']:.1f}% &nbsp; z={m['z_match']:+.2f} &nbsp; "
+        f"n2={m['n2']} n3={m['n3']} n4={m['n4']} &nbsp; "
+        f"uniq_n3={d['uniq_n3']}/{d['n3_total']} &nbsp; "
+        f"pred/gold={out['n_pred']}/{out['n_test']} &nbsp; bonus={out['bonus']:.2f}<br>"
+        f"top n3: {top3}</div>"
+    ))
+    show_matched_sequences_with_times(pipeline, pid,
+                                       max_per_line=45,
+                                       collapse_repeats=True,
+                                       time_align_tol_s=0.10)
+    # display(HTML(show_predictions_html(out, label=f'{pid} v1', max_sentences=8)))
+
+# %% Cell — verify low_beta is actually in the features
+# ============================================================
+pid = 'P22'
+
+# build both for direct comparison
+ds_hg    = build_sentence_dataset_multi(pid, [(70, 170)])
+ds_multi = build_sentence_dataset_multi(pid, [(70, 170), (13, 20)])
+
+n_hg    = ds_hg['train'][0]['X'].shape[1]
+n_multi = ds_multi['train'][0]['X'].shape[1]
+print(f"\nHG-only:        n_in = {n_hg}")
+print(f"HG + low_beta:  n_in = {n_multi}")
+print(f"Ratio:          {n_multi / n_hg:.1f}× (should be 2.0 for adding one extra band)")
+
+# the multi-band matrix should be [HG amp | low_beta amp] concatenated along axis 1
+# so first n_hg columns of multi should equal HG-only matrix exactly
+X_hg    = ds_hg['train'][0]['X'].numpy()
+X_multi = ds_multi['train'][0]['X'].numpy()
+
+import numpy as np
+hg_match = np.allclose(X_multi[:, :n_hg], X_hg, rtol=1e-5, atol=1e-7)
+print(f"\nFirst {n_hg} columns of multi == HG-only matrix:  {hg_match}")
+
+# the second block should look statistically different (different band)
+hg_amp_mean      = X_multi[:, :n_hg].mean()
+lowbeta_amp_mean = X_multi[:, n_hg:].mean()
+hg_amp_var       = X_multi[:, :n_hg].var()
+lowbeta_amp_var  = X_multi[:, n_hg:].var()
+print(f"\nHG  block:        mean={hg_amp_mean:.4f}  var={hg_amp_var:.4f}")
+print(f"low_beta block:   mean={lowbeta_amp_mean:.4f}  var={lowbeta_amp_var:.4f}")
+print(f"(should differ — they're different frequency bands)")

@@ -17,7 +17,7 @@ from debugger import DebugMixin
 from phoneme_validator import PhonemeValidator
 
 from scipy.signal import decimate
-from extract_features import extractHG, extractMelSpecs
+from extract_features import extractHG, extractMelSpecs, stackFeatures
 from acoustic_change_detector import AcousticChangeDetector
 from config import BIDS_PATH, OUTPUT_PATH, RESULTS_PATH, DUTCH_30_PATH, DUTCH_10_PATH, get_dataset_paths
 from dataset_config import Dutch30Config
@@ -1127,6 +1127,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             pids = data['phoneme_participant_ids']
             has_durations = ('phoneme_durations_samples' in data
                             and data['phoneme_durations_samples'])
+            has_sent_ids = ('phoneme_sentence_indices' in data
+                            and data['phoneme_sentence_indices'])
+            has_segments = ('phoneme_segments' in data
+                            and data['phoneme_segments'])
 
             n_input = len(features)
             if n_input == 0:
@@ -1162,6 +1166,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             new_positions = []
             new_pids = []
             new_durations = []
+            new_sent_ids = []
+            new_segments = []
             n_skipped_short = 0
             n_skipped_unknown = 0
 
@@ -1248,6 +1254,12 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                                     if orig_i < len(data['phoneme_durations_samples'])
                                     else 0
                                 )
+                            if has_sent_ids:
+                                new_sent_ids.append(
+                                    data['phoneme_sentence_indices'][orig_i])
+                            if has_segments:
+                                new_segments.append(
+                                    data['phoneme_segments'][orig_i])
                             assigned = True
                             break
                     if not assigned:
@@ -1275,7 +1287,11 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             data['phoneme_participant_ids'] = new_pids
             if has_durations:
                 data['phoneme_durations_samples'] = new_durations
-    
+            if has_sent_ids:
+                data['phoneme_sentence_indices'] = new_sent_ids
+            if has_segments:
+                data['phoneme_segments'] = new_segments
+
     def step5c_collapse_to_phoneme_level(self):
         """Collapse per-frame features → one averaged feature vector per phoneme.
 
@@ -1301,14 +1317,18 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             positions = data['phoneme_positions']
             inst_ids  = data.get('phoneme_instance_ids', [None] * len(labels))
             features  = data['features']
+            has_sent_ids = 'phoneme_sentence_indices' in data
+            sent_ids  = data.get('phoneme_sentence_indices', [None] * len(labels))
+            has_segments = 'phoneme_segments' in data
+            segments  = data.get('phoneme_segments', [None] * len(labels))
 
             groups = OrderedDict()
-            for feat, pid, word, lbl, pos, iid in zip(
-                    features, pids, words, labels, positions, inst_ids):
+            for feat, pid, word, lbl, pos, iid, sid, seg in zip(
+                    features, pids, words, labels, positions, inst_ids, sent_ids, segments):
                 key = (pid, iid, pos)
                 if key not in groups:
                     groups[key] = dict(pid=pid, word=word, true=lbl,
-                                       iid=iid, pos=pos, feats=[])
+                                       iid=iid, pos=pos, sid=sid, seg=seg, feats=[])
                 groups[key]['feats'].append(feat)
 
             new_features  = []
@@ -1317,6 +1337,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             new_positions = []
             new_pids      = []
             new_inst_ids  = []
+            new_sent_ids  = []
+            new_segments  = []
 
             for g in groups.values():
                 new_features.append(np.mean(g['feats'], axis=0))
@@ -1325,6 +1347,8 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 new_positions.append(g['pos'])
                 new_pids.append(g['pid'])
                 new_inst_ids.append(g['iid'])
+                new_sent_ids.append(g['sid'])
+                new_segments.append(g['seg'])
 
             n_in  = len(features)
             n_out = len(new_features)
@@ -1335,6 +1359,10 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             data['phoneme_positions']         = new_positions
             data['phoneme_participant_ids']   = new_pids
             data['phoneme_instance_ids']      = new_inst_ids
+            if has_sent_ids:
+                data['phoneme_sentence_indices'] = new_sent_ids
+            if has_segments:
+                data['phoneme_segments'] = new_segments
 
             self.log(f"  step5c {dataset_name}: {n_in} frames -> {n_out} phonemes "
                      f"({n_in / max(n_out, 1):.1f} frames/phoneme avg)")
@@ -3060,4 +3088,5 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
             self.debug(f"Warning: No usable silence blocks, using zero baseline shape {baseline.shape}")
         
         return baseline    
+    
     

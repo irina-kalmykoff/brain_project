@@ -142,74 +142,97 @@ the test split.**
 > those are vestigial — no pipeline code reads them. Channel quality is purely
 > from the hand-curated JSON above.
 
-## Evaluation Metric — Longest Contiguous Exact Match
+## Evaluation Metrics & Key Findings (CRF vs SSL audit, 2026-05)
 
-The single most informative measure of decoding quality on this dataset is the
-**longest contiguous exact phoneme match between prediction and gold, per
-sentence, with shift tolerance**. PER and per-position accuracy underweight
-"bursty correctness" — a model that nails 5–6 phonemes in a row then drifts
-looks similar in PER to one that's diffuse, but only the first is doing real
-sequence decoding.
+Use **field-standard metrics** for decoding quality: per-phoneme accuracy vs a
+chance baseline (binomial, "X of N above chance"), **PER** (phoneme error rate,
+edit distance) for sequences, **WER** (word error rate, via the pronunciation
+lexicon) for word-level, and **AUC / balanced accuracy** for articulatory-feature
+analyses. A custom "longest contiguous n-gram match + rarity-weighted permutation
+surprise" metric was used earlier but **retired** — flagged as too unusual to
+defend, and it conflates real decoding with the phoneme prior. Don't reintroduce
+it; a plain per-sentence longest-exact-run can be reported descriptively, never as
+the headline.
 
-Use it as: max over sentences of the longest run of identical consecutive
-phonemes between `pred[i:i+L]` and `gold[j:j+L]`, allowing any shift `(i, j)`.
-A length of 5–6 on this dataset is well above chance for two phoneme-prior
-streams; length 7+ would be a clear positive result.
+### Headline: SSL ≥ CRF on identity; CRF's real edge is vowels + the oracle
 
-**Important: max_run alone is necessary but not sufficient.** A model that
-emits the phoneme prior heavily can produce length-5 matches by chance — the
-same matches a random shuffle of its predictions would produce. Always pair
-max_run with a **rarity-weighted permutation null**: for each matched n-gram,
-score it as `−Σ log P(phoneme)` (sum of self-information), compare real total
-to a null computed by shuffling predictions across positions while preserving
-the marginal. A clean positive result requires both max_run ≥ 5 *and* a
-surprise z above ~+5. We've seen models hit max_run=5 with z = −1
-(prior-collapse, not decoding) and others hit max_run=5 with z = +13.9
-(real decoding); only the second case generalises.
+MFA-CRF (linguistically-informed) vs SSL-LDA (data-driven), run exhaustively on
+sentence patients P21–P30. **On every metric measuring phoneme/word identity, the
+data-driven SSL is equal to or slightly better than CRF:**
 
-**Critical: never compute it on concatenated sequences across sentences.**
-Concatenation lets matches span sentence boundaries in the flat stream — a
-chance "ɛ r d eː" at the end of one sentence's prediction can align with
-the start of another sentence's gold via the shift loop, producing
-spurious 7- and 8-grams that look like decoding wins but are aggregation
-artefacts. Earlier in this project we reported 8-gram matches that turned
-out to be entirely cross-sentence concatenation noise. Always compute
-matches per `(pred_sentence, gold_sentence)` pair; max across sentences,
-never over the flat concatenated streams.
+| metric | CRF | SSL | note |
+|---|---|---|---|
+| substitution-only PER | 0.744 | 0.682 | SSL better |
+| WER (closed-vocab, gold word bounds) | 0.904 | 0.852 | SSL better (p=0.011) |
+| full PER | 0.81 | 1.15 | CRF "better" — but ONLY the oracle segmentation |
+| full-phoneme macro-OvO AUC | 0.545 | 0.543 | tied (both ~chance) |
+| C/V binary AUC | 0.562 | 0.563 | tied (both weak ~0.56) |
 
-The shift-tolerant exact-match function `find_color_matches` in
-`e2e_brain_decoder.py` is also permissive in two other ways worth knowing
-when reading its output:
-- **Equivalences** (r↔l, ɛ↔ɪ, etc.) — counted as "weak" matches; the
-  reported length includes them.
-- **Introns** — small mismatches inside a span are tolerated up to a limit;
-  the reported length is the span, not the count of exact agreements.
-A length-6 match from `find_color_matches` may contain only 2–3 contiguous
-exact agreements. For a strict reading, use a per-sentence
-`longest_contiguous_exact` that requires `pred[i+k] == gold[j+k]` at every
-position.
+The cross-model comparison is **confounded** — the two pipelines differ in ≥5 ways
+(features, segmentation, classifier, training, linguistic structure) — so it
+cannot causally answer "does linguistic knowledge add value." That needs
+within-model ablation (segmentation oracle-vs-deployable; phonotactic LM on SSL).
 
-### Implementation details (refined during the BIO-CRF work)
+### Feature separability (per-phoneme representations, cross-validated)
 
-- **Permutation null**: shuffle predictions *within each sentence* (preserves
-  sentence-length distribution and the marginal while destroying temporal
-  alignment), recompute surprise, repeat ~2000 times. The observed z is
-  `(observed − null_mean) / null_std`.
-- **Marginal source**: use the **gold-stream phoneme distribution** as the
-  marginal, not the prediction stream. This makes z values comparable across
-  different model regimes — a gated and ungated model otherwise have different
-  prediction marginals and incomparable z scales. Earlier code used the
-  pred-stream marginal; switch to gold for any cross-regime comparison.
-- **Match length threshold**: only count matches of length ≥ 3 toward the
-  observed surprise. Shorter matches happen too often by chance to carry
-  information.
-- **Shift tolerance**: `shift_max = 3` (allow `|i − j| ≤ 3`) is the default in
-  per-sentence `longest_run_with_shift`. Wider tolerance lets the metric
-  catch real matches that drift by 1–3 phonemes but starts to produce false
-  positives beyond ~5.
-- **Reference function**: `score_run` in the BIO-CRF notebook surprise cell;
-  the segment-level path uses `find_color_matches` in `e2e_brain_decoder.py`
-  with weak-equivalence and intron handling.
+Setup: per-phoneme feature/embedding → StandardScaler + PCA(50) + shrinkage-LDA,
+GroupKFold **by sentence** (prevents same-sentence leakage), gold labels.
+
+- **Overall separability is weak and tied** — full-phoneme macro-OvO AUC ≈ 0.545
+  (CRF) vs 0.543 (SSL); C/V binary AUC ≈ 0.56 both. The ~25% decoder accuracy is
+  largely the phoneme prior, not separability.
+- **The difference is in the tail/vowels, not the mean.** CRF's best phoneme
+  separates better (max OvR AUC 0.763 vs 0.660, p=0.0007) and it has more phonemes
+  above 0.7 AUC (1.6 vs 0.2 per patient, p=0.0013). The top phonemes are **long
+  vowels** (aː ~0.76, oː, uː).
+- **CRF captures vowel QUALITY; SSL is at chance.** Duration-matched long-vowel
+  pairwise AUC: CRF mean 0.574 vs SSL **0.507 (chance)**, CRF>SSL in 12/15 pairs,
+  Wilcoxon p=0.0015. Separability tracks vowel-space distance (aː separates from
+  front/high vowels at 0.68–0.72; near-identical iː–yː stays at chance).
+
+### Feature preservation in errors (use ABSOLUTE rates, not per-model shuffle z)
+
+Among within-class substitution errors, the absolute fraction preserving a
+phonetic feature, paired per patient:
+
+- **manner / place / voicing / backness / C-V: all TIED** (CIs span zero).
+- **vowel DURATION: CRF preserves better** — 0.51 vs 0.41, Δ=+0.092,
+  CI[+0.044, +0.140], p=0.0019. The one real preservation difference; converges
+  with the vowel-quality separability result above.
+- Earlier "CRF errors are voicing/manner-structured" results were **artifacts** of
+  a per-model shuffle baseline (see trap below) and vanish on absolute rates. Do
+  not report them.
+
+### Methodology pitfalls learned (apply to any future analysis)
+
+- **Marginal-baseline trap (most important).** Never compare two models' feature
+  preservation with a **per-model prediction-shuffle z** — the shuffle baseline
+  depends on each model's own prediction distribution, so the two are scored
+  against different yardsticks and the ranking can flip. Use **absolute rates** or
+  a **shared gold marginal** (then the baseline cancels out of the difference). The
+  prediction marginals differ a lot (total-variation distance: gold–CRF 0.20,
+  gold–SSL 0.33, CRF–SSL 0.23; SSL is in frequency-prior collapse).
+- **Supervised LDA(2) projections overfit in high dimensions** and manufacture
+  apparent class separation that does NOT cross-validate (an in-sample /s/ "blob"
+  that was chance out-of-fold). For an honest spatial picture use a **held-out**
+  projection (train-fit, test-plotted) or PCA; for the honest *quantitative*
+  answer use **cross-validated per-class OvR AUC**, not a 2D plot.
+- **Oracle MFA segmentation asymmetry.** CRF is 1:1 time-aligned to gold (zero
+  insertion/deletion errors; runs/PER can't be broken); SSL is free-running
+  (NW-aligned). Caveat every CRF-vs-SSL comparison — the full-PER gap is this, not
+  decoding. SSL over-generates (`TARGET_RATIO`≈1.7 → PER > 1).
+- **Match by sentence, never concatenate** sequences across sentences — cross-
+  sentence matches are aggregation artefacts.
+
+### Bottom line for the report
+
+SSL ≥ CRF on phoneme/word identity. CRF's genuine, audited advantages are
+**vowel-specific**: it captures Dutch **vowel quality** (long-vowel pairwise, SSL
+at chance) and **vowel quantity** (duration preservation) that the SSL encoder
+discards — concentrated in vowels, which is why it's invisible in the cohort
+average. Frame the contribution as a controlled comparison + a vowel-specific
+representational finding, **not** "CRF decodes better." The causal "linguistics
+adds value" question is left to the ablations.
 
 ## Test Data Leakage — Sacred Rules
 

@@ -1,17 +1,16 @@
 # Converted from ssl_lda_frames_clean.ipynb
 
-# %% Cell 1 — imports, hyperparameters, pipeline init
-# ============================================================
-import os, time, math, json, random
+import os, time, math, json, random, pickle
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import scipy.signal as sps
+import scipy.stats as ss
 
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.preprocessing import StandardScaler
-from collections import Counter
+from collections import Counter, defaultdict
 
 from dutch_30_pipeline import Dutch30Pipeline
 from dutch_30_feature_extractor import Dutch30FeatureExtractor
@@ -20,17 +19,146 @@ from config import DUTCH_30_PATH
 from run_pipeline import load_mfa_alignments
 from e2e_brain_decoder import edit_distance, show_matched_sequences_with_times
 
-# reuse the helpers from the LDA library (smoothing, Viterbi, NW metrics)
-from LDA_on_frames_clean import (
-    smooth_cols, viterbi_decode, auto_tune_bonus,
-    nw_metrics, print_nw_metrics, gather_sequences, needleman_wunsch,
-    SELF_LOOP_BONUS, VAL_FRAC, TEST_OFFSET,
-    EEG_SR, WIN_S, SHIFT_S, WIN_SAMP, SHIFT_SAMP,
-)
+# LDA helper functions and constants 
+TEST_OFFSET, VAL_FRAC = 0, 0.15
+EEG_SR          = 1024
+WIN_S, SHIFT_S  = 0.015, 0.005
+WIN_SAMP        = int(EEG_SR * WIN_S)
+SHIFT_SAMP      = int(EEG_SR * SHIFT_S)
+SELF_LOOP_BONUS = None        # None => auto-tune on val
 
-# ── v1 hyperparameters ───────────────────────────────────────────────
-V1_BANDS        = [(70, 170), (13, 20)]   # HG + low_beta amplitude
-SSL_EPOCHS_V1   = 120                      # scales with n_in (wider than HG-only)
+def smooth_cols(logp, w):
+    """Centered moving-average along time (axis=0), per class column."""
+    if w <= 1: return logp
+    T, K = logp.shape
+    pad_left  = (w - 1) // 2
+    pad_right = w - 1 - pad_left
+    padded = np.pad(logp, ((pad_left, pad_right), (0, 0)), mode='edge')
+    csum = np.concatenate([np.zeros((1, K)), np.cumsum(padded, axis=0)])
+    return (csum[w:] - csum[:-w]) / w
+
+def viterbi_decode(logp, self_bonus):
+    """Viterbi where staying in the same class earns +self_bonus per frame."""
+    T, K = logp.shape
+    if T == 0: return np.zeros(0, dtype=np.int32)
+    delta = np.empty((T, K)); bptr = np.empty((T, K), dtype=np.int32)
+    delta[0] = logp[0]; all_k = np.arange(K)
+    for t in range(1, T):
+        prev = delta[t - 1]
+        order = np.argsort(prev); idx1, idx2 = order[-1], order[-2]
+        best_switch = np.full(K, prev[idx1]); best_switch[idx1] = prev[idx2]
+        bptr_switch = np.full(K, idx1);       bptr_switch[idx1] = idx2
+        stay = prev + self_bonus
+        choose_stay = stay >= best_switch
+        delta[t] = logp[t] + np.where(choose_stay, stay, best_switch)
+        bptr[t]  = np.where(choose_stay, all_k, bptr_switch)
+    path = np.empty(T, dtype=np.int32); path[-1] = delta[-1].argmax()
+    for t in range(T - 2, -1, -1):
+        path[t] = bptr[t + 1, path[t + 1]]
+    return path
+
+def count_runs(path, min_len):
+    n = i = 0; T = len(path)
+    while i < T:
+        j = i + 1
+        while j < T and path[j] == path[i]: j += 1
+        if (j - i) >= min_len: n += 1
+        i = j
+    return n
+
+def auto_tune_bonus(logp_list, target_count, min_pred_frames,
+                    lo=0.0, hi=50.0, n_iter=18):
+    """Binary search: smallest bonus that brings total segment count <= target."""
+    for _ in range(n_iter):
+        mid = (lo + hi) / 2
+        cnt = sum(count_runs(viterbi_decode(lp, mid), min_pred_frames) for lp in logp_list)
+        if cnt > target_count: lo = mid
+        else:                  hi = mid
+    return (lo + hi) / 2
+
+def needleman_wunsch(gold, pred, match=1, mismatch=-1, gap=-1):
+    """Global sequence alignment. Returns (g, p) pairs; None = gap."""
+    n, m = len(gold), len(pred)
+    if n == 0: return [(None, p) for p in pred]
+    if m == 0: return [(g, None) for g in gold]
+    S = np.zeros((n + 1, m + 1), dtype=np.float32)
+    S[:, 0] = np.arange(n + 1) * gap; S[0, :] = np.arange(m + 1) * gap
+    BT = np.zeros((n + 1, m + 1), dtype=np.int8)
+    BT[:, 0] = 1; BT[0, :] = 2; BT[0, 0] = 0
+    for i in range(1, n + 1):
+        gi = gold[i - 1]
+        for j in range(1, m + 1):
+            d = S[i - 1, j - 1] + (match if gi == pred[j - 1] else mismatch)
+            u = S[i - 1, j] + gap; l = S[i, j - 1] + gap
+            if d >= u and d >= l: S[i, j] = d; BT[i, j] = 0
+            elif u >= l:          S[i, j] = u; BT[i, j] = 1
+            else:                 S[i, j] = l; BT[i, j] = 2
+    aligned, i, j = [], n, m
+    while i > 0 or j > 0:
+        if i > 0 and j > 0 and BT[i, j] == 0:
+            aligned.append((gold[i - 1], pred[j - 1])); i -= 1; j -= 1
+        elif i > 0 and BT[i, j] == 1:
+            aligned.append((gold[i - 1], None)); i -= 1
+        else:
+            aligned.append((None, pred[j - 1])); j -= 1
+    return list(reversed(aligned))
+
+def gather_sequences(out):
+    """Group flat predictions/gold by sentence_id, preserving order."""
+    gold_per = defaultdict(list)
+    for lbl, sid in zip(out['true_labels'], out['true_sentence_ids']):
+        gold_per[int(sid)].append(lbl)
+    pred_per = defaultdict(list)
+    for lbl, sid in zip(out['predictions'], out['pred_sentence_ids']):
+        pred_per[int(sid)].append(lbl)
+    return gold_per, pred_per
+
+def nw_metrics(out, manner_fn=None, n_perm=500, seed=0):
+    """NW-alignment metrics: match_rate, z_match (permutation), n2/n3/n4 runs."""
+    gold_per, pred_per = gather_sequences(out)
+    sent_alignments = {}; all_gold, all_pred = [], []
+    for sid in set(gold_per) | set(pred_per):
+        g, p = gold_per.get(sid, []), pred_per.get(sid, [])
+        sent_alignments[sid] = needleman_wunsch(g, p); all_gold += g; all_pred += p
+    all_aligned = [pair for a in sent_alignments.values() for pair in a]
+    n_match = sum(1 for g, p in all_aligned if g is not None and p is not None and g == p)
+    n_sub   = sum(1 for g, p in all_aligned if g is not None and p is not None and g != p)
+    n_del   = sum(1 for g, p in all_aligned if g is not None and p is None)
+    n_ins   = sum(1 for g, p in all_aligned if g is None and p is not None)
+    n_gold  = sum(1 for g, p in all_aligned if g is not None)
+    match_rate = n_match / max(n_gold, 1)
+    per_nw     = (n_sub + n_del + n_ins) / max(n_gold, 1)
+    rng = np.random.default_rng(seed); null_match_rates = []; pred_pool = all_pred[:]
+    for _ in range(n_perm):
+        rng.shuffle(pred_pool); cur = 0; nm = 0
+        for sid in sent_alignments:
+            g = gold_per.get(sid, []); p_len = len(pred_per.get(sid, []))
+            p_shuf = pred_pool[cur:cur + p_len]; cur += p_len
+            a = needleman_wunsch(g, p_shuf)
+            nm += sum(1 for x, y in a if x is not None and y is not None and x == y)
+        null_match_rates.append(nm / max(n_gold, 1))
+    null_mean = np.mean(null_match_rates); null_std = np.std(null_match_rates) + 1e-9
+    z_match = (match_rate - null_mean) / null_std
+    def runs_in(al, min_len):
+        runs = 0; cur_run = 0
+        for g, p in al:
+            if g is not None and p is not None and g == p: cur_run += 1
+            else:
+                if cur_run >= min_len: runs += 1
+                cur_run = 0
+        if cur_run >= min_len: runs += 1
+        return runs
+    n2 = sum(runs_in(a, 2) for a in sent_alignments.values())
+    n3 = sum(runs_in(a, 3) for a in sent_alignments.values())
+    n4 = sum(runs_in(a, 4) for a in sent_alignments.values())
+    return dict(n_gold=n_gold, n_match=n_match, n_sub=n_sub, n_del=n_del, n_ins=n_ins,
+                match_rate=match_rate, per_nw=per_nw,
+                z_match=z_match, null_mean=null_mean, null_std=null_std,
+                n2=n2, n3=n3, n4=n4)
+
+# ── HG-only hyperparameters ──────────────────────────────────────────
+BANDS           = [(70, 170)]   # high-gamma only
+SSL_EPOCHS      = 80            # HG-only cohort optimum (see CLAUDE.md)
 TARGET_RATIO    = 1.7
 MIN_PRED_FRAMES = 3
 SMOOTH_LOGP_W   = 31
@@ -51,6 +179,7 @@ SSL_MASK_SPAN = 10
 TARGET_PIDS = ['P21', 'P22', 'P23', 'P24', 'P25',
                'P26', 'P27', 'P28', 'P29', 'P30']
 MODEL_DIR   = 'bio_models'
+ENCODER_NAME = lambda pid: os.path.join(MODEL_DIR, f'{pid}_ssl_encoder.pt')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -69,11 +198,11 @@ except NameError:
     pipeline.step3_load_channel_exclusions('channel_exclusions.json')
     pipeline.apply_channel_exclusions()
 
-# %% Cell 2 — multiband feature extractor (THIS is where beta is added)
+# HG feature extractor (detrend, 70–170 Butterworth-4 bandpass (zero-phase), 100 & 150 Hz notch, square (power), 10 Hz low-pass, 15 ms window @ 5 ms shift, sqrt)
 # ============================================================
 def _extract_band_amp(data, sr, low, high, lp_hz=10.0,
                       win_s=0.015, shift_s=0.005):
-    """extractHG recipe applied to one band: power -> 10 Hz LP -> sqrt at 200 Hz."""
+    """extractHG recipe for one band: power -> 10 Hz LP -> 15 ms window -> sqrt."""
     x = sps.detrend(data, axis=0)
     sos = sps.iirfilter(4, [low/(sr/2), high/(sr/2)],
                         btype='bandpass', output='sos')
@@ -95,9 +224,8 @@ def _extract_band_amp(data, sr, low, high, lp_hz=10.0,
 
 
 def extract_multiband(data, sr, bands, lp_hz=10.0):
-    """For each (low, high) band, extract amplitude envelope.  Concatenate
-    along channels.  bands=[(70,170)] reproduces single-band extractHG;
-    bands=[(70,170), (13,20)] is the v1 feature stack."""
+    """For each (low, high) band, extract amplitude envelope; concat on channels.
+    bands=[(70,170)] reproduces single-band extractHG."""
     feats = [_extract_band_amp(data, sr, lo, hi, lp_hz=lp_hz)
              for (lo, hi) in bands]
     n_min = min(f.shape[0] for f in feats)
@@ -110,10 +238,10 @@ def _channel_mask(pid):
     return np.asarray(cm['keep_indices'], dtype=np.int64)
 
 
-def build_sentence_dataset_multi(pid, bands):
+def build_sentence_dataset(pid, bands=BANDS):
     """Returns {'train': [...], 'test': [...]} of per-sentence dicts:
         {'X': (T, n_ch * n_bands) float32, 'mfa': [...], 'sent_idx': int}
-    For v1 call with bands = V1_BANDS = [(70, 170), (13, 20)]."""
+    Test split = every 6th real sentence (TEST_OFFSET::6) — the SSL convention."""
     raw_eeg = np.load(os.path.join(DUTCH_30_PATH, 'raw', f'{pid}_sEEG.npy'))
     if raw_eeg.ndim == 2 and raw_eeg.shape[0] < raw_eeg.shape[1]:
         raw_eeg = raw_eeg.T
@@ -143,12 +271,11 @@ def build_sentence_dataset_multi(pid, bands):
           f"train={len(out['train'])}  test={len(out['test'])}")
     return out
 
-# %% Cell 3 — causal TCN encoder + SSL masking head
+# causal TCN encoder + SSL masking head
 # ============================================================
 class CausalConv1d(nn.Conv1d):
     def __init__(self, in_ch, out_ch, kernel_size, dilation=1):
-        super().__init__(in_ch, out_ch, kernel_size,
-                         dilation=dilation, padding=0)
+        super().__init__(in_ch, out_ch, kernel_size, dilation=dilation, padding=0)
         self.left_pad = (kernel_size - 1) * dilation
     def forward(self, x):
         return super().forward(F.pad(x, (self.left_pad, 0)))
@@ -189,9 +316,8 @@ class CausalTCNEncoder(nn.Module):
 class SSLHead(nn.Module):
     def __init__(self, hidden, n_out):
         super().__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(hidden, hidden), nn.GELU(),
-            nn.Linear(hidden, n_out))
+        self.fc = nn.Sequential(nn.Linear(hidden, hidden), nn.GELU(),
+                                nn.Linear(hidden, n_out))
     def forward(self, h): return self.fc(h)
 
 
@@ -205,7 +331,7 @@ def make_span_mask(T, frac=SSL_MASK_FRAC, span=SSL_MASK_SPAN, rng=None):
         mask[s:s + span] = True
     return mask
 
-# %% Cell 4 — SSL pretraining loop
+# SSL pretraining loop (used only if a checkpoint is missing)
 # ============================================================
 def fit_mu_sd(sents):
     X = torch.cat([s['X'] for s in sents], dim=0).numpy()
@@ -220,8 +346,9 @@ def standardize_inplace(sents, mu, sd):
         s['X'] = (s['X'] - mu_t) / sd_t
 
 
-def ssl_pretrain_one(pid, ds, epochs, seed=0):
-    """Train per-patient encoder on masked-frame MSE.  Returns enc, mu, sd."""
+def ssl_pretrain_one(pid, ds, epochs=SSL_EPOCHS, seed=0):
+    """Train per-patient encoder on masked-frame MSE. Standardizes ds in place.
+    Returns enc, mu, sd."""
     torch.manual_seed(seed); np.random.seed(seed); random.seed(seed)
     if DEVICE.type == 'cuda': torch.cuda.manual_seed_all(seed)
 
@@ -237,8 +364,7 @@ def ssl_pretrain_one(pid, ds, epochs, seed=0):
                              lr=SSL_LR, weight_decay=SSL_WD)
     sch  = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
 
-    train_sents = ds['train']
-    n = len(train_sents)
+    train_sents = ds['train']; n = len(train_sents)
     print(f"  [{pid}] SSL pretrain: n_in={n_in} n_train={n} epochs={epochs}")
     t0 = time.time()
     for ep in range(epochs):
@@ -254,11 +380,10 @@ def ssl_pretrain_one(pid, ds, epochs, seed=0):
             for b, s in enumerate(batch):
                 T = s['X'].shape[0]
                 X[b, :T] = s['X']; valid[b, :T] = True
-                mb = make_span_mask(T, rng=rng)
-                mask[b, :T] = torch.from_numpy(mb)
+                mask[b, :T] = torch.from_numpy(make_span_mask(T, rng=rng))
             X = X.to(DEVICE); mask = mask.to(DEVICE); valid = valid.to(DEVICE)
-            h    = enc(X, mask=mask); pred = head(h)
-            sel  = mask & valid
+            h = enc(X, mask=mask); pred = head(h)
+            sel = mask & valid
             if sel.sum() == 0: continue
             loss = F.mse_loss(pred[sel], X[sel])
             opt.zero_grad(); loss.backward()
@@ -270,9 +395,7 @@ def ssl_pretrain_one(pid, ds, epochs, seed=0):
                   f"lr={opt.param_groups[0]['lr']:.2e}  ({time.time()-t0:.1f}s)")
     return enc, mu, sd
 
-
-
-# %% Cell 5 — MFA helpers + embedding extraction + diversity metrics
+# MFA helpers + embedding extraction + diversity metrics
 # ============================================================
 def time_to_frame(t_s):
     return int(round((t_s * EEG_SR - WIN_SAMP / 2) / SHIFT_SAMP))
@@ -288,21 +411,17 @@ def extract_embeddings(pid, sents, encoder):
     out = {}
     for s in sents:
         X = s['X'].unsqueeze(0).to(DEVICE)
-        h = encoder(X).squeeze(0).cpu().numpy().astype(np.float32)
-        out[s['sent_idx']] = h
+        out[s['sent_idx']] = encoder(X).squeeze(0).cpu().numpy().astype(np.float32)
     return out
 
 
 def extract_match_ngrams(out):
-    """Walk NW alignments; collect runs of consecutive matches."""
     gold_per, pred_per = gather_sequences(out)
-    all_match_phones = []
-    n2g, n3g, n4plus = [], [], []
+    all_match_phones, n2g, n3g, n4plus = [], [], [], []
     for sid in sorted(set(gold_per) | set(pred_per)):
         gold = gold_per.get(sid, []); pred = pred_per.get(sid, [])
-        aligned = needleman_wunsch(gold, pred)
         run = []
-        for g, p in aligned:
+        for g, p in needleman_wunsch(gold, pred):
             if g is not None and p is not None and g == p:
                 run.append(g)
             else:
@@ -325,23 +444,19 @@ def diversity_stats(out):
     gold_per, _ = gather_sequences(out)
     inv_size = len(set(p for seq in gold_per.values() for p in seq))
     return {
-        'n_match':      len(phones),
-        'uniq_phones':  len(set(phones)),
-        'inv_size':     inv_size,
-        'n2_total':     len(n2g),  'uniq_n2': len(set(g for _, g in n2g)),
-        'n3_total':     len(n3g),  'uniq_n3': len(set(g for _, g in n3g)),
-        'n4_total':     len(n4g),  'uniq_n4': len(set(g for _, g in n4g)),
-        'top_n3':       Counter(g for _, g in n3g).most_common(3),
-        'top_n4':       Counter(g for _, g in n4g).most_common(3),
+        'n_match': len(phones), 'uniq_phones': len(set(phones)), 'inv_size': inv_size,
+        'n2_total': len(n2g), 'uniq_n2': len(set(g for _, g in n2g)),
+        'n3_total': len(n3g), 'uniq_n3': len(set(g for _, g in n3g)),
+        'n4_total': len(n4g), 'uniq_n4': len(set(g for _, g in n4g)),
+        'top_n3': Counter(g for _, g in n3g).most_common(3),
+        'top_n4': Counter(g for _, g in n4g).most_common(3),
     }
 
-
-# %% Cell 6 — inference: LDA on embeddings + scalar-bonus Viterbi
+# inference: LDA on embeddings + scalar-bonus Viterbi
 # ============================================================
 def run_for_patient_ssl(pid, datasets, embeddings):
-    """Drop-in inference: take v1 embeddings, train LDA on per-phoneme
-    averages, decode test with scalar self-loop bonus Viterbi.  Returns the
-    standard `out` dict used by nw_metrics + show_matched_sequences_with_times."""
+    """LDA on per-phoneme embedding means, decode test with scalar self-loop
+    Viterbi. Returns the standard `out` dict for nw_metrics + the viz."""
     ds  = datasets[pid]
     mfa_by_sid = {s['sent_idx']: s['mfa'] for s in ds['train'] + ds['test']}
     per_sent   = embeddings[pid]
@@ -364,8 +479,7 @@ def run_for_patient_ssl(pid, datasets, embeddings):
                 k_e = min(T - 1, time_to_frame(ph['end_s']))
                 n_fr = k_e - k_s + 1
                 if n_fr < max(MN_FRAMES, 1) or n_fr > MX_FRAMES: continue
-                X.append(emb[k_s:k_e + 1].mean(axis=0))
-                y.append(ph['phone'])
+                X.append(emb[k_s:k_e + 1].mean(axis=0)); y.append(ph['phone'])
         return np.array(X), np.array(y)
 
     X_fit, y_fit = build_set(fit_sent_ids)
@@ -376,12 +490,11 @@ def run_for_patient_ssl(pid, datasets, embeddings):
     clf_fit.fit(sc_fit.transform(X_fit), y_fit)
     fit_classes = set(y_fit)
 
-    # auto-tune Viterbi self-loop bonus on val
     val_logps, val_target = [], 0
     for sid in val_sent_ids:
         if sid not in per_sent: continue
-        logp = clf_fit.predict_log_proba(sc_fit.transform(per_sent[sid]))
-        logp = smooth_cols(logp, SMOOTH_LOGP_W)
+        logp = smooth_cols(clf_fit.predict_log_proba(sc_fit.transform(per_sent[sid])),
+                           SMOOTH_LOGP_W)
         val_logps.append(logp)
         val_target += sum(1 for ph in mfa_by_sid[sid] if ph['phone'] in fit_classes)
     if not val_logps: return None, "no val sentences"
@@ -389,7 +502,6 @@ def run_for_patient_ssl(pid, datasets, embeddings):
     bonus = (auto_tune_bonus(val_logps, val_target, MIN_PRED_FRAMES)
              if SELF_LOOP_BONUS is None else float(SELF_LOOP_BONUS))
 
-    # refit on all train, decode test
     X_tr, y_tr = build_set(set(all_real) - test_sent_ids)
     scaler = StandardScaler().fit(X_tr)
     clf = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto')
@@ -401,418 +513,881 @@ def run_for_patient_ssl(pid, datasets, embeddings):
     for sid in sorted(test_sent_ids):
         if sid not in per_sent: continue
         emb = per_sent[sid]; T = emb.shape[0]
-        logp = smooth_cols(clf.predict_log_proba(scaler.transform(emb)),
-                           SMOOTH_LOGP_W)
+        logp = smooth_cols(clf.predict_log_proba(scaler.transform(emb)), SMOOTH_LOGP_W)
         path = viterbi_decode(logp, bonus)
         i = 0
         while i < T:
             ci = path[i]; j = i + 1
             while j < T and path[j] == ci: j += 1
             if (j - i) >= MIN_PRED_FRAMES:
-                predictions.append(class_labels[ci])
-                pred_sentence_ids.append(sid)
-                pred_segments.append((ssl_frame_to_time_s(i),
-                                      ssl_frame_to_time_s(j - 1)))
+                predictions.append(class_labels[ci]); pred_sentence_ids.append(sid)
+                pred_segments.append((ssl_frame_to_time_s(i), ssl_frame_to_time_s(j - 1)))
             i = j
         for ph in mfa_by_sid[sid]:
             if ph['phone'] not in train_classes: continue
-            true_labels.append(ph['phone'])
-            true_sentence_ids.append(sid)
+            true_labels.append(ph['phone']); true_sentence_ids.append(sid)
             true_segments.append((ph['start_s'], ph['end_s']))
 
     if not true_labels: return None, "no test gold labels"
     true_arr = np.array(true_labels); pred_arr = np.array(predictions)
-    ed  = edit_distance(list(true_arr), list(pred_arr))
-    per = ed / max(len(true_arr), 1)
+    ed = edit_distance(list(true_arr), list(pred_arr)); per = ed / max(len(true_arr), 1)
     return {
-        'true_labels':       true_arr,
-        'predictions':       pred_arr,
+        'true_labels': true_arr, 'predictions': pred_arr,
         'true_sentence_ids': np.array(true_sentence_ids),
         'pred_sentence_ids': np.array(pred_sentence_ids),
-        'true_segments':     true_segments,
-        'pred_segments':     pred_segments,
-        'accuracy':          float('nan'),
-        'edit_distance':     ed, 'per': per,
-        'n_test':            len(true_arr),
-        'n_pred':            len(pred_arr),
-        'n_train':           len(X_tr),
-        'bonus':             bonus,
+        'true_segments': true_segments, 'pred_segments': pred_segments,
+        'accuracy': float('nan'), 'edit_distance': ed, 'per': per,
+        'n_test': len(true_arr), 'n_pred': len(pred_arr),
+        'n_train': len(X_tr), 'bonus': bonus,
     }, None
 
-
-# %% Cell 7 — HTML visualisation helpers
+# build/load HG-only encoders + embeddings for all patients
 # ============================================================
-COL_MATCH = '#a6e3a1'
-COL_SUB   = '#f5c2c0'
-COL_INS   = '#ffd966'
-COL_DEL   = '#dddddd'
-
-def render_aligned_pair(aligned):
-    gold_cells, pred_cells = [], []
-    style = ("padding:2px 5px;margin-right:1px;display:inline-block;"
-             "min-width:14px;text-align:center;border-radius:3px;")
-    for g, p in aligned:
-        if g is not None and p is not None and g == p:
-            gold_cells.append(f"<span style='{style}background:{COL_MATCH};font-weight:bold;'>{g}</span>")
-            pred_cells.append(f"<span style='{style}background:{COL_MATCH};font-weight:bold;'>{p}</span>")
-        elif g is not None and p is not None:
-            gold_cells.append(f"<span style='{style}background:{COL_SUB};font-weight:bold;'>{g}</span>")
-            pred_cells.append(f"<span style='{style}background:{COL_SUB};'>{p}</span>")
-        elif g is not None:
-            gold_cells.append(f"<span style='{style}background:{COL_DEL};font-weight:bold;'>{g}</span>")
-            pred_cells.append(f"<span style='{style}background:{COL_DEL};color:#888;'>·</span>")
-        else:
-            gold_cells.append(f"<span style='{style}background:{COL_INS};color:#888;'>·</span>")
-            pred_cells.append(f"<span style='{style}background:{COL_INS};'>{p}</span>")
-    return ''.join(gold_cells), ''.join(pred_cells)
-
-
-def compare_predictions_html(out_a, out_b=None, label_a="A", label_b="B",
-                              max_sentences=20):
-    gold_a_per, pred_a_per = gather_sequences(out_a)
-    if out_b is not None:
-        gold_b_per, pred_b_per = gather_sequences(out_b)
-        common = sorted(set(gold_a_per) | set(gold_b_per))
+def build_or_load(pid, bands=BANDS, epochs=SSL_EPOCHS, seed=0, train_if_missing=True):
+    """Build the HG dataset, then load the encoder checkpoint if present
+    (standardizing with its saved mu/sd) or SSL-pretrain one if missing."""
+    ds = build_sentence_dataset(pid, bands)              # raw (un-standardized) X
+    path = ENCODER_NAME(pid)
+    if os.path.exists(path):
+        ckpt = torch.load(path, map_location=DEVICE, weights_only=False)
+        enc = CausalTCNEncoder(ds['train'][0]['X'].shape[1]).to(DEVICE)
+        enc.load_state_dict(ckpt['enc'])
+        mu, sd = (ckpt['mu'], ckpt['sd']) if 'mu' in ckpt else fit_mu_sd(ds['train'])
+        standardize_inplace(ds['train'], mu, sd)
+        standardize_inplace(ds['test'],  mu, sd)
+        print(f"  [{pid}] loaded encoder: {path}")
+    elif train_if_missing:
+        enc, mu, sd = ssl_pretrain_one(pid, ds, epochs=epochs, seed=seed)  # standardizes in place
+        torch.save({'enc': enc.state_dict(), 'n_in': enc.proj_in.in_channels,
+                    'bands': bands, 'epochs': epochs, 'mu': mu, 'sd': sd}, path)
+        print(f"  [{pid}] trained + saved encoder: {path}")
     else:
-        gold_b_per = pred_b_per = None
-        common = sorted(set(gold_a_per))
-    rows = ["<style>.pcomp td{padding:4px 8px;font-family:monospace;font-size:13px;}"
-            ".pcomp tr.sentheader td{background:#e0e0e0;font-weight:bold;padding-top:8px;}</style>"]
-    rows.append("<div style='margin-bottom:8px;font-family:sans-serif;font-size:13px;'>"
-                f"<span style='background:{COL_MATCH};padding:3px 8px;margin-right:6px;border-radius:3px;'>match</span>"
-                f"<span style='background:{COL_SUB};padding:3px 8px;margin-right:6px;border-radius:3px;'>substitution</span>"
-                f"<span style='background:{COL_INS};padding:3px 8px;margin-right:6px;border-radius:3px;'>insertion</span>"
-                f"<span style='background:{COL_DEL};padding:3px 8px;margin-right:6px;border-radius:3px;'>deletion</span></div>")
-    rows.append("<table class='pcomp' style='border-collapse:collapse;'>")
-    for sid in common[:max_sentences]:
-        gold_a = gold_a_per.get(sid, [])
-        pred_a = pred_a_per.get(sid, [])
-        gold = gold_a if gold_a else (gold_b_per.get(sid, []) if out_b else [])
-        if not gold: continue
-        g_a, p_a = render_aligned_pair(needleman_wunsch(gold, pred_a))
-        rows.append(f"<tr class='sentheader'><td colspan='2'>Sentence {sid}</td></tr>")
-        rows.append(f"<tr><td>{label_a} gold</td><td>{g_a}</td></tr>")
-        rows.append(f"<tr><td>{label_a} pred</td><td>{p_a}</td></tr>")
-        if out_b is not None:
-            pred_b = pred_b_per.get(sid, [])
-            g_b, p_b = render_aligned_pair(needleman_wunsch(gold, pred_b))
-            rows.append(f"<tr><td>{label_b} gold</td><td>{g_b}</td></tr>")
-            rows.append(f"<tr><td>{label_b} pred</td><td>{p_b}</td></tr>")
-    rows.append("</table>")
-    return ''.join(rows)
+        return None, None, None, None
+    return ds, enc, mu, sd
 
 
-def show_predictions_html(out, label='model', max_sentences=10):
-    return compare_predictions_html(out, out_b=None,
-                                    label_a=label, max_sentences=max_sentences)
-
-# %% Cell 9 — TRAIN v1 ENCODERS FOR ALL 10 PATIENTS  (~2-3 hours)
-# ============================================================
-# This is the long-running cell.  Builds v1 features, SSL-pretrains the
-# encoder for each patient (120 epochs on n_in ≈ 220 inputs), and stashes
-# encoder + embeddings in memory.  Saves checkpoints to bio_models/.
-
-datasets, encoders, mus, sds, embeddings = {}, {}, {}, {}, {}
-
+datasets, encoders, embeddings = {}, {}, {}
+print("Building HG-only state (load checkpoint, else train)...")
 for pid in TARGET_PIDS:
-    print(f"\n[{pid}] training v1 encoder")
-    torch.manual_seed(0); np.random.seed(0); random.seed(0)
-    if DEVICE.type == 'cuda': torch.cuda.manual_seed_all(0)
+    ds, enc, mu, sd = build_or_load(pid)
+    if ds is None: continue
+    datasets[pid] = ds
+    encoders[pid] = enc
+    embeddings[pid] = {**extract_embeddings(pid, ds['train'], enc),
+                       **extract_embeddings(pid, ds['test'],  enc)}
+print("HG-only state ready.")
 
-    ds = build_sentence_dataset_multi(pid, V1_BANDS)
-    enc, mu, sd = ssl_pretrain_one(pid, ds, epochs=SSL_EPOCHS_V1, seed=0)
-    datasets[pid]  = ds
-    encoders[pid]  = enc
-    mus[pid]       = mu
-    sds[pid]       = sd
-
-    # save encoder + standardisation stats together
-    torch.save({'enc':    enc.state_dict(),
-                'n_in':   enc.proj_in.in_channels,
-                'bands':  V1_BANDS,
-                'epochs': SSL_EPOCHS_V1,
-                'mu':     mu,
-                'sd':     sd},
-               os.path.join(MODEL_DIR, f'{pid}_ssl_encoder_low_beta.pt'))
-
-    # extract per-sentence embeddings (frozen encoder)
-    emb_tr = extract_embeddings(pid, ds['train'], enc)
-    emb_te = extract_embeddings(pid, ds['test'],  enc)
-    embeddings[pid] = {**emb_tr, **emb_te}
-
-print("\nAll v1 encoders trained and saved.")
-
-# %% Cell 10 — run v1 inference for all patients + lock results
+# shift-input permutation test (CE + accuracy)
 # ============================================================
-v1_results = {}
+import warnings
+warnings.filterwarnings('ignore', message='Only one sample available',
+                        category=UserWarning, module='sklearn.covariance')
+def pvalue_shift_input_ssl(pid, datasets_d, encoders_d, statistic='ce',
+                            n_perm=2000, edge_frac=0.1, seed=0, verbose=False):
+    """Shift-input null: per test sentence, circular-shift the input frames,
+    re-encode (frozen encoder), re-LDA (fit on train, frozen), score CE or
+    per-frame accuracy against the ORIGINAL gold. statistic in {'ce','accuracy'}."""
+    ds  = datasets_d[pid]
+    enc = encoders_d[pid]; enc.eval()
+
+    # fit LDA on train per-phoneme embedding means (fixed for all perms)
+    train_X, train_y = [], []
+    with torch.no_grad():
+        for s in ds['train']:
+            h = enc(s['X'].unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy(); T = h.shape[0]
+            for ph in s['mfa']:
+                k_s = max(0, time_to_frame(ph['start_s']))
+                k_e = min(T - 1, time_to_frame(ph['end_s']))
+                if k_e < k_s: continue
+                train_X.append(h[k_s:k_e+1].mean(axis=0)); train_y.append(ph['phone'])
+    train_X = np.array(train_X); train_y = np.array(train_y)
+    scaler = StandardScaler().fit(train_X)
+    lda = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto')
+    lda.fit(scaler.transform(train_X), train_y)
+    class_idx = {c: i for i, c in enumerate(lda.classes_)}
+
+    def encode_and_score(shift_fn):
+        all_logp, all_gold = [], []
+        with torch.no_grad():
+            for s in ds['test']:
+                X = s['X'] if shift_fn is None else shift_fn(s['X'])
+                h = enc(X.unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy(); T = h.shape[0]
+                logp = lda.predict_log_proba(scaler.transform(h))
+                gold = np.full(T, -1, dtype=int)
+                for ph in s['mfa']:
+                    if ph['phone'] not in class_idx: continue
+                    k_s = max(0, time_to_frame(ph['start_s']))
+                    k_e = min(T - 1, time_to_frame(ph['end_s']))
+                    if k_e >= k_s: gold[k_s:k_e+1] = class_idx[ph['phone']]
+                all_logp.append(logp); all_gold.append(gold)
+        lp = np.concatenate(all_logp); gd = np.concatenate(all_gold); v = gd >= 0
+        if v.sum() == 0: return np.nan
+        if statistic == 'accuracy':
+            return (lp[v].argmax(axis=1) == gd[v]).mean()
+        return -lp[v][np.arange(v.sum()), gd[v]].mean()
+
+    obs = encode_and_score(None)
+    if not np.isfinite(obs): return {'error': 'observed undefined'}
+
+    rng = np.random.RandomState(seed)
+    null_list, n_bad = [], 0
+    for b in range(n_perm):
+        shifts = {}
+        for s in ds['test']:
+            T = s['X'].shape[0]
+            if T < 20: shifts[s['sent_idx']] = 0; continue
+            lo = max(1, int(edge_frac * T)); hi = T - lo
+            shifts[s['sent_idx']] = rng.randint(lo, hi + 1) if hi > lo else rng.randint(1, T)
+        # per-sentence circular shift, re-encode, score
+        def make_shifted_score():
+            all_logp, all_gold = [], []
+            with torch.no_grad():
+                for s in ds['test']:
+                    X = torch.roll(s['X'], shifts=int(shifts[s['sent_idx']]), dims=0)
+                    h = enc(X.unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy(); T = h.shape[0]
+                    logp = lda.predict_log_proba(scaler.transform(h))
+                    gold = np.full(T, -1, dtype=int)
+                    for ph in s['mfa']:
+                        if ph['phone'] not in class_idx: continue
+                        k_s = max(0, time_to_frame(ph['start_s']))
+                        k_e = min(T - 1, time_to_frame(ph['end_s']))
+                        if k_e >= k_s: gold[k_s:k_e+1] = class_idx[ph['phone']]
+                    all_logp.append(logp); all_gold.append(gold)
+            lp = np.concatenate(all_logp); gd = np.concatenate(all_gold); vmask = gd >= 0
+            if vmask.sum() == 0: return np.nan
+            if statistic == 'accuracy':
+                return (lp[vmask].argmax(axis=1) == gd[vmask]).mean()
+            return -lp[vmask][np.arange(vmask.sum()), gd[vmask]].mean()
+        v = make_shifted_score()
+        if not np.isfinite(v): n_bad += 1; continue
+        null_list.append(v)
+        if verbose and ((b+1) % 100 == 0 or b == 0):
+            print(f"    perm {b+1}/{n_perm}  null {statistic}={v:.4f}")
+
+    nulls = np.asarray(null_list, float)
+    if nulls.size < max(20, n_perm // 2):
+        return {'error': f'too many invalid perms ({n_bad}/{n_perm})'}
+    if statistic == 'accuracy':                    # higher is better
+        z = (obs - nulls.mean()) / (nulls.std(ddof=1) + 1e-9)
+        p = (np.sum(nulls >= obs) + 1) / (nulls.size + 1)
+    else:                                          # CE: lower is better
+        z = (nulls.mean() - obs) / (nulls.std(ddof=1) + 1e-9)
+        p = (np.sum(nulls <= obs) + 1) / (nulls.size + 1)
+    return {'pid': pid, 'statistic': statistic, 'obs': float(obs),
+            'null_mean': float(nulls.mean()), 'null_std': float(nulls.std(ddof=1)),
+            'z': float(z), 'p_one_sided': float(p), 'n_perm': int(nulls.size), 'n_bad': n_bad}
+
+
+def run_shift_test_table(label, statistic='ce', n_perm=2000, edge_frac=0.1, seed=0):
+    stat_col = 'acc_obs' if statistic == 'accuracy' else 'CE_obs'
+    print(f"\n{label}: {statistic} based")
+    print(f"{'pid':<5} {stat_col:>8} {'null_mu':>8} {'null_sigma':>9} {'z':>6} {'p':>9}")
+    print('-' * 60)
+    results = {}
+    for pid in TARGET_PIDS:
+        if pid not in encoders: continue
+        r = pvalue_shift_input_ssl(pid, datasets, encoders, statistic=statistic,
+                                   n_perm=n_perm, edge_frac=edge_frac, seed=seed)
+        if 'error' in r:
+            print(f"{pid:<5} SKIP — {r['error']}"); continue
+        results[pid] = r
+        print(f"{pid:<5} {r['obs']:8.3f} {r['null_mean']:8.3f} "
+              f"{r['null_std']:9.4f} {r['z']:+6.2f} {r['p_one_sided']:9.4f}")
+    if results:
+        pv = np.clip([r['p_one_sided'] for r in results.values()], 1e-300, 1.0)
+        q = ss.false_discovery_control(pv, method='bh')
+        chi2 = -2 * np.log(pv).sum(); df = 2 * len(pv)
+        print('-' * 60)
+        print(f"BH-FDR significant: {(q < 0.05).sum()}/{len(pv)}")
+        print(f"Fisher combined p:  {1 - ss.chi2.cdf(chi2, df):.2e}")
+    return results
+
+ssl_ce  = run_shift_test_table('ssl_only', statistic='ce')
+ssl_acc = run_shift_test_table('ssl_only', statistic='accuracy')
+
+# per-phoneme permutation test
+import numpy as np, torch, scipy.stats as ss
+from sklearn.preprocessing import StandardScaler
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+def pvalue_shift_input_ssl_perphoneme(pid, datasets_d, encoders_d, statistic='ce',
+                                      n_perm=2000, edge_frac=0.1, seed=0, verbose=False):
+    ds  = datasets_d[pid]; enc = encoders_d[pid]; enc.eval()
+    # fit LDA on train per-phoneme embedding means (frozen for all perms)
+    train_X, train_y = [], []
+    with torch.no_grad():
+        for s in ds['train']:
+            h = enc(s['X'].unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy(); T = h.shape[0]
+            for ph in s['mfa']:
+                k_s = max(0, time_to_frame(ph['start_s'])); k_e = min(T-1, time_to_frame(ph['end_s']))
+                if k_e < k_s: continue
+                train_X.append(h[k_s:k_e+1].mean(0)); train_y.append(ph['phone'])
+    train_X = np.array(train_X); train_y = np.array(train_y)
+    scaler = StandardScaler().fit(train_X)
+    lda = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto').fit(scaler.transform(train_X), train_y)
+    class_idx = {c: i for i, c in enumerate(lda.classes_)}
+
+    test_slots = []
+    for s in ds['test']:
+        T0 = s['X'].shape[0]; slots = []
+        for ph in s['mfa']:
+            if ph['phone'] not in class_idx: continue
+            k_s = max(0, time_to_frame(ph['start_s'])); k_e = min(T0-1, time_to_frame(ph['end_s']))
+            if k_e >= k_s: slots.append((k_s, k_e, class_idx[ph['phone']]))
+        test_slots.append((s, slots))
+
+    def score(shifts):
+        embs, gidx = [], []
+        with torch.no_grad():
+            for (s, slots), sh in zip(test_slots, shifts):
+                X = s['X'] if sh == 0 else torch.roll(s['X'], shifts=int(sh), dims=0)   # rotate FEATURES
+                h = enc(X.unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy(); Th = h.shape[0]
+                for k_s, k_e, gi in slots:
+                    ke = min(k_e, Th-1)
+                    if ke < k_s: continue
+                    embs.append(h[k_s:ke+1].mean(0)); gidx.append(gi)
+        if not embs: return np.nan
+        logp = lda.predict_log_proba(scaler.transform(np.array(embs))); gidx = np.array(gidx)
+        if statistic == 'accuracy': return float((logp.argmax(1) == gidx).mean())
+        return float(-logp[np.arange(len(gidx)), gidx].mean())
+
+    obs = score([0]*len(test_slots))
+    if not np.isfinite(obs): return {'error': 'observed undefined'}
+    rng = np.random.RandomState(seed); nulls, n_bad = [], 0
+    for b in range(n_perm):
+        sh = []
+        for s, _ in test_slots:
+            T = s['X'].shape[0]
+            if T < 20: sh.append(0); continue
+            lo = max(1, int(edge_frac*T)); hi = T-lo
+            sh.append(rng.randint(lo, hi+1) if hi > lo else rng.randint(1, T))
+        v = score(sh)
+        if not np.isfinite(v): n_bad += 1; continue
+        nulls.append(v)
+    nulls = np.asarray(nulls, float)
+    if nulls.size < max(20, n_perm//2): return {'error': f'too many invalid perms ({n_bad}/{n_perm})'}
+    if statistic == 'accuracy':
+        z = (obs - nulls.mean())/(nulls.std(ddof=1)+1e-9); p = (np.sum(nulls >= obs)+1)/(nulls.size+1)
+    else:
+        z = (nulls.mean() - obs)/(nulls.std(ddof=1)+1e-9); p = (np.sum(nulls <= obs)+1)/(nulls.size+1)
+    return {'pid': pid, 'statistic': statistic, 'obs': float(obs), 'null_mean': float(nulls.mean()),
+            'null_std': float(nulls.std(ddof=1)), 'z': float(z), 'p_one_sided': float(p),
+            'n_perm': int(nulls.size), 'n_bad': n_bad}
+
+
+def run_shift_test_perphoneme(label, statistic='ce', n_perm=2000, edge_frac=0.1, seed=0):
+    col = 'acc_obs' if statistic == 'accuracy' else 'CE_obs'
+    print(f"\n{label}: {statistic} based (per-phoneme)")
+    print(f"{'pid':<5} {col:>8} {'null_mu':>8} {'null_sigma':>9} {'z':>6} {'p':>9}\n" + '-'*60)
+    results = {}
+    for pid in TARGET_PIDS:
+        if pid not in encoders: continue
+        r = pvalue_shift_input_ssl_perphoneme(pid, datasets, encoders, statistic=statistic,
+                                              n_perm=n_perm, edge_frac=edge_frac, seed=seed)
+        if 'error' in r: print(f"{pid:<5} SKIP — {r['error']}"); continue
+        results[pid] = r
+        print(f"{pid:<5} {r['obs']:8.3f} {r['null_mean']:8.3f} {r['null_std']:9.4f} "
+              f"{r['z']:+6.2f} {r['p_one_sided']:9.4f}")
+    if results:
+        pv = np.clip([r['p_one_sided'] for r in results.values()], 1e-300, 1.0)
+        q = ss.false_discovery_control(pv, method='bh'); chi2 = -2*np.log(pv).sum()
+        print('-'*60)
+        print(f"BH-FDR significant: {(q < 0.05).sum()}/{len(pv)}")
+        print(f"Fisher combined p:  {1 - ss.chi2.cdf(chi2, 2*len(pv)):.2e}")
+    return results
+
+ssl_acc_pp = run_shift_test_perphoneme('ssl_only', statistic='accuracy')
+ssl_ce_pp  = run_shift_test_perphoneme('ssl_only', statistic='ce')
+
+# write out perm test results for the report
+import pickle, os
+os.makedirs('results', exist_ok=True)
+pickle.dump({'acc_frame': ssl_acc, 'ce_frame': ssl_ce,      # per-frame (robustness)
+             'acc_pho':   ssl_acc_pp, 'ce_pho':  ssl_ce_pp}, # per-phoneme (comparable)
+            open('results/ssl_shift_perm.pkl', 'wb'))
+print('saved results/ssl_shift_perm.pkl')
+
+# cohort inference + NW metrics + save
+# ============================================================
+import warnings
+warnings.filterwarnings('ignore', message='Only one sample available')
+ssl_results = {}
 print(f"{'pid':<5} {'match':>7} {'z':>6} {'n2':>4} {'n3':>4} {'n4':>4}  pred/gold  bonus")
 print('-' * 65)
 for pid in TARGET_PIDS:
     if pid not in embeddings: continue
     out, err = run_for_patient_ssl(pid, datasets, embeddings)
     if err: print(f"  {pid}: SKIP — {err}"); continue
-    v1_results[pid] = out
+    ssl_results[pid] = out
     m = nw_metrics(out)
     print(f"{pid:<5} {100*m['match_rate']:6.1f}% {m['z_match']:+5.2f} "
           f"{m['n2']:>4} {m['n3']:>4} {m['n4']:>4}  "
           f"{out['n_pred']:>3}/{out['n_test']:>3}  {out['bonus']:.2f}")
 
-ams = [nw_metrics(o)['match_rate'] for o in v1_results.values()]
-azs = [nw_metrics(o)['z_match']    for o in v1_results.values()]
-print('-' * 65)
-print(f"AVG   {100*np.mean(ams):6.1f}% {np.mean(azs):+5.2f}")
+if ssl_results:
+    ams = [nw_metrics(o)['match_rate'] for o in ssl_results.values()]
+    azs = [nw_metrics(o)['z_match']    for o in ssl_results.values()]
+    print('-' * 65)
+    print(f"AVG   {100*np.mean(ams):6.1f}% {np.mean(azs):+5.2f}")
 
-# save pickle + JSON summary
-import pickle
-os.makedirs('results/v1', exist_ok=True)
-with open('results/v1/hg_lowbeta_tr17_cohort.pkl', 'wb') as f:
-    pickle.dump(v1_results, f)
+    os.makedirs('results/ssl_only', exist_ok=True)
+    with open('results/ssl_only/hg_only_cohort.pkl', 'wb') as f:
+        pickle.dump(ssl_results, f)
+    summary = {'spec': 'HG_only', 'bands': BANDS, 'SSL_EPOCHS': SSL_EPOCHS,
+               'TARGET_RATIO': TARGET_RATIO, 'MIN_PRED_FRAMES': MIN_PRED_FRAMES,
+               'SMOOTH_LOGP_W': SMOOTH_LOGP_W, 'cohort': {}}
+    for pid, out in ssl_results.items():
+        m = nw_metrics(out); d = diversity_stats(out)
+        summary['cohort'][pid] = {
+            'match_rate': float(m['match_rate']), 'z_match': float(m['z_match']),
+            'n2': int(m['n2']), 'n3': int(m['n3']), 'n4': int(m['n4']),
+            'uniq_n3': int(d['uniq_n3']), 'n3_total': int(d['n3_total']),
+            'n_pred': int(out['n_pred']), 'n_test': int(out['n_test']),
+            'bonus': float(out['bonus']),
+        }
+    with open('results/ssl_only/hg_only_summary.json', 'w') as f:
+        json.dump(summary, f, indent=2)
+    print("saved -> results/ssl_only/hg_only_cohort.pkl + hg_only_summary.json")
 
-summary = {'spec': 'HG+low_beta', 'bands': V1_BANDS,
-           'SSL_EPOCHS': SSL_EPOCHS_V1, 'TARGET_RATIO': TARGET_RATIO,
-           'MIN_PRED_FRAMES': MIN_PRED_FRAMES,
-           'SMOOTH_LOGP_W': SMOOTH_LOGP_W,
-           'cohort': {}}
-for pid in TARGET_PIDS:
-    if pid not in v1_results: continue
-    out = v1_results[pid]; m = nw_metrics(out); d = diversity_stats(out)
-    summary['cohort'][pid] = {
-        'match_rate': float(m['match_rate']),
-        'z_match':    float(m['z_match']),
-        'n2': int(m['n2']), 'n3': int(m['n3']), 'n4': int(m['n4']),
-        'uniq_n3': int(d['uniq_n3']), 'n3_total': int(d['n3_total']),
-        'n_pred':  int(out['n_pred']), 'n_test':  int(out['n_test']),
-        'bonus':   float(out['bonus']),
-    }
-with open('results/v1/hg_lowbeta_tr17_summary.json', 'w') as f:
-    json.dump(summary, f, indent=2)
 
-print(f"\nv1 saved to:")
-print(f"  results/v1/hg_lowbeta_tr17_cohort.pkl")
-print(f"  results/v1/hg_lowbeta_tr17_summary.json")
-print(f"  bio_models/{{P21..P30}}_ssl_encoder_low_beta.pt")
-
-# %% Cell 11 — visualise v1 results
+# visualize NW matched sequences
 # ============================================================
 from IPython.display import display, HTML
 
-# install into pipeline so show_matched_sequences_with_times can find them
-pipeline.patient_results = dict(v1_results)
-
-for pid in sorted(v1_results):
-    out = v1_results[pid]; m = nw_metrics(out); d = diversity_stats(out)
-    top3 = '  '.join(f"{''.join(g)}×{c}" for g, c in d['top_n3'][:3]) or '—'
+pipeline.patient_results = dict(ssl_results)   # so the viz can find them
+for pid in sorted(ssl_results):
+    out = ssl_results[pid]; m = nw_metrics(out); d = diversity_stats(out)
+    top3 = '  '.join(f"{''.join(g)}x{c}" for g, c in d['top_n3'][:3]) or '-'
     display(HTML(
-        f"<hr><h3>{pid} — v1 (HG + low_beta amp, TR={TARGET_RATIO})</h3>"
-        f"<div style='font-family:monospace;font-size:12px;"
-        f"background:#f4f4f4;padding:6px;border-radius:4px;margin-bottom:8px;'>"
+        f"<hr><h3>{pid} — HG-only (TR={TARGET_RATIO})</h3>"
+        f"<div style='font-family:monospace;font-size:12px;background:#f4f4f4;"
+        f"padding:6px;border-radius:4px;margin-bottom:8px;'>"
         f"match={100*m['match_rate']:.1f}% &nbsp; z={m['z_match']:+.2f} &nbsp; "
         f"n2={m['n2']} n3={m['n3']} n4={m['n4']} &nbsp; "
         f"uniq_n3={d['uniq_n3']}/{d['n3_total']} &nbsp; "
-        f"pred/gold={out['n_pred']}/{out['n_test']} &nbsp; "
-        f"bonus={out['bonus']:.2f}<br>top n3: {top3}</div>"
-    ))
-    show_matched_sequences_with_times(pipeline, pid,
-                                       max_per_line=25,
-                                       collapse_repeats=True,
-                                       time_align_tol_s=0.10)
-    # display(HTML(show_predictions_html(out, label=f'{pid} v1',
-    #                                     max_sentences=8)))
+        f"pred/gold={out['n_pred']}/{out['n_test']} &nbsp; bonus={out['bonus']:.2f}"
+        f"<br>top n3: {top3}</div>"))
+    show_matched_sequences_with_times(pipeline, pid, max_per_line=25,
+                                      collapse_repeats=True, time_align_tol_s=0.10)
 
-# %% Cell — Approach B helper: shift input + re-encode + re-LDA + CE
-# ============================================================
+import importlib, ssl_lda_frames_clean as S
+importlib.reload(S)   # picks up the new function + per_phoneme flag
+
+ssl_acc_pp = S.run_shift_test_table('ssl_only', statistic='accuracy', per_phoneme=True, n_perm=2000)
+ssl_ce_pp  = S.run_shift_test_table('ssl_only', statistic='ce',       per_phoneme=True, n_perm=2000)
+
+import pickle
+pickle.dump({'acc': ssl_acc_pp, 'ce': ssl_ce_pp},
+            open('results/ssl_shift_perm_perphoneme.pkl', 'wb'))
+
+import torch.nn.functional as F
+
+# %% SSL confusion — NW-aligned (SSL is free-running; do NOT zip) ===============
+import numpy as np, matplotlib.pyplot as plt
+from collections import Counter
+import importlib, phon_helpers; importlib.reload(phon_helpers)
+from phon_helpers import manner, place, is_cons, aligned_pairs_nw
+
+src = ssl_results          # needs true_labels/predictions + true_sentence_ids/pred_sentence_ids per pid
+CONS_ONLY = True
+
+pairs = Counter()
+for r in src.values():
+    for g, p in aligned_pairs_nw(r):                 # per-sentence NW align, NOT zip
+        if (not CONS_ONLY) or (is_cons(g) and is_cons(p)):
+            pairs[(g, p)] += 1
+
+mord = {'plosive':0,'fricative':1,'nasal':2,'approx':3,'vowel':4}
+syms = sorted({c for gp in pairs for c in gp}, key=lambda c:(mord.get(manner(c),9), str(place(c)), c))
+idx = {c:i for i,c in enumerate(syms)}; n=len(syms)
+M = np.zeros((n,n))
+for (g,p),v in pairs.items(): M[idx[g],idx[p]] += v
+rsum, csum = M.sum(1,keepdims=True), M.sum(0,keepdims=True)
+recall = np.divide(M, rsum, out=np.zeros_like(M), where=rsum>0)
+prec   = np.divide(M, csum, out=np.zeros_like(M), where=csum>0)
+
+fig, axes = plt.subplots(1, 2, figsize=(17, 7.5))
+for ax, Mx, ttl in [(axes[0],recall,'SSL Recall  P(pred|gold)'),(axes[1],prec,'SSL Precision  P(gold|pred)')]:
+    im = ax.imshow(Mx, cmap='Blues', vmin=0, vmax=1)
+    ax.set_xticks(range(n)); ax.set_xticklabels(syms, fontsize=7, rotation=90)
+    ax.set_yticks(range(n)); ax.set_yticklabels(syms, fontsize=7)
+    ax.set_xlabel('predicted'); ax.set_ylabel('gold'); ax.set_title(ttl)
+    for i in range(n):
+        for j in range(n):
+            if Mx[i,j] >= 0.10:
+                ax.text(j,i,f'{Mx[i,j]:.2f}'.lstrip('0'),ha='center',va='center',
+                        fontsize=6,color='white' if Mx[i,j]>0.55 else '#222')
+    ax.set_xticks(np.arange(-.5,n,1),minor=True); ax.set_yticks(np.arange(-.5,n,1),minor=True)
+    ax.grid(which='minor',color='0.85',lw=0.5); ax.tick_params(which='minor',length=0)
+    fig.colorbar(im,ax=ax,fraction=0.046,pad=0.04)
+plt.tight_layout(); plt.savefig('report/fig_ssl_confusion_nw.png',dpi=150,bbox_inches='tight'); plt.show()
+
+import importlib, phon_helpers
+importlib.reload(phon_helpers)
+from phon_helpers import (voicing_minpair_z, feature_z, manner, place, voicing,
+                          subs_nw, subs_position_zip)
+
+# %% PER for both models (with S/D/I decomposition) — run in SSL notebook
+import importlib, phon_helpers; importlib.reload(phon_helpers)
+from phon_helpers import gather_sequences
+import pickle, numpy as np
+from scipy.stats import ttest_rel, t as tdist
+
+with open('results/crf_patient_results.pkl', 'rb') as f:
+    crf_export = pickle.load(f)
+pids = sorted(set(crf_export) & set(ssl_results))
+
+def edit_counts(ref, hyp):                 # Levenshtein with S/D/I backtrace
+    n, m = len(ref), len(hyp)
+    D = np.zeros((n + 1, m + 1), dtype=int)
+    D[:, 0] = np.arange(n + 1); D[0, :] = np.arange(m + 1)
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            c = 0 if ref[i - 1] == hyp[j - 1] else 1
+            D[i, j] = min(D[i - 1, j] + 1, D[i, j - 1] + 1, D[i - 1, j - 1] + c)
+    i, j, s, d, ins = n, m, 0, 0, 0
+    while i > 0 or j > 0:
+        if i > 0 and j > 0 and D[i, j] == D[i - 1, j - 1] + (0 if ref[i - 1] == hyp[j - 1] else 1):
+            if ref[i - 1] != hyp[j - 1]: s += 1
+            i -= 1; j -= 1
+        elif i > 0 and D[i, j] == D[i - 1, j] + 1:
+            d += 1; i -= 1                  # deletion: gold phoneme missed
+        else:
+            ins += 1; j -= 1               # insertion: spurious predicted phoneme
+    return s, d, ins
+
+def patient_per(out):
+    gold_per, pred_per = gather_sequences(out)
+    S = Dl = I = N = 0
+    for sid in set(gold_per) | set(pred_per):
+        g, p = gold_per.get(sid, []), pred_per.get(sid, [])
+        s, d, ins = edit_counts(g, p)
+        S += s; Dl += d; I += ins; N += len(g)
+    return S, Dl, I, N
+
+rows = []
+print(f"{'pid':4} | {'CRF PER':8} {'(S/D/I)':16} | {'SSL PER':8} {'(S/D/I)':16}")
+for pid in pids:
+    cS, cD, cI, cN = patient_per(crf_export[pid])
+    sS, sD, sI, sN = patient_per(ssl_results[pid])
+    cper, sper = (cS + cD + cI) / cN, (sS + sD + sI) / sN
+    rows.append((pid, cper, sper, cS / cN, sS / sN))
+    print(f"{pid:4} | {cper:7.3f}  ({cS}/{cD}/{cI})".ljust(34) +
+          f"| {sper:7.3f}  ({sS}/{sD}/{sI})")
+
+cp = np.array([r[1] for r in rows]); sp = np.array([r[2] for r in rows])
+csub = np.array([r[3] for r in rows]); ssub = np.array([r[4] for r in rows])
+d = cp - sp; P = ttest_rel(cp, sp)[1]; md = d.mean()
+half = tdist.ppf(0.975, len(d) - 1) * d.std(ddof=1) / np.sqrt(len(d))
+print(f"\nPER  cohort: CRF={cp.mean():.3f}  SSL={sp.mean():.3f}  "
+      f"Delta={md:+.3f} CI[{md-half:+.3f},{md+half:+.3f}] p={P:.3g}")
+print(f"SUB-only rate (no I/D): CRF={csub.mean():.3f}  SSL={ssub.mean():.3f}  "
+      f"<- the fairer comparison, both conditioned on substitutions only")
+
+# %% Phoneme marginal distributions: gold vs CRF-pred vs SSL-pred ─────────
+import importlib, phon_helpers; importlib.reload(phon_helpers)
+from phon_helpers import cv
+import pickle, numpy as np, matplotlib.pyplot as plt
+from collections import Counter
+
+with open('results/crf_patient_results.pkl', 'rb') as f:
+    crf_export = pickle.load(f)
+pids = sorted(set(crf_export) & set(ssl_results))
+
+gold, crf_pred, ssl_pred = Counter(), Counter(), Counter()
+for pid in pids:
+    gold.update(map(str, crf_export[pid]['true_labels']))     # oracle gold (1:1)
+    crf_pred.update(map(str, crf_export[pid]['predictions']))
+    ssl_pred.update(map(str, ssl_results[pid]['predictions']))
+
+phones = sorted(set(gold) | set(crf_pred) | set(ssl_pred), key=lambda p: -gold.get(p, 0))
+def rel(cnt): t = sum(cnt.values()); return np.array([cnt.get(p, 0) / t for p in phones])
+g, c, s = rel(gold), rel(crf_pred), rel(ssl_pred)
+
+def tv(a, b): return 0.5 * np.abs(a - b).sum()           # total-variation distance, 0..1
+def kl(a, b): m = a > 0; return float(np.sum(a[m] * np.log(a[m] / np.clip(b[m], 1e-9, None))))
+print("Total-variation distance (0=identical, 1=disjoint):")
+print(f"  gold vs CRF = {tv(g, c):.3f}   gold vs SSL = {tv(g, s):.3f}   CRF vs SSL = {tv(c, s):.3f}")
+print("KL(gold || pred)  (how far each model's marginal is from gold):")
+print(f"  CRF = {kl(g, c):.3f}   SSL = {kl(g, s):.3f}")
+
+x = np.arange(len(phones)); w = 0.27
+fig, axes = plt.subplots(2, 1, figsize=(16, 9))
+ax = axes[0]
+ax.bar(x - w, g, w, label='gold',     color='0.4')
+ax.bar(x,     c, w, label='CRF pred', color='#e08a2b')
+ax.bar(x + w, s, w, label='SSL pred', color='#3b6fb0')
+ax.set_xticks(x); ax.set_xticklabels(phones, fontsize=9)
+for t in ax.get_xticklabels():
+    t.set_color('#1f77b4' if cv(t.get_text()) == 'V' else 'black')   # blue = vowel
+ax.set_ylabel('relative frequency'); ax.legend()
+ax.set_title('Phoneme marginal distributions (pooled, sorted by gold frequency; blue x-labels = vowels)')
+
+ax = axes[1]
+ax.bar(x - w / 2, c - g, w, label='CRF − gold', color='#e08a2b')
+ax.bar(x + w / 2, s - g, w, label='SSL − gold', color='#3b6fb0')
+ax.axhline(0, color='k', lw=0.8)
+ax.set_xticks(x); ax.set_xticklabels(phones, fontsize=9)
+for t in ax.get_xticklabels():
+    t.set_color('#1f77b4' if cv(t.get_text()) == 'V' else 'black')
+ax.set_ylabel('pred − gold'); ax.legend()
+ax.set_title('Deviation from gold  (+ = over-predicted, − = under-predicted)')
+plt.tight_layout(); plt.show()
+
+# %% WER via closed-vocab word recognition (gold word boundaries) — SSL notebook
+import importlib, phon_helpers; importlib.reload(phon_helpers)
+from phon_helpers import needleman_wunsch, gather_sequences, edit_distance
+import pickle, numpy as np
+from collections import defaultdict, Counter
+from scipy.stats import ttest_rel, t as tdist
+
+with open('results/crf_patient_results.pkl', 'rb') as f:
+    crf_export = pickle.load(f)
+pids = sorted(set(crf_export) & set(ssl_results))
+
+# 1) gold (phone, word) per sentence, keyed by sent_idx; + lexicon (word -> canonical phones)
+gold_pw = {pid: {} for pid in pids}
+word_prons = defaultdict(Counter)
+for pid in pids:
+    for s in datasets[pid]['train'] + datasets[pid]['test']:
+        pw = [(ph['phone'], (ph['word'] or '').lower()) for ph in s['mfa'] if ph['word']]
+        gold_pw[pid][s['sent_idx']] = pw
+        # accumulate per-word pronunciation (consecutive same-word runs)
+        runs = []
+        for i, (p, w) in enumerate(pw):
+            if not runs or pw[i - 1][1] != w: runs.append([w, []])
+            runs[-1][1].append(p)
+        for w, ph in runs:
+            word_prons[w][tuple(ph)] += 1
+lexicon = {w: list(c.most_common(1)[0][0]) for w, c in word_prons.items()}
+vocab = list(lexicon)
+print(f"lexicon: {len(vocab)} words")
+
+_cache = {}
+def recognize(pred_str):
+    key = tuple(pred_str)
+    if key in _cache: return _cache[key]
+    best, bd = None, 10 ** 9
+    for w in vocab:
+        d = edit_distance(key, lexicon[w])
+        if d < bd: bd, best = d, w
+    _cache[key] = best
+    return best
+
+def sentence_errors(pw, pred_phones):
+    runs, run_of = [], {}
+    for i, (p, w) in enumerate(pw):
+        if not runs or pw[i - 1][1] != w: runs.append([w, []])
+        runs[-1][1].append(i); run_of[i] = len(runs) - 1
+    al = needleman_wunsch([g for g, _ in pw], pred_phones)
+    per_run = defaultdict(list); gi = 0
+    for g, p in al:
+        if g is not None:
+            if p is not None: per_run[run_of[gi]].append(p)
+            gi += 1
+    wrong = sum(recognize(per_run.get(rid, [])) != w for rid, (w, _) in enumerate(runs))
+    return wrong, len(runs)
+
+def model_wer(out, pid):
+    _, pred_per = gather_sequences(out)
+    W = N = matched = total = 0
+    for sid, pw in gold_pw[pid].items():
+        total += 1
+        if sid not in pred_per: continue
+        matched += 1
+        w, n = sentence_errors(pw, pred_per[sid]); W += w; N += n
+    return (W / N if N else np.nan), matched, total
+
+crf_wer, ssl_wer = {}, {}
+print(f"\n{'pid':4} | {'CRF WER':8} {'cov':9} | {'SSL WER':8} {'cov':9}")
+for pid in pids:
+    cw, cm, ct = model_wer(crf_export[pid], pid)
+    sw, sm, st = model_wer(ssl_results[pid], pid)
+    crf_wer[pid], ssl_wer[pid] = cw, sw
+    print(f"{pid:4} | {cw:7.3f}  {cm}/{ct:<5} | {sw:7.3f}  {sm}/{st}")
+
+ok = [p for p in pids if np.isfinite(crf_wer[p]) and np.isfinite(ssl_wer[p])]
+c = np.array([crf_wer[p] for p in ok]); s = np.array([ssl_wer[p] for p in ok])
+d = c - s; P = ttest_rel(c, s)[1]; md = d.mean()
+half = tdist.ppf(0.975, len(d) - 1) * d.std(ddof=1) / np.sqrt(len(d))
+print(f"\nWER cohort: CRF={c.mean():.3f}  SSL={s.mean():.3f}  "
+      f"Delta={md:+.3f} CI[{md-half:+.3f},{md+half:+.3f}] p={P:.3g}")
+
+from phon_helpers import gather_sequences, edit_distance
 import numpy as np
-import torch
-import scipy.stats as ss
+for pid in pids:
+    gper, _ = gather_sequences(crf_export[pid])     # CRF gold phones by its sid
+    ds = []
+    for sid in gper:
+        if sid in gold_pw[pid]:
+            a = gper[sid]; b = [g for g, _ in gold_pw[pid][sid]]
+            ds.append(edit_distance(a, b) / max(len(b), 1))
+    print(f"{pid}: matched {len(ds)}  mean gold-vs-gold dist = {np.mean(ds):.3f}" if ds else f"{pid}: none")
+print("near 0 = ids aligned (same sentences); near 1 = MISALIGNED -> CRF WER is invalid")
 
-def pvalue_shift_input_ssl(pid, datasets_d, encoders_d,
-                            n_perm=500, edge_frac=0.1, seed=0,
-                            verbose=False):
-    """Approach B for SSL+LDA pipelines.
-    
-    For each permutation:
-      1. Within each test sentence, circular-shift the per-frame feature
-         matrix by a random offset.
-      2. Re-run the encoder on the shifted features.
-      3. Re-run the LDA (fit on TRAIN, kept fixed) to get per-frame log-probs.
-      4. Compute CE against ORIGINAL gold (not shifted).
-    
-    Train data and LDA model are unchanged — only test-input is shifted.
-    Boundary effects (encoder sees zero-padded shifted input) are intentionally
-    included in the null, matching the "shift the signal" interpretation.
-    """
-    ds  = datasets_d[pid]
-    enc = encoders_d[pid]; enc.eval()
-    mfa_by_sid = {s['sent_idx']: s['mfa'] for s in ds['train'] + ds['test']}
-    test_sids  = [s['sent_idx'] for s in ds['test']]
-    
-    # 1. Fit LDA on TRAIN per-phoneme means (no shift — fixed for all perms)
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-    
-    train_X, train_y = [], []
-    with torch.no_grad():
-        for s in ds['train']:
-            h = enc(s['X'].unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy()
-            T = h.shape[0]
-            for ph in s['mfa']:
-                k_s = max(0, time_to_frame(ph['start_s']))
-                k_e = min(T - 1, time_to_frame(ph['end_s']))
-                if k_e < k_s: continue
-                train_X.append(h[k_s:k_e+1].mean(axis=0))
-                train_y.append(ph['phone'])
-    train_X = np.array(train_X); train_y = np.array(train_y)
-    scaler = StandardScaler().fit(train_X)
-    lda = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto')
-    lda.fit(scaler.transform(train_X), train_y)
-    class_labels = list(lda.classes_)
-    class_idx = {c: i for i, c in enumerate(class_labels)}
-    
-    # 2. Get per-frame embeddings + gold for OBSERVED (no shift)
-    def get_test_data(shift_fn=None):
-        """shift_fn: if None, no shift; else takes (X) and returns shifted X."""
-        all_logp, all_gold = [], []
-        with torch.no_grad():
-            for s in ds['test']:
-                X = s['X']
-                if shift_fn is not None: X = shift_fn(X)
-                h = enc(X.unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy()
-                T = h.shape[0]
-                logp = lda.predict_log_proba(scaler.transform(h))  # (T, K)
-                # build per-frame gold (using ORIGINAL MFA, not shifted)
-                gold_t = np.full(T, -1, dtype=int)
-                for ph in s['mfa']:
-                    if ph['phone'] not in class_idx: continue
-                    k_s = max(0, time_to_frame(ph['start_s']))
-                    k_e = min(T - 1, time_to_frame(ph['end_s']))
-                    if k_e >= k_s:
-                        gold_t[k_s:k_e+1] = class_idx[ph['phone']]
-                all_logp.append(logp); all_gold.append(gold_t)
-        return all_logp, all_gold
-    
-    def ce_from(all_logp, all_gold):
-        logp_cat = np.concatenate(all_logp)
-        gold_cat = np.concatenate(all_gold)
-        valid = gold_cat >= 0
-        return -logp_cat[valid][np.arange(valid.sum()), gold_cat[valid]].mean()
-    
-    obs_logp, obs_gold = get_test_data(shift_fn=None)
-    ce_obs = ce_from(obs_logp, obs_gold)
-    if verbose: print(f"  [{pid}] CE_obs = {ce_obs:.4f}")
-    
-    # 3. Null: re-encode + re-LDA on shifted input
-    rng = np.random.RandomState(seed)
-    nulls = np.empty(n_perm)
-    for b in range(n_perm):
-        # build a SHARED random shift per sentence for this permutation
-        sentence_shifts = {}
-        for s in ds['test']:
-            T = s['X'].shape[0]
-            if T < 20:
-                sentence_shifts[s['sent_idx']] = 0; continue
-            lo = max(1, int(edge_frac * T))
-            hi = T - lo
-            sentence_shifts[s['sent_idx']] = (rng.randint(lo, hi + 1)
-                                              if hi > lo else rng.randint(1, T))
-        
-        # inline: per-sentence shift + encode + LDA
-        all_logp, all_gold = [], []
-        with torch.no_grad():
-            for s in ds['test']:
-                shift = sentence_shifts[s['sent_idx']]
-                X = torch.roll(s['X'], shifts=shift, dims=0)
-                h = enc(X.unsqueeze(0).to(DEVICE)).squeeze(0).cpu().numpy()
-                T = h.shape[0]
-                logp = lda.predict_log_proba(scaler.transform(h))
-                gold_t = np.full(T, -1, dtype=int)
-                for ph in s['mfa']:
-                    if ph['phone'] not in class_idx: continue
-                    k_s = max(0, time_to_frame(ph['start_s']))
-                    k_e = min(T - 1, time_to_frame(ph['end_s']))
-                    if k_e >= k_s:
-                        gold_t[k_s:k_e+1] = class_idx[ph['phone']]
-                all_logp.append(logp); all_gold.append(gold_t)
-        nulls[b] = ce_from(all_logp, all_gold)
-        
-        if verbose and ((b+1) % 50 == 0 or b == 0):
-            print(f"    perm {b+1}/{n_perm}  null CE = {nulls[b]:.4f}")
-            
-    null_mean = nulls.mean(); null_std = nulls.std()
-    z = (null_mean - ce_obs) / (null_std + 1e-9)
-    p = (np.sum(nulls <= ce_obs) + 1) / (n_perm + 1)
-    return {'ce_obs': float(ce_obs),
-            'null_mean': float(null_mean), 'null_std': float(null_std),
-            'z': float(z), 'p_one_sided': float(p), 'n_perm': n_perm}
+# %% WER on the SAME sentences both models predicted (intersection) — SSL notebook
+from phon_helpers import gather_sequences
+import numpy as np
+from scipy.stats import ttest_rel, t as tdist
 
-# Permutation test on v1 (HG + low_beta)
-# ============================================================
-print(f"\n=== v1: Approach B (shift input + re-encode + re-LDA) ===")
-print(f"{'pid':<5} {'CE_obs':>8} {'null_mu':>8} {'null_sgm':>8} {'z':>6} {'p':>9}")
-print('-' * 60)
+def wer_on(out, pid, sids):
+    _, pred_per = gather_sequences(out)
+    W = N = 0
+    for sid in sids:
+        if sid in pred_per and sid in gold_pw[pid]:
+            w, n = sentence_errors(gold_pw[pid][sid], pred_per[sid]); W += w; N += n
+    return (W / N if N else np.nan)
 
-v1_shift_input_results = {}
-for pid in TARGET_PIDS:
-    if pid not in encoders: continue
-    r = pvalue_shift_input_ssl(pid, datasets, encoders,
-                                n_perm=2000, edge_frac=0.1, seed=0,
-                                verbose=False)
-    v1_shift_input_results[pid] = r
-    print(f"{pid:<5} {r['ce_obs']:8.3f} {r['null_mean']:8.3f} "
-          f"{r['null_std']:8.4f} {r['z']:+6.2f} {r['p_one_sided']:9.4f}")
+crf_w, ssl_w = {}, {}
+print(f"{'pid':4} | shared | CRF WER | SSL WER")
+for pid in pids:
+    _, cpred = gather_sequences(crf_export[pid])
+    _, spred = gather_sequences(ssl_results[pid])
+    shared = set(cpred) & set(spred) & set(gold_pw[pid])
+    crf_w[pid], ssl_w[pid] = wer_on(crf_export[pid], pid, shared), wer_on(ssl_results[pid], pid, shared)
+    print(f"{pid:4} | {len(shared):6} | {crf_w[pid]:.3f}   | {ssl_w[pid]:.3f}")
 
-# FDR + cohort
-p_vals = np.clip(np.array([r['p_one_sided'] for r in v1_shift_input_results.values()]),
-                 1e-300, 1.0)
-q_bh   = ss.false_discovery_control(p_vals, method='bh')
-chi2   = -2 * np.log(p_vals).sum(); df = 2 * len(p_vals)
-print('-' * 60)
-print(f"BH-FDR significant: {(q_bh < 0.05).sum()}/{len(p_vals)}")
-print(f"Fisher's combined p: {1 - ss.chi2.cdf(chi2, df):.2e}")
+ok = [p for p in pids if np.isfinite(crf_w[p]) and np.isfinite(ssl_w[p])]
+c = np.array([crf_w[p] for p in ok]); s = np.array([ssl_w[p] for p in ok])
+d = c - s; P = ttest_rel(c, s)[1]; md = d.mean()
+half = tdist.ppf(0.975, len(d) - 1) * d.std(ddof=1) / np.sqrt(len(d))
+print(f"\nWER (shared sentences): CRF={c.mean():.3f}  SSL={s.mean():.3f}  "
+      f"Delta={md:+.3f} CI[{md-half:+.3f},{md+half:+.3f}] p={P:.3g}")
 
-# Permutation test on ssl_only (HG-only)
-# ============================================================
-# Build HG-only state (datasets + encoders) — same as before
-print("Building HG-only state...")
-hg_datasets, hg_encoders = {}, {}
-for pid in TARGET_PIDS:
-    ds = build_sentence_dataset_multi(pid, [(70, 170)])
-    hg_datasets[pid] = ds
-    ckpt_path = os.path.join(MODEL_DIR, f'{pid}_ssl_encoder.pt')
-    if not os.path.exists(ckpt_path): continue
-    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=False)
-    enc = CausalTCNEncoder(ds['train'][0]['X'].shape[1]).to(DEVICE)
-    enc.load_state_dict(ckpt['enc'])
-    hg_encoders[pid] = enc
-    mu, sd = (ckpt['mu'], ckpt['sd']) if 'mu' in ckpt else fit_mu_sd(ds['train'])
-    standardize_inplace(ds['train'], mu, sd)
-    standardize_inplace(ds['test'], mu, sd)
+# add to the phoneme_auc helper — returns per-class one-vs-rest AUC
+# SSL NOTEBOOK — (re)define the PCA version of the helper
+import numpy as np
+from collections import Counter
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import GroupKFold
+from sklearn.metrics import roc_auc_score
 
-print(f"\n=== ssl_only: Approach B (shift input + re-encode + re-LDA) ===")
-print(f"{'pid':<5} {'CE_obs':>8} {'null_mu':>8} {'null_sigma':>8} {'z':>6} {'p':>9}")
-print('-' * 60)
 
-ssl_only_shift_input_results = {}
-for pid in TARGET_PIDS:
-    if pid not in hg_encoders: continue
-    r = pvalue_shift_input_ssl(pid, hg_datasets, hg_encoders,
-                                n_perm=2000, edge_frac=0.1, seed=0,
-                                verbose=False)
-    ssl_only_shift_input_results[pid] = r
-    print(f"{pid:<5} {r['ce_obs']:8.3f} {r['null_mean']:8.3f} "
-          f"{r['null_std']:8.4f} {r['z']:+6.2f} {r['p_one_sided']:9.4f}")
 
-p_vals = np.clip(np.array([r['p_one_sided'] for r in ssl_only_shift_input_results.values()]),
-                 1e-300, 1.0)
-q_bh = ss.false_discovery_control(p_vals, method='bh')
-chi2 = -2 * np.log(p_vals).sum(); df = 2 * len(p_vals)
-print('-' * 60)
-print(f"BH-FDR significant: {(q_bh < 0.05).sum()}/{len(p_vals)}")
-print(f"Fisher's combined p: {1 - ss.chi2.cdf(chi2, df):.2e}")
+# SSL notebook: per-class OvR AUC, pooled across patients per phoneme
+from collections import defaultdict
+import numpy as np, pickle
+ssl_pc = defaultdict(list)
+for pid in sorted(embeddings):
+    X, y, grp = build_pho_matrix(pid)
+    for c, a in phoneme_auc_perclass(X, y, grp).items():
+        ssl_pc[c].append(a)
+ssl_pc = {c: float(np.mean(v)) for c, v in ssl_pc.items()}
+pickle.dump(ssl_pc, open('results/ssl_perclass_auc.pkl', 'wb'))
+print("SSL  max OvR AUC =", round(max(ssl_pc.values()), 3),
+      " #>0.7 =", sum(a > 0.7 for a in ssl_pc.values()),
+      " top:", sorted(ssl_pc.items(), key=lambda x: -x[1])[:5])
 
-for name, res in [('v1 (HG+β)', v1_results), ('HG-only', ssl_only_results)]:
-    ms = [nw_metrics(o)['match_rate'] for o in res.values()]
-    zs = [nw_metrics(o)['z_match']    for o in res.values()]
-    n3 = sum(diversity_stats(o)['n3_total'] for o in res.values())
-    u3 = sum(diversity_stats(o)['uniq_n3']  for o in res.values())
-    print(f"{name:12} match={100*np.mean(ms):.1f}%  z_match={np.mean(zs):+.2f}  "
-          f"Σn3={n3}  uniq/tot={u3}/{n3}")
+import pickle; pickle.dump(ssl_results, open('results/ssl_results.pkl', 'wb'))
+
+# %% ABLATION 2 (Option B) — phonotactic transition LM in the SSL Viterbi =======
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from phon_helpers import needleman_wunsch, edit_distance, gather_sequences
+
+def viterbi_decode_lm(logp, self_bonus, logT, lm_weight):
+    """Self-loop bonus on the diagonal; phonotactic log-prob on switches only."""
+    T, K = logp.shape
+    if T == 0: return np.zeros(0, np.int32)
+    M = lm_weight * logT.copy(); np.fill_diagonal(M, self_bonus)   # stay=bonus, switch=LM
+    delta = np.empty((T, K)); bptr = np.empty((T, K), np.int32); delta[0] = logp[0]
+    for t in range(1, T):
+        cand = delta[t-1][:, None] + M
+        bptr[t] = cand.argmax(0); delta[t] = logp[t] + cand.max(0)
+    path = np.empty(T, np.int32); path[-1] = delta[-1].argmax()
+    for t in range(T-2, -1, -1): path[t] = bptr[t+1, path[t+1]]
+    return path
+
+def build_logT(labels, gold_seqs, smooth=1.0):
+    idx = {c: i for i, c in enumerate(labels)}; K = len(labels)
+    C = np.full((K, K), smooth)
+    for s in gold_seqs:
+        for a, b in zip(s[:-1], s[1:]):
+            if a in idx and b in idx: C[idx[a], idx[b]] += 1
+    return np.log(C / C.sum(1, keepdims=True))
+
+def count_ngrams_ge(pred, gold, k):
+    if len(pred) < k: return 0
+    gset = {tuple(gold[i:i+k]) for i in range(len(gold)-k+1)}
+    return sum(tuple(pred[i:i+k]) in gset for i in range(len(pred)-k+1))
+
+def run_ssl_lm(pid, lm_weight):
+    ds = datasets[pid]; mfa = {s['sent_idx']: s['mfa'] for s in ds['train'] + ds['test']}
+    per = embeddings[pid]; all_real = sorted(per)
+    test_ids = set(s['sent_idx'] for s in ds['test'])
+    tr = [i for i in all_real if i not in test_ids]
+    r = np.random.RandomState(0); r.shuffle(tr)
+    nval = max(1, int(len(tr) * VAL_FRAC)); val_ids, fit_ids = set(tr[:nval]), set(tr[nval:])
+    def bset(ids):
+        X, y = [], []
+        for sid in ids:
+            if sid not in per: continue
+            emb = per[sid]; T = emb.shape[0]
+            for ph in mfa[sid]:
+                ks = max(0, time_to_frame(ph['start_s'])); ke = min(T-1, time_to_frame(ph['end_s']))
+                if not (max(MN_FRAMES,1) <= ke-ks+1 <= MX_FRAMES): continue
+                X.append(emb[ks:ke+1].mean(0)); y.append(ph['phone'])
+        return np.array(X), np.array(y)
+    Xf, yf = bset(fit_ids)
+    if len(Xf) < 50: return None
+    scf = StandardScaler().fit(Xf)
+    clff = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto').fit(scf.transform(Xf), yf)
+    fc = set(yf); vlp, vt = [], 0
+    for sid in val_ids:
+        if sid not in per: continue
+        vlp.append(smooth_cols(clff.predict_log_proba(scf.transform(per[sid])), SMOOTH_LOGP_W))
+        vt += sum(1 for ph in mfa[sid] if ph['phone'] in fc)
+    if not vlp: return None
+    bonus = auto_tune_bonus(vlp, int(vt * TARGET_RATIO), MIN_PRED_FRAMES)
+    Xt, yt = bset(set(all_real) - test_ids); trc = set(yt)
+    sca = StandardScaler().fit(Xt)
+    clf = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto').fit(sca.transform(Xt), yt)
+    labels = list(clf.classes_)
+    logT = build_logT(labels, [[ph['phone'] for ph in mfa[s]] for s in (set(all_real)-test_ids) if s in mfa])
+    preds, psid, trues, tsid = [], [], [], []
+    for sid in test_ids:
+        if sid not in per: continue
+        emb = per[sid]; T = emb.shape[0]
+        lp = smooth_cols(clf.predict_log_proba(sca.transform(emb)), SMOOTH_LOGP_W)
+        path = viterbi_decode_lm(lp, bonus, logT, lm_weight)
+        i = 0
+        while i < T:
+            ci = path[i]; j = i+1
+            while j < T and path[j] == ci: j += 1
+            if j-i >= MIN_PRED_FRAMES: preds.append(labels[ci]); psid.append(sid)
+            i = j
+        for ph in mfa[sid]:
+            if ph['phone'] in trc: trues.append(ph['phone']); tsid.append(sid)
+    return {'true_labels': np.array(trues), 'predictions': np.array(preds),
+            'true_sentence_ids': np.array(tsid), 'pred_sentence_ids': np.array(psid)}
+
+def full_per(o):
+    gp, pp = gather_sequences(o)
+    return sum(edit_distance(gp[s], pp.get(s, [])) for s in gp) / max(sum(len(gp[s]) for s in gp), 1)
+def n3(o):
+    gp, pp = gather_sequences(o); return sum(count_ngrams_ge(pp.get(s, []), gp[s], 3) for s in gp)
+def sub_per(o):
+    gp, pp = gather_sequences(o); S = T = 0
+    for s in gp:
+        al = needleman_wunsch(gp[s], pp.get(s, []))
+        S += sum(1 for g, p in al if g is not None and p is not None and g != p)
+        T += len(gp[s])
+    return S / max(T, 1)
+# in the sweep, track sub_per(o) alongside full_per(o) and n3(o)
+weights = [0.0, 1.0, 3.0, 5.0]
+def count_ratio(o):
+    return len(o['predictions']) / max(len(o['true_labels']), 1)
+
+agg = {w: {'per': [], 'sub': [], 'n3': [], 'cr': []} for w in weights}
+for pid in sorted(embeddings):
+    row = f"{pid:<5}"
+    for w in weights:
+        o = run_ssl_lm(pid, w)
+        if o is None: row += "         -         "; continue
+        vals = [full_per(o), sub_per(o), n3(o), count_ratio(o)]
+        for k, v in zip(['per','sub','n3','cr'], vals): agg[w][k].append(v)
+        row += f"  {vals[0]:.2f}/{vals[1]:.2f}/{vals[3]:.1f}×"
+    print(row)
+print("\nmean (fullPER / subPER / Σn≥3 / pred-count-ratio):")
+for w in weights:
+    print(f"  lm={w}:  full={np.mean(agg[w]['per']):.3f}  sub={np.mean(agg[w]['sub']):.3f}  "
+          f"Σn≥3={np.mean(agg[w]['n3']):.1f}  count={np.mean(agg[w]['cr']):.2f}×")
+
+print("\nmean by lm_weight (fullPER / subPER / Σn≥3):")
+for w in weights:
+    print(f"  lm={w}:  fullPER={np.mean(agg[w]['per']):.3f}  "
+          f"subPER={np.mean(agg[w]['sub']):.3f}  Σn≥3={np.mean(agg[w]['n3']):.1f}")
+print("\nmean PER / Σn≥3 by lm_weight:")
+for w in weights:
+    print(f"  lm={w}:  PER={np.mean(agg[w]['per']):.3f}  Σn≥3={np.mean(agg[w]['n3']):.1f}")
+
+# %% ABLATION 2 (count-matched) — re-tune bonus WITH the LM to hold count = gold =
+def _count_tokens(path, min_pred):
+    n = i = 0; T = len(path)
+    while i < T:
+        j = i + 1
+        while j < T and path[j] == path[i]: j += 1
+        if j - i >= min_pred: n += 1
+        i = j
+    return n
+
+def auto_tune_bonus_lm(logp_list, target, min_pred, logT, lm_weight, lo=0.0, hi=50.0, n_iter=26):
+    def total(b):
+        return sum(_count_tokens(viterbi_decode_lm(lp, b, logT, lm_weight), min_pred) for lp in logp_list)
+    for _ in range(n_iter):
+        mid = 0.5 * (lo + hi)
+        if total(mid) > target: lo = mid      # too many tokens → raise bonus
+        else: hi = mid
+    return hi
+
+def run_ssl_lm_matched(pid, lm_weight):
+    ds = datasets[pid]; mfa = {s['sent_idx']: s['mfa'] for s in ds['train'] + ds['test']}
+    per = embeddings[pid]; all_real = sorted(per)
+    test_ids = set(s['sent_idx'] for s in ds['test'])
+    tr = [i for i in all_real if i not in test_ids]
+    r = np.random.RandomState(0); r.shuffle(tr)
+    nval = max(1, int(len(tr) * VAL_FRAC)); val_ids, fit_ids = set(tr[:nval]), set(tr[nval:])
+    def bset(ids):
+        X, y = [], []
+        for sid in ids:
+            if sid not in per: continue
+            emb = per[sid]; T = emb.shape[0]
+            for ph in mfa[sid]:
+                ks = max(0, time_to_frame(ph['start_s'])); ke = min(T-1, time_to_frame(ph['end_s']))
+                if not (max(MN_FRAMES,1) <= ke-ks+1 <= MX_FRAMES): continue
+                X.append(emb[ks:ke+1].mean(0)); y.append(ph['phone'])
+        return np.array(X), np.array(y)
+    Xf, yf = bset(fit_ids)
+    if len(Xf) < 50: return None
+    scf = StandardScaler().fit(Xf)
+    clff = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto').fit(scf.transform(Xf), yf)
+    fit_labels = list(clff.classes_); fc = set(yf)
+    logT_fit = build_logT(fit_labels, [[ph['phone'] for ph in mfa[s]] for s in fit_ids if s in mfa])
+    vlp, vt = [], 0
+    for sid in val_ids:
+        if sid not in per: continue
+        vlp.append(smooth_cols(clff.predict_log_proba(scf.transform(per[sid])), SMOOTH_LOGP_W))
+        vt += sum(1 for ph in mfa[sid] if ph['phone'] in fc)
+    if not vlp: return None
+    bonus = auto_tune_bonus_lm(vlp, vt, MIN_PRED_FRAMES, logT_fit, lm_weight)   # target = GOLD count
+    Xt, yt = bset(set(all_real) - test_ids); trc = set(yt)
+    sca = StandardScaler().fit(Xt)
+    clf = LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto').fit(sca.transform(Xt), yt)
+    labels = list(clf.classes_)
+    logT = build_logT(labels, [[ph['phone'] for ph in mfa[s]] for s in (set(all_real)-test_ids) if s in mfa])
+    preds, psid, trues, tsid = [], [], [], []
+    for sid in test_ids:
+        if sid not in per: continue
+        emb = per[sid]; T = emb.shape[0]
+        lp = smooth_cols(clf.predict_log_proba(sca.transform(emb)), SMOOTH_LOGP_W)
+        path = viterbi_decode_lm(lp, bonus, logT, lm_weight)
+        i = 0
+        while i < T:
+            ci = path[i]; j = i+1
+            while j < T and path[j] == ci: j += 1
+            if j-i >= MIN_PRED_FRAMES: preds.append(labels[ci]); psid.append(sid)
+            i = j
+        for ph in mfa[sid]:
+            if ph['phone'] in trc: trues.append(ph['phone']); tsid.append(sid)
+    return {'true_labels': np.array(trues), 'predictions': np.array(preds),
+            'true_sentence_ids': np.array(tsid), 'pred_sentence_ids': np.array(psid)}
+
+weights = [0.0, 0.5, 1.0, 2.0]
+agg = {w: {'per': [], 'sub': [], 'n3': [], 'cr': []} for w in weights}
+for pid in sorted(embeddings):
+    row = f"{pid:<5}"
+    for w in weights:
+        o = run_ssl_lm_matched(pid, w)
+        if o is None: row += "        -        "; continue
+        vals = [full_per(o), sub_per(o), n3(o), count_ratio(o)]
+        for k, v in zip(['per','sub','n3','cr'], vals): agg[w][k].append(v)
+        row += f"  {vals[1]:.2f}/{vals[2]:>2}/{vals[3]:.2f}×"
+    print(row)
+print("\nCOUNT-MATCHED  mean (subPER / Σn≥3 / count):")
+for w in weights:
+    print(f"  lm={w}:  subPER={np.mean(agg[w]['sub']):.3f}  "
+          f"Σn≥3={np.mean(agg[w]['n3']):.1f}  count={np.mean(agg[w]['cr']):.2f}×")

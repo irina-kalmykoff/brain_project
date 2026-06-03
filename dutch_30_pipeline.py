@@ -130,8 +130,17 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
         
         return self
     
-    def step2_split_by_instances(self, train_fraction=None, random_seed=None):
-        """Split each patient's word instances into train/test."""
+    def step2_split_by_instances(self, train_fraction=None, random_seed=None,
+                                 text_disjoint=True):
+        """Split each patient's word instances into train/test.
+
+        text_disjoint: if True (default), sentence patients (P21+) are split by
+            sentence TEXT — all presentations of a given text go to the SAME side
+            — so no sentence text (hence no phoneme sequence) can appear in both
+            train and test. If False, presentations of a repeated text may be
+            split across sides (the older behaviour, which can leave a few texts
+            overlapping). Word/mixed patients (P01-P20) are unaffected.
+        """
         if train_fraction is None:
             train_fraction = self.config.default_train_fraction
         if random_seed is None:
@@ -186,25 +195,34 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                     sent_text, sent_idx = sent_key
                     text_to_presentations[sent_text].append(sent_key)
 
-                # Split presentations of each sentence into train/test.
+                # Split sentences into train/test.
                 train_presentations = set()
                 test_presentations = set()
                 for sent_text, presentations in text_to_presentations.items():
-                    n_pres = len(presentations)
-                    pres_indices = np.arange(n_pres)
-                    np.random.shuffle(pres_indices)
-
-                    if n_pres == 1:
+                    if text_disjoint:
+                        # Whole text -> one side: a sentence text never appears
+                        # in both train and test (no phoneme-sequence overlap).
                         if np.random.random() < train_fraction:
-                            train_presentations.add(presentations[pres_indices[0]])
+                            train_presentations.update(presentations)
                         else:
-                            test_presentations.add(presentations[pres_indices[0]])
+                            test_presentations.update(presentations)
                     else:
-                        n_train = max(1, int(n_pres * train_fraction))
-                        for idx in pres_indices[:n_train]:
-                            train_presentations.add(presentations[idx])
-                        for idx in pres_indices[n_train:]:
-                            test_presentations.add(presentations[idx])
+                        # Older behaviour: split presentations of a text across sides.
+                        n_pres = len(presentations)
+                        pres_indices = np.arange(n_pres)
+                        np.random.shuffle(pres_indices)
+
+                        if n_pres == 1:
+                            if np.random.random() < train_fraction:
+                                train_presentations.add(presentations[pres_indices[0]])
+                            else:
+                                test_presentations.add(presentations[pres_indices[0]])
+                        else:
+                            n_train = max(1, int(n_pres * train_fraction))
+                            for idx in pres_indices[:n_train]:
+                                train_presentations.add(presentations[idx])
+                            for idx in pres_indices[n_train:]:
+                                test_presentations.add(presentations[idx])
 
                 # Map back to word instances.
                 for sent_key in train_presentations:
@@ -644,6 +662,58 @@ class Dutch30Pipeline(UnifiedPhonemePipeline, DebugMixin):
                 'total_word_instances': sum(len(inst) for inst in word_instances.values())
             }
         }
+    
+    def dedupe_split_by_text(pipeline, mode='to_train', verbose=True):
+        """Enforce that no sentence TEXT appears in both train and test, keeping the
+        rest of the existing split intact. For each text with presentations on both
+        sides, move its TEST presentations to train (mode='to_train') or drop them
+        from test (mode='drop'). Edits pipeline.split_result in place."""
+        sr = pipeline.split_result
+        total = 0
+        for pid in sorted(sr['test']):
+            wd = sr['word_segments_dict'][pid]
+            words_dict, sl = wd['words'], wd['sentence_list']
+
+            def text_of(sid):
+                s = sl[sid]
+                return s['text'] if isinstance(s, dict) else s
+
+            def sids_of(side):
+                ids = set()
+                for w, idxs in sr[side].get(pid, {}).items():
+                    for i in idxs:
+                        ids.add(words_dict[w]['instances'][i]['sentence_idx'])
+                return ids
+
+            tr_texts = {text_of(s) for s in sids_of('train')}
+            conflict = {s for s in sids_of('test') if text_of(s) in tr_texts}
+            if not conflict:
+                continue
+
+            moved_wi = 0
+            for w in list(sr['test'].get(pid, {})):
+                keep, move = [], []
+                for i in sr['test'][pid][w]:
+                    sid = words_dict[w]['instances'][i]['sentence_idx']
+                    (move if sid in conflict else keep).append(i)
+                if move and mode == 'to_train':
+                    tr_w = sr['train'].setdefault(pid, {}).setdefault(w, [])
+                    for i in move:
+                        if i not in tr_w:
+                            tr_w.append(i)
+                moved_wi += len(move)
+                if keep:
+                    sr['test'][pid][w] = keep
+                else:
+                    del sr['test'][pid][w]
+
+            total += len(conflict)
+            if verbose:
+                verb = 'moved to train' if mode == 'to_train' else 'dropped from test'
+                print(f"{pid}: {len(conflict)} sentence(s) {verb} ({moved_wi} word-instances)")
+        if verbose:
+            print(f"done — resolved {total} conflicting sentence(s)")
+        return sr
     
     def step3_load_channel_exclusions(self, exclusions_path):
         """

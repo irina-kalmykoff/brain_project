@@ -510,9 +510,43 @@ error_structure_grid(crf_export, ssl_results, savepath='report/fig_error_structu
 
 # ### Permutation Test
 
+# import pickle, numpy as np, scipy.stats as ss
+
+# ssl = pickle.load(open('results/ssl_shift_perm.pkl', 'rb'))
+# crf = pickle.load(open('results/crf_shift_perm.pkl', 'rb'))
+
+# def summary(res):
+#     pids = sorted(res)
+#     p = np.clip([res[k]['p_one_sided'] for k in pids], 1e-300, 1.0)
+#     q = ss.false_discovery_control(p, method='bh')
+#     fisher = 1 - ss.chi2.cdf(-2*np.log(p).sum(), 2*len(p))
+#     zpos = sum(res[k]['z'] > 0 for k in pids)
+#     return int((q < 0.05).sum()), len(pids), fisher, zpos
+
+# print("=== per-phoneme, feature-rotation null ===")
+# print(f"{'metric':<10}{'model':<5}{'BH-FDR':>9}{'Fisher p':>12}{'z>0':>7}")
+# for metric in ['acc_pho', 'ce_pho']:
+#     for name, d in [('SSL', ssl), ('CRF', crf)]:
+#         nsig, n, fp, zpos = summary(d[metric])
+#         print(f"{metric:<10}{name:<5}{nsig:>4}/{n:<4}{fp:>12.2e}{zpos:>4}/{n}")
+
+# # per-patient z side by side + paired test (SSL vs CRF)
+# print("\n=== per-patient z (SSL vs CRF) + paired test ===")
+# for metric in ['acc_pho', 'ce_pho']:
+#     sd, cd = ssl[metric], crf[metric]
+#     pids = sorted(set(sd) & set(cd))
+#     sz = np.array([sd[p]['z'] for p in pids]); cz = np.array([cd[p]['z'] for p in pids])
+#     d = sz - cz
+#     print(f"\n{metric}:  {'pid':<5}{'SSL z':>8}{'CRF z':>8}")
+#     for p, a, b in zip(pids, sz, cz):
+#         print(f"      {p:<5}{a:+8.2f}{b:+8.2f}")
+#     t = ss.ttest_rel(sz, cz); w = ss.wilcoxon(sz, cz)
+#     print(f"   SSL>CRF {int((d>0).sum())}/{len(d)}  mean delta z={d.mean():+.2f}  "
+#           f"t p={t.pvalue:.3g}  Wilcoxon p={w.pvalue:.3g}")
+
 import pickle, numpy as np, scipy.stats as ss
 
-ssl = pickle.load(open('results/ssl_shift_perm.pkl', 'rb'))
+ssl_crf = pickle.load(open('results/ssl_shift_perm_crfsplit.pkl', 'rb'))
 crf = pickle.load(open('results/crf_shift_perm.pkl', 'rb'))
 
 def summary(res):
@@ -526,14 +560,14 @@ def summary(res):
 print("=== per-phoneme, feature-rotation null ===")
 print(f"{'metric':<10}{'model':<5}{'BH-FDR':>9}{'Fisher p':>12}{'z>0':>7}")
 for metric in ['acc_pho', 'ce_pho']:
-    for name, d in [('SSL', ssl), ('CRF', crf)]:
+    for name, d in [('SSL', ssl_crf), ('CRF', crf)]:
         nsig, n, fp, zpos = summary(d[metric])
         print(f"{metric:<10}{name:<5}{nsig:>4}/{n:<4}{fp:>12.2e}{zpos:>4}/{n}")
 
 # per-patient z side by side + paired test (SSL vs CRF)
 print("\n=== per-patient z (SSL vs CRF) + paired test ===")
 for metric in ['acc_pho', 'ce_pho']:
-    sd, cd = ssl[metric], crf[metric]
+    sd, cd = ssl_crf[metric], crf[metric]
     pids = sorted(set(sd) & set(cd))
     sz = np.array([sd[p]['z'] for p in pids]); cz = np.array([cd[p]['z'] for p in pids])
     d = sz - cz
@@ -544,106 +578,189 @@ for metric in ['acc_pho', 'ce_pho']:
     print(f"   SSL>CRF {int((d>0).sum())}/{len(d)}  mean delta z={d.mean():+.2f}  "
           f"t p={t.pvalue:.3g}  Wilcoxon p={w.pvalue:.3g}")
 
-import numpy as np
-from report_helpers import _feat_auc
-idfn = lambda p: p
-for npca in [10**9, 50]:                      # 1e9 = effectively NO PCA (reproduces yesterday)
-    for mc in [25, 20]:
-        vc = np.array([_feat_auc(crf_feats[p], idfn, n_pca=npca, min_count=mc) for p in pids])
-        vs = np.array([_feat_auc(ssl_feats[p], idfn, n_pca=npca, min_count=mc) for p in pids])
-        tag = 'noPCA ' if npca > 10**6 else 'PCA50 '
-        print(f"{tag} mc={mc}: CRF={np.nanmean(vc):.3f}  SSL={np.nanmean(vs):.3f}  Δ={np.nanmean(vc-vs):+.3f}")
+# #### PER/WER
 
-import numpy as np
-from report_helpers import _feat_auc
-for npca in [30, 50, 100]:
-    vc = np.array([_feat_auc(crf_feats[p], lambda z: z, n_pca=npca) for p in pids])
-    vs = np.array([_feat_auc(ssl_feats[p], lambda z: z, n_pca=npca) for p in pids])
-    print(f"PCA{npca}: CRF={np.nanmean(vc):.3f} SSL={np.nanmean(vs):.3f}  Δ={np.nanmean(vc-vs):+.3f}")
+# %% WER — closed-vocab, shared sentences only (fair), report notebook
+import pickle, numpy as np
+from collections import defaultdict, Counter
+from scipy.stats import ttest_rel, t as tdist
+from phon_helpers import needleman_wunsch, gather_sequences, edit_distance
+from run_pipeline import load_mfa_alignments
 
-import numpy as np
-from report_helpers import _feat_auc
-from phon_helpers import is_cons
-cons_id = lambda p: p if is_cons(p) else None        # consonant identity (vowels excluded)
-vow_id  = lambda p: p if not is_cons(p) else None    # vowel identity (consonants excluded)
-for name, fn in [('all phonemes', lambda p: p), ('consonants only', cons_id), ('vowels only', vow_id)]:
-    vc = np.array([_feat_auc(crf_feats[p], fn, n_pca=50) for p in pids])
-    vs = np.array([_feat_auc(ssl_feats[p], fn, n_pca=50) for p in pids])
-    ok = np.isfinite(vc) & np.isfinite(vs)
-    print(f"{name:16}: CRF={np.nanmean(vc):.3f} SSL={np.nanmean(vs):.3f}  Δ={np.nanmean((vc-vs)[ok]):+.3f}")
+crf_export  = pickle.load(open('results/crf_export.pkl', 'rb'))
+ssl_results = pickle.load(open('results/ssl_results.pkl', 'rb'))
+pids = sorted(set(crf_export) & set(ssl_results))
 
-import numpy as np
-from report_helpers import _feat_auc
-from phon_helpers import vowel_length, vowel_place, is_cons
-for name, fn in [('vowels-id', lambda p: p if not is_cons(p) else None),
-                 ('duration', vowel_length), ('backness', vowel_place)]:
-    for npca in [10**9, 50]:
-        vc = np.array([_feat_auc(crf_feats[p], fn, n_pca=npca) for p in pids])
-        vs = np.array([_feat_auc(ssl_feats[p], fn, n_pca=npca) for p in pids])
-        print(f"{name:9} {'noPCA' if npca>10**6 else 'PCA50'}: "
-              f"CRF={np.nanmean(vc):.3f} SSL={np.nanmean(vs):.3f} Δ={np.nanmean(vc-vs):+.3f}")
+# lexicon + gold (phone,word) per sentence — from MFA, no `datasets` needed
+gold_pw = {pid: {} for pid in pids}
+word_prons = defaultdict(Counter)
+for pid in pids:
+    for sid, phs in load_mfa_alignments(pid).items():
+        pw = [(ph['phone'], (ph['word'] or '').lower()) for ph in phs if ph.get('word')]
+        gold_pw[pid][sid] = pw
+        runs = []
+        for i, (p, w) in enumerate(pw):
+            if not runs or pw[i - 1][1] != w: runs.append([w, []])
+            runs[-1][1].append(p)
+        for w, ph in runs: word_prons[w][tuple(ph)] += 1
+lexicon = {w: list(c.most_common(1)[0][0]) for w, c in word_prons.items()}
+vocab = list(lexicon)
+print(f"lexicon: {len(vocab)} words")
 
-# %% Cell — phonological / articulatory-feature distance of errors (Mugler-style) ==== stacking order = 7
-# Each phoneme -> articulatory-feature set (manner, place, voicing); distance =
-# # of features that differ (0..3), a coarse Hamming-style phonological distance.
-# LOWER = errors are phonetic near-misses (Mugler 2014: misclassifications follow
-# IPA/articulatory organization). CROSS-MODEL claim uses ABSOLUTE mean distance
-# (marginal-baseline rule); each model's own shuffle-z is a WITHIN-model check only.
-from phon_helpers import phone_feat_dist, feat_dist_z, is_cons
+_cache = {}
+def recognize(pred_str):
+    key = tuple(pred_str)
+    if key in _cache: return _cache[key]
+    best, bd = None, 10**9
+    for w in vocab:
+        dd = edit_distance(key, lexicon[w])
+        if dd < bd: bd, best = dd, w
+    _cache[key] = best
+    return best
+
+def sentence_errors(pw, pred_phones):
+    runs, run_of = [], {}
+    for i, (p, w) in enumerate(pw):
+        if not runs or pw[i - 1][1] != w: runs.append([w, []])
+        runs[-1][1].append(i); run_of[i] = len(runs) - 1
+    al = needleman_wunsch([g for g, _ in pw], pred_phones)
+    per_run = defaultdict(list); gi = 0
+    for g, p in al:
+        if g is not None:
+            if p is not None: per_run[run_of[gi]].append(p)
+            gi += 1
+    return sum(recognize(per_run.get(rid, [])) != w for rid, (w, _) in enumerate(runs)), len(runs)
+
+def wer_on(out, pid, sids):
+    _, pred_per = gather_sequences(out); W = N = 0
+    for sid in sids:
+        if sid in pred_per and sid in gold_pw[pid]:
+            w, n = sentence_errors(gold_pw[pid][sid], pred_per[sid]); W += w; N += n
+    return (W / N if N else np.nan), N
+
+crf_w, ssl_w = {}, {}
+print(f"\n{'pid':4} | shared_sents | shared_words | CRF WER | SSL WER")
+for pid in pids:
+    _, cpred = gather_sequences(crf_export[pid])
+    _, spred = gather_sequences(ssl_results[pid])
+    shared = set(cpred) & set(spred) & set(gold_pw[pid])
+    cw, nw_words = wer_on(crf_export[pid], pid, shared)
+    sw, _        = wer_on(ssl_results[pid], pid, shared)
+    crf_w[pid], ssl_w[pid] = cw, sw
+    print(f"{pid:4} | {len(shared):11} | {nw_words:11} | {cw:.3f}   | {sw:.3f}")
+
+ok = [p for p in pids if np.isfinite(crf_w[p]) and np.isfinite(ssl_w[p])]
+c = np.array([crf_w[p] for p in ok]); s = np.array([ssl_w[p] for p in ok])
+d = c - s; P = ttest_rel(c, s)[1]; md = d.mean()
+half = tdist.ppf(0.975, len(d) - 1) * d.std(ddof=1) / np.sqrt(len(d))
+print(f"\nWER (shared): CRF={c.mean():.3f}  SSL={s.mean():.3f}  "
+      f"Delta={md:+.3f} CI[{md-half:+.3f},{md+half:+.3f}] p={P:.3g}")
+pickle.dump({'crf': crf_w, 'ssl': ssl_w, 'n_patients': len(ok)},
+            open('results/wer_shared.pkl', 'wb'))
+print('saved results/wer_shared.pkl')
+
+# %% PER on shared sentences only 
+import pickle, numpy as np
+from scipy.stats import ttest_rel, t as tdist
+from phon_helpers import gather_sequences
+
+crf_export  = pickle.load(open('results/crf_export.pkl', 'rb'))
+ssl_results = pickle.load(open('results/ssl_results.pkl', 'rb'))
+pids = sorted(set(crf_export) & set(ssl_results))
+
+def edit_counts(ref, hyp):
+    n, m = len(ref), len(hyp)
+    D = np.zeros((n + 1, m + 1), int); D[:, 0] = np.arange(n + 1); D[0, :] = np.arange(m + 1)
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            c = 0 if ref[i - 1] == hyp[j - 1] else 1
+            D[i, j] = min(D[i - 1, j] + 1, D[i, j - 1] + 1, D[i - 1, j - 1] + c)
+    i, j, s, d, ins = n, m, 0, 0, 0
+    while i > 0 or j > 0:
+        if i > 0 and j > 0 and D[i, j] == D[i - 1, j - 1] + (0 if ref[i - 1] == hyp[j - 1] else 1):
+            if ref[i - 1] != hyp[j - 1]: s += 1
+            i -= 1; j -= 1
+        elif i > 0 and D[i, j] == D[i - 1, j] + 1: d += 1; i -= 1
+        else: ins += 1; j -= 1
+    return s, d, ins
+
+def per_shared(out, sids):
+    gper, pper = gather_sequences(out); S = Dl = I = N = 0
+    for sid in sids:
+        g, p = gper.get(sid, []), pper.get(sid, [])
+        s, d, ins = edit_counts(g, p); S += s; Dl += d; I += ins; N += len(g)
+    return S, Dl, I, N
+
+rows = []
+print(f"{'pid':4} | shared | words | {'CRF PER':9}(S/D/I) | {'SSL PER':9}(S/D/I)")
+for pid in pids:
+    _, cpred = gather_sequences(crf_export[pid]); _, spred = gather_sequences(ssl_results[pid])
+    shared = set(cpred) & set(spred)
+    cS, cD, cI, cN = per_shared(crf_export[pid], shared)
+    sS, sD, sI, sN = per_shared(ssl_results[pid], shared)
+    if cN == 0 or sN == 0: continue
+    cper, sper = (cS + cD + cI) / cN, (sS + sD + sI) / sN
+    rows.append((pid, cper, sper, cS / cN, sS / sN))
+    print(f"{pid:4} | {len(shared):6} | {cN:5} | {cper:6.3f} ({cS}/{cD}/{cI})".ljust(48) +
+          f"| {sper:6.3f} ({sS}/{sD}/{sI})")
+
+cp = np.array([r[1] for r in rows]); sp = np.array([r[2] for r in rows])
+csub = np.array([r[3] for r in rows]); ssub = np.array([r[4] for r in rows])
+
+def paired(c, s, label):
+    d = c - s; P = ttest_rel(c, s)[1]; md = d.mean()
+    half = tdist.ppf(0.975, len(d) - 1) * d.std(ddof=1) / np.sqrt(len(d))
+    print(f"{label}: CRF={c.mean():.3f}  SSL={s.mean():.3f}  "
+          f"Delta={md:+.3f} CI[{md-half:+.3f},{md+half:+.3f}] p={P:.3g}")
+
+print()
+paired(cp, sp,   "FULL PER (shared)      ")
+paired(csub, ssub, "SUB-only (shared, fair)")
+pickle.dump({'full': {'crf': cp, 'ssl': sp}, 'sub': {'crf': csub, 'ssl': ssub},
+             'pids': [r[0] for r in rows]}, open('results/per_shared.pkl', 'wb'))
+print('saved results/per_shared.pkl')
+
+# %% Articulatory-feature distance of consonant errors — shared sentences only (fair)
+from phon_helpers import (phone_feat_dist, feat_dist_z, is_cons,
+                          gather_sequences, needleman_wunsch)
 from scipy.stats import ttest_rel, wilcoxon
+import numpy as np
+
+def subs_shared(out, sids, align):
+    """Substitution pairs (g!=p) restricted to `sids`; align='zip' (CRF 1:1) or 'nw' (SSL)."""
+    gper, pper = gather_sequences(out); pairs = []
+    for sid in sids:
+        g, p = gper.get(sid, []), pper.get(sid, [])
+        it = zip(g, p) if align == 'zip' else needleman_wunsch(g, p)
+        for a, b in it:
+            if align == 'zip':
+                if a != b: pairs.append((a, b))
+            else:
+                if a is not None and b is not None and a != b: pairs.append((a, b))
+    return pairs
 
 cons = lambda prs: [(g, p) for g, p in prs if is_cons(g) and is_cons(p)]
-rows = []
+
+shared_by_pid, rows = {}, []
 for pid in pids:
-    cs = cons(subs_position_zip(crf_export[pid]))      # CRF: 1:1 position-aligned
-    ss = cons(subs_nw(ssl_results[pid]))               # SSL: per-sentence NW-aligned
+    _, cpred = gather_sequences(crf_export[pid]); _, spred = gather_sequences(ssl_results[pid])
+    shared = set(cpred) & set(spred); shared_by_pid[pid] = shared
+    cs = cons(subs_shared(crf_export[pid],  shared, 'zip'))
+    ss = cons(subs_shared(ssl_results[pid], shared, 'nw'))
     dc = np.mean([phone_feat_dist(g, p) for g, p in cs]) if len(cs) >= 5 else np.nan
     ds = np.mean([phone_feat_dist(g, p) for g, p in ss]) if len(ss) >= 5 else np.nan
     rows.append((pid, dc, ds)); print(f"{pid}: CRF {dc:.3f} (n={len(cs):3d})   SSL {ds:.3f} (n={len(ss):3d})")
 
 A = np.array([(c, s) for _, c, s in rows if np.isfinite(c) and np.isfinite(s)])
 c, s = A[:, 0], A[:, 1]
-print(f"\nMean articulatory-feature distance of consonant errors (0..3, lower = nearer-miss):")
+print(f"\nMean articulatory-feature distance of consonant errors (SHARED sents, 0..3, lower=nearer-miss):")
 print(f"  CRF {c.mean():.3f}   SSL {s.mean():.3f}   Δ(CRF−SSL) = {c.mean()-s.mean():+.3f}")
 print(f"  paired t p={ttest_rel(c, s)[1]:.3g}   Wilcoxon p={wilcoxon(c, s)[1]:.3g}   (n={len(c)} patients)")
 
-# within-model significance: errors closer than each model's OWN shuffle? (pooled)
-allc = cons([pr for pid in pids for pr in subs_position_zip(crf_export[pid])])
-alls = cons([pr for pid in pids for pr in subs_nw(ssl_results[pid])])
+allc = cons([pr for pid in pids for pr in subs_shared(crf_export[pid],  shared_by_pid[pid], 'zip')])
+alls = cons([pr for pid in pids for pr in subs_shared(ssl_results[pid], shared_by_pid[pid], 'nw')])
 oc, bc, zc, nc = feat_dist_z(allc); osv, bs, zs, ns = feat_dist_z(alls)
-print(f"\nWithin-model (pooled, vs own shuffle; NEGATIVE z = closer than chance = good):")
-print(f"  CRF obs {oc:.3f} base {bc:.3f} z={zc:+.2f} (n={nc})")
-print(f"  SSL obs {osv:.3f} base {bs:.3f} z={zs:+.2f} (n={ns})")
-
-# %% Cell — phonological / articulatory-feature distance of errors (Mugler-style) ==== stacking order = 7
-# Each phoneme -> articulatory-feature set (manner, place, voicing); distance =
-# # of features that differ (0..3), a coarse Hamming-style phonological distance.
-# LOWER = errors are phonetic near-misses (Mugler 2014: misclassifications follow
-# IPA/articulatory organization). CROSS-MODEL claim uses ABSOLUTE mean distance
-# (marginal-baseline rule); each model's own shuffle-z is a WITHIN-model check only.
-from phon_helpers import phone_feat_dist, feat_dist_z, is_cons
-from scipy.stats import ttest_rel, wilcoxon
-
-cons = lambda prs: [(g, p) for g, p in prs if is_cons(g) and is_cons(p)]
-rows = []
-for pid in pids:
-    cs = cons(subs_position_zip(crf_export[pid]))      # CRF: 1:1 position-aligned
-    ss = cons(subs_nw(ssl_results[pid]))               # SSL: per-sentence NW-aligned
-    dc = np.mean([phone_feat_dist(g, p) for g, p in cs]) if len(cs) >= 5 else np.nan
-    ds = np.mean([phone_feat_dist(g, p) for g, p in ss]) if len(ss) >= 5 else np.nan
-    rows.append((pid, dc, ds)); print(f"{pid}: CRF {dc:.3f} (n={len(cs):3d})   SSL {ds:.3f} (n={len(ss):3d})")
-
-A = np.array([(c, s) for _, c, s in rows if np.isfinite(c) and np.isfinite(s)])
-c, s = A[:, 0], A[:, 1]
-print(f"\nMean articulatory-feature distance of consonant errors (0..3, lower = nearer-miss):")
-print(f"  CRF {c.mean():.3f}   SSL {s.mean():.3f}   Δ(CRF−SSL) = {c.mean()-s.mean():+.3f}")
-print(f"  paired t p={ttest_rel(c, s)[1]:.3g}   Wilcoxon p={wilcoxon(c, s)[1]:.3g}   (n={len(c)} patients)")
-
-# within-model significance: errors closer than each model's OWN shuffle? (pooled)
-allc = cons([pr for pid in pids for pr in subs_position_zip(crf_export[pid])])
-alls = cons([pr for pid in pids for pr in subs_nw(ssl_results[pid])])
-oc, bc, zc, nc = feat_dist_z(allc); osv, bs, zs, ns = feat_dist_z(alls)
-print(f"\nWithin-model (pooled, vs own shuffle; NEGATIVE z = closer than chance = good):")
+print(f"\nWithin-model (pooled SHARED, vs own shuffle; NEGATIVE z = closer than chance = good):")
 print(f"  CRF obs {oc:.3f} base {bc:.3f} z={zc:+.2f} (n={nc})")
 print(f"  SSL obs {osv:.3f} base {bs:.3f} z={zs:+.2f} (n={ns})")
 
@@ -805,209 +922,6 @@ for c in syms:
     i=idx[c]; r=recall[i,i]; p=prec[i,i]; f1=2*r*p/(r+p) if r+p>0 else 0
     print(f"  {c:<3} R={r:.2f} P={p:.2f} F1={f1:.2f} (n={int(M[i].sum())})")
 
-# %% Bigram phoneme-prior baseline (Monte Carlo) — experimental ================
-from run_pipeline import load_mfa_alignments
-from collections import defaultdict, Counter
-from phon_helpers import gather_sequences, needleman_wunsch, aligned_pairs_zip
-
-N_MC  = 200
-rng   = np.random.default_rng(0)
-START = '<s>'
-
-# 1) fit phoneme bigram on gold MFA sequences (phonotactic null model)
-def fit_bigram(seqs):
-    trans = defaultdict(Counter); uni = Counter()
-    for s in seqs:
-        prev = START
-        for ph in s:
-            trans[prev][ph] += 1; uni[ph] += 1; prev = ph
-    model = {pv: (list(c), np.array(list(c.values()), float) / sum(c.values()))
-             for pv, c in trans.items()}
-    uk = list(uni); up = np.array([uni[k] for k in uk], float); up /= up.sum()
-    return model, (uk, up)
-
-gold_corpus = [[p['phone'] for p in phs]
-               for pid in pids for phs in load_mfa_alignments(pid).values()]
-bigram, uni = fit_bigram(gold_corpus)
-print(f"bigram fit on {len(gold_corpus)} gold sentences, {len(bigram)} contexts")
-
-def gen_bigram(length):
-    out, prev = [], START
-    for _ in range(length):
-        ks, ps = bigram.get(prev, uni)
-        ph = ks[rng.choice(len(ks), p=ps)]
-        out.append(ph); prev = ph
-    return out
-
-# 2) per-phoneme gold accuracy: fraction of GOLD phonemes correctly recovered
-def acc_crf(out):                                   # CRF: 1:1 with gold
-    pr = aligned_pairs_zip(out); return np.mean([g == p for g, p in pr]) if pr else np.nan
-def acc_ssl(out):                                   # SSL: NW match / n_gold
-    gp, pp = gather_sequences(out); m = t = 0
-    for sid in gp:
-        al = needleman_wunsch(gp[sid], pp.get(sid, []))
-        m += sum(1 for g, p in al if g is not None and p is not None and g == p)
-        t += len(gp[sid])
-    return m / max(t, 1)
-def acc_bigram(gold_per):                           # baseline: gen at gold length
-    accs = []
-    for _ in range(N_MC):
-        m = t = 0
-        for g in gold_per.values():
-            pred = gen_bigram(len(g))
-            m += sum(1 for a, b in zip(g, pred) if a == b); t += len(g)
-        accs.append(m / max(t, 1))
-    return np.mean(accs), np.percentile(accs, [2.5, 97.5])
-
-print(f"\n{'pid':<5}{'CRF':>7}{'SSL':>7}{'bigram':>9}{'  [95% CI]':>16}")
-for pid in pids:
-    gp_gold, _ = gather_sequences(crf_export[pid])   # gold test sentences
-    bm, bci = acc_bigram(gp_gold)
-    print(f"{pid:<5}{acc_crf(crf_export[pid]):>7.3f}{acc_ssl(ssl_results[pid]):>7.3f}"
-          f"{bm:>9.3f}   [{bci[0]:.3f},{bci[1]:.3f}]")
-
-print(f"{'pid':<5}{'CRF':>7}{'floor':>8}{'  CRF>?':>8}{'SSL':>8}{'floor':>8}{'  SSL>?':>8}")
-for pid in pids:
-    gpc, _ = gather_sequences(crf_export[pid])
-    crf_a = acc_crf(crf_export[pid]); crf_b, crf_ci = acc_bigram(gpc)
-    gp, pp = gather_sequences(ssl_results[pid])
-    ssl_a = acc_ssl(ssl_results[pid]); ssl_b, ssl_ci = acc_bigram_nw(gp, pp)
-    cflag = 'YES' if crf_a > crf_ci[1] else ('no' if crf_a < crf_ci[0] else '~')
-    sflag = 'YES' if ssl_a > ssl_ci[1] else ('no' if ssl_a < ssl_ci[0] else '~')
-    print(f"{pid:<5}{crf_a:>7.3f}{crf_b:>8.3f}{cflag:>8}{ssl_a:>8.3f}{ssl_b:>8.3f}{sflag:>8}")
-
-def rpf_ssl(out):
-    gp, pp = gather_sequences(out)
-    match = ngold = npred = 0
-    for sid in set(gp) | set(pp):
-        al = needleman_wunsch(gp.get(sid, []), pp.get(sid, []))
-        match += sum(1 for g, p in al if g is not None and p is not None and g == p)
-        ngold += len(gp.get(sid, [])); npred += len(pp.get(sid, []))
-    rec, prec = match / max(ngold, 1), match / max(npred, 1)
-    return rec, prec, (2 * rec * prec / (rec + prec) if rec + prec else 0)
-
-def rpf_bigram(gold_per, pred_per):                 # length-matched, MC mean of (rec, prec, f1)
-    R = P = F = 0.0
-    for _ in range(N_MC):
-        match = ngold = npred = 0
-        for sid, g in gold_per.items():
-            L = len(pred_per.get(sid, g)); pred = gen_bigram(L)
-            al = needleman_wunsch(g, pred)
-            match += sum(1 for a, b in al if a is not None and b is not None and a == b)
-            ngold += len(g); npred += L
-        rec, prec = match / max(ngold, 1), match / max(npred, 1)
-        R += rec; P += prec; F += (2 * rec * prec / (rec + prec) if rec + prec else 0)
-    return R / N_MC, P / N_MC, F / N_MC
-
-print(f"{'pid':<5} | {'SSL  rec  prec  F1':<22} | {'floor rec  prec  F1':<22}")
-for pid in pids:
-    gp, pp = gather_sequences(ssl_results[pid])
-    r, p, f = rpf_ssl(ssl_results[pid])
-    fr, fp, ff = rpf_bigram(gp, pp)
-    print(f"{pid:<5} | {r:.3f} {p:.3f} {f:.3f}        | {fr:.3f} {fp:.3f} {ff:.3f}")
-
-def gen_unigram(L):
-    uk, up = uni
-    return [uk[i] for i in rng.choice(len(uk), size=L, p=up)]
-
-def recall_gen(gold_per, pred_per, genfn):
-    R = 0.0
-    for _ in range(N_MC):
-        m = t = 0
-        for sid, g in gold_per.items():
-            al = needleman_wunsch(g, genfn(len(pred_per.get(sid, g))))
-            m += sum(1 for a, b in al if a is not None and b is not None and a == b); t += len(g)
-        R += m / max(t, 1)
-    return R / N_MC
-
-print(f"{'pid':<5}{'SSL':>7}{'bigram':>8}{'unigram':>9}")
-for pid in pids:
-    gp, pp = gather_sequences(ssl_results[pid])
-    print(f"{pid:<5}{acc_ssl(ssl_results[pid]):>7.3f}"
-          f"{recall_gen(gp, pp, gen_bigram):>8.3f}{recall_gen(gp, pp, gen_unigram):>9.3f}")
-
-from collections import Counter
-mb, tb = Counter(), Counter()
-for pid in pids:
-    gp, pp = gather_sequences(ssl_results[pid])
-    for sid in gp:
-        for g, p in needleman_wunsch(gp[sid], pp.get(sid, [])):
-            if g is not None:
-                tb[g] += 1
-                if p == g: mb[g] += 1
-print("gold phoneme | freq | SSL recall")
-for ph, n in tb.most_common(15):
-    print(f"  {ph:<4} {n:>5}  {mb[ph]/n:.2f}")
-
-# %% CRF per-class recall by frequency =========================================
-from collections import Counter
-mb, tb = Counter(), Counter()
-for pid in pids:
-    for g, p in aligned_pairs_zip(crf_export[pid]):     # CRF 1:1
-        tb[g] += 1
-        if p == g: mb[g] += 1
-print("CRF — gold phoneme | freq | recall")
-for ph, n in tb.most_common(15):
-    print(f"  {ph:<4} {n:>5}  {mb[ph]/n:.2f}")
-
-# %% Chain structure vs phonotactic baseline — both models =====================
-def longest_run(pred, gold):
-    """Longest contiguous chunk shared by pred and gold (shift-invariant)."""
-    if not pred or not gold: return 0
-    prev = [0] * (len(gold) + 1); best = 0
-    for a in pred:
-        cur = [0] * (len(gold) + 1)
-        for j, b in enumerate(gold, 1):
-            if a == b:
-                cur[j] = prev[j - 1] + 1
-                if cur[j] > best: best = cur[j]
-        prev = cur
-    return best
-
-def count_ngrams_ge(pred, gold, k):
-    """# length-k pred windows that occur contiguously somewhere in gold."""
-    if len(pred) < k: return 0
-    gset = {tuple(gold[i:i + k]) for i in range(len(gold) - k + 1)}
-    return sum(tuple(pred[i:i + k]) in gset for i in range(len(pred) - k + 1))
-
-def chain_stats(gold_per, pred_per):
-    runs = [longest_run(pred_per.get(sid, []), g) for sid, g in gold_per.items()]
-    n3 = sum(count_ngrams_ge(pred_per.get(sid, []), g, 3) for sid, g in gold_per.items())
-    return (np.mean(runs) if runs else 0.0), n3
-
-def chain_baseline(gold_per, pred_per, genfn, n_mc=100):
-    R, N3 = [], []
-    for _ in range(n_mc):
-        gen = {sid: genfn(len(pred_per.get(sid, g))) for sid, g in gold_per.items()}
-        r, n3 = chain_stats(gold_per, gen)
-        R.append(r); N3.append(n3)
-    return np.mean(R), (np.mean(N3), np.percentile(N3, [2.5, 97.5]))
-
-print(f"{'pid':<5}{'mdl':<4}{'longest':>8}{'base':>7}{'  Σn≥3':>7}{'base':>7}{'  Σn≥3>?':>9}")
-for pid in pids:
-    for name, out in [('CRF', crf_export[pid]), ('SSL', ssl_results[pid])]:
-        gp, pp = gather_sequences(out)
-        lr, n3 = chain_stats(gp, pp)
-        blr, (bn3, bn3ci) = chain_baseline(gp, pp, gen_bigram)   # swap gen_unigram for weaker null
-        beat = 'YES' if n3 > bn3ci[1] else ('no' if n3 < bn3ci[0] else '~')
-        print(f"{pid:<5}{name:<4}{lr:>8.2f}{blr:>7.2f}{n3:>7d}{bn3:>7.1f}{beat:>9}")
-
-from run_pipeline import DEFAULT_RUN_CONFIG, run_path_b, _run_crf_experiment
-from dutch_30_pipeline import Dutch30Pipeline
-from dutch_30_feature_extractor import Dutch30FeatureExtractor
-
-run_config = dict(DEFAULT_RUN_CONFIG)
-run_config['stacking_order'] = 7
-run_config['stacking_step_size'] = 1
-extractor = Dutch30FeatureExtractor()
-pipeline = Dutch30Pipeline(dutch30_extractor=extractor, debug_mode=False,
-    feature_extraction_method=run_config['feature_extraction_method'],
-    use_wav2vec=False, subtract_baseline=run_config['subtract_baseline'],
-    use_rms_boundaries=False, use_multifeature=False)
-run_path_b(pipeline, run_config)                 # builds split_result + patient_data
-crf_results = _run_crf_experiment(pipeline, run_config)   # gives true_sentence_ids per patient
-pids = sorted(crf_results)
-
 # %% ABLATION 1 — segmentation: placement + COUNT ==============================
 import os, numpy as np
 from collections import Counter
@@ -1128,67 +1042,7 @@ ov = np.array([per['unif1.7'][p] for p in pids])
 print(f"\nplacement (oracle→uniform):   Δ={np.mean(un-oa):+.3f}  p={wilcoxon(oa, un).pvalue:.4g}")
 print(f"count/over-gen (uniform→×1.7): Δ={np.mean(ov-un):+.3f}  p={wilcoxon(un, ov).pvalue:.4g}")
 
-# %% CHAIN re-check — does CRF's Σn≥3 advantage survive placement scrambling? ===
-from collections import Counter, defaultdict
-
-def count_ngrams_ge(pred, gold, k):
-    if len(pred) < k: return 0
-    gset = {tuple(gold[i:i+k]) for i in range(len(gold)-k+1)}
-    return sum(tuple(pred[i:i+k]) in gset for i in range(len(pred)-k+1))
-
-# phonotactic (bigram) generator fit on gold MFA sequences
-START = '<s>'
-def fit_bigram(seqs):
-    trans = defaultdict(Counter); uni = Counter()
-    for s in seqs:
-        prev = START
-        for ph in s: trans[prev][ph] += 1; uni[ph] += 1; prev = ph
-    model = {pv: (list(c), np.array(list(c.values()), float) / sum(c.values())) for pv, c in trans.items()}
-    uk = list(uni); up = np.array([uni[k] for k in uk], float); up /= up.sum()
-    return model, (uk, up)
-def gen_bigram(L, model, uni, rng):
-    out, prev = [], START
-    for _ in range(L):
-        ks, ps = model.get(prev, uni)
-        ph = ks[rng.choice(len(ks), p=ps)]; out.append(ph); prev = ph
-    return out
-
-gold_corpus = [[p['phone'] for p in phs] for pid in pids for phs in load_mfa_alignments(pid).values()]
-bigram, uni = fit_bigram(gold_corpus)
-
-N_MC = 100
-rng  = np.random.default_rng(0)
-chain_conds = ['oracle', 'uniform', 'random']
-res = {c: {} for c in chain_conds}
-for pid in pids:
-    mfa = load_mfa_alignments(pid); spans = sent_spans(pid); raw = patient_eeg(pid)
-    test_sids = set(np.asarray(crf_results[pid]['true_sentence_ids']).tolist())
-    sc, pca, clf = fit_clf(*build_train(pid, mfa, spans, raw, test_sids))
-    golds, preds = {}, {c: {} for c in chain_conds}
-    for sid in sorted(test_sids):
-        if sid not in spans or sid not in mfa: continue
-        a, b = spans[sid]; seeg = raw[a:b]
-        gold = [ph['phone'] for ph in mfa[sid]]; N = len(gold); golds[sid] = gold
-        lo, hi = mfa[sid][0]['start_s'], mfa[sid][-1]['end_s']
-        iv = {'oracle':  [(ph['start_s'], ph['end_s']) for ph in mfa[sid]],
-              'uniform': edges_to_intervals(np.linspace(lo, hi, N + 1)),
-              'random':  edges_to_intervals(np.concatenate([[lo], np.sort(rng.uniform(lo, hi, max(N-1, 0))), [hi]]))}
-        for c in chain_conds:
-            preds[c][sid] = predict_seq(sc, pca, clf, seeg, iv[c])
-    for c in chain_conds:
-        n3 = sum(count_ngrams_ge(preds[c][sid], golds[sid], 3) for sid in golds)
-        floor = [sum(count_ngrams_ge(gen_bigram(len(preds[c][sid]), bigram, uni, rng), golds[sid], 3)
-                     for sid in golds) for _ in range(N_MC)]
-        res[c][pid] = (n3, np.mean(floor), np.percentile(floor, 97.5))
-    print(f"{pid}: " + "  ".join(f"{c}={res[c][pid][0]}/{res[c][pid][1]:.0f}" for c in chain_conds))
-
-print("\ncond     | mean Σn≥3 | mean floor | #beat floor")
-for c in chain_conds:
-    act  = np.mean([res[c][p][0] for p in pids]); fl = np.mean([res[c][p][1] for p in pids])
-    beat = sum(res[c][p][0] > res[c][p][2] for p in pids)
-    print(f"  {c:<7} {act:>9.1f} {fl:>11.1f} {beat:>10}/10")
-
-# %% ABLATION 2 (Option B) — phonotactic transition LM in the SSL Viterbi =======
+# %% ABLATION 2  — phonotactic transition LM in the SSL Viterbi =======
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis

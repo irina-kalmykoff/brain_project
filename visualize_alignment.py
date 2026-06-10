@@ -337,7 +337,7 @@ def plot_neural_alignment(pipeline, pid, sentence_text=None, sent_idx=None,
     # ══════════════════════════════════════════════════════════════════
     fig, (ax_spec, ax_audio, ax_eeg) = plt.subplots(
         3, 1, figsize=(15, 9), sharex=True,
-        gridspec_kw={'height_ratios': [2, 1.2, 1.2], 'hspace': 0.08})
+        gridspec_kw={'height_ratios': [2, 1.2, 1.2]})
 
     # ── Row 1: Mel spectrogram ───────────────────────────────────────
     n_mels = 23
@@ -387,11 +387,11 @@ def plot_neural_alignment(pipeline, pid, sentence_text=None, sent_idx=None,
                       fontsize=fs, fontweight='bold', color=color,
                       transform=ax_audio.get_xaxis_transform())
 
-    ax_audio.set_ylabel('audio signal', fontsize=10)
+    ax_audio.set_ylabel('audio (normalised)', fontsize=10)
     ax_audio.set_title(
         'audio waveform — phoneme boundaries (colored = MFA phonemes, '
         'red dashed = word edges)',
-        fontsize=10, loc='left', color='#555')
+        fontsize=10, loc='left', color='#555', pad=6)
 
     # ── Row 3: All channels (gray) + median (black) + phoneme bounds ──
     # Plot individual channels in pale gray
@@ -419,14 +419,14 @@ def plot_neural_alignment(pipeline, pid, sentence_text=None, sent_idx=None,
                     transform=ax_eeg.get_xaxis_transform())
 
     ax_eeg.set_ylim(-1.5, 1.5)
-    ax_eeg.set_ylabel('sEEG', fontsize=10)
+    ax_eeg.set_ylabel('sEEG (raw, normalised)', fontsize=10)
     ax_eeg.set_xlabel('time (s)', fontsize=10)
     ax_eeg.set_title(
-        f'neural signal — {n_ch} channels (gray) + median (black) — '
+        f'raw sEEG (broadband) — {n_ch} channels (gray) + median (black) — '
         'same phoneme boundaries from audio',
-        fontsize=10, loc='left', color='#555')
+        fontsize=10, loc='left', color='#555', pad=6)
 
     ax_eeg.set_xlim(0, duration)
 
-    plt.tight_layout()
+    fig.subplots_adjust(left=0.07, right=0.98, top=0.90, bottom=0.08, hspace=0.42)
     plt.show()

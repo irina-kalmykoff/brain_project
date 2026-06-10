@@ -807,6 +807,75 @@ pickle.dump({'acc_frame': ssl_acc, 'ce_frame': ssl_ce,      # per-frame (robustn
             open('results/ssl_shift_perm.pkl', 'wb'))
 print('saved results/ssl_shift_perm.pkl')
 
+# %% Phonotactic (bigram) generation baseline: real models vs a no-signal bigram generator
+import numpy as np
+from collections import Counter, defaultdict
+from phon_helpers import gather_sequences, needleman_wunsch
+
+# crf_export = pickle.load(open('results/crf_export.pkl','rb'))   # if not already loaded
+pids = sorted(set(crf_export) & set(ssl_results))
+rng = np.random.default_rng(0)
+R = 300                                   # bigram draws to average over
+
+# --- build a bigram model from cohort gold: P(next|prev), initial dist, unigram fallback ---
+trans = defaultdict(Counter); init = Counter(); uni = Counter()
+for pid in pids:
+    gb, _ = gather_sequences(crf_export[pid])
+    for g in gb.values():
+        if not g: continue
+        init[g[0]] += 1
+        for a in g: uni[a] += 1
+        for a, b in zip(g[:-1], g[1:]): trans[a][b] += 1
+def _dist(cnt): ks = list(cnt); ps = np.array([cnt[k] for k in ks], float); return ks, ps/ps.sum()
+init_k, init_p = _dist(init); uni_k, uni_p = _dist(uni)
+trans_d = {a: _dist(c) for a, c in trans.items()}
+
+def gen_bigram(L):
+    if L <= 0: return []
+    seq = [rng.choice(init_k, p=init_p)]
+    for _ in range(L - 1):
+        ks, ps = trans_d.get(seq[-1], (uni_k, uni_p))
+        seq.append(rng.choice(ks, p=ps))
+    return seq
+
+# --- scorers: match rate + # length>=3 matching runs (zip for 1:1 CRF, NW for free-running SSL) ---
+def _score(gb, pb, align):
+    m = ng = n3 = 0
+    for sid in gb:
+        g = gb[sid]; p = pb.get(sid, []); ng += len(g); run = 0
+        pairs = zip(g, p) if align == 'zip' else needleman_wunsch(g, p)
+        for a, b in pairs:
+            hit = (a == b) if align == 'zip' else (a is not None and b is not None and a == b)
+            if hit: m += 1; run += 1
+            else:
+                if run >= 3: n3 += 1
+                run = 0
+        if run >= 3: n3 += 1
+    return m / max(ng, 1), n3
+
+def real(model, align):
+    M = []; N3 = 0
+    for pid in pids:
+        gb, pb = gather_sequences(model[pid]); mm, n3 = _score(gb, pb, align); M.append(mm); N3 += n3
+    return np.mean(M), N3
+
+def bigram_base(model, align):
+    Ms = []; N3s = []
+    for _ in range(R):
+        M = []; N3 = 0
+        for pid in pids:
+            gb, pb = gather_sequences(model[pid])
+            fake = {sid: gen_bigram(len(pb.get(sid, []))) for sid in gb}
+            mm, n3 = _score(gb, fake, align); M.append(mm); N3 += n3
+        Ms.append(np.mean(M)); N3s.append(N3)
+    return np.mean(Ms), np.std(Ms), np.mean(N3s), np.std(N3s)
+
+for name, model, align in [('CRF (zip)', crf_export, 'zip'), ('SSL (NW)', ssl_results, 'nw')]:
+    rm, rn3 = real(model, align); bm, bs, bn, bns = bigram_base(model, align)
+    print(f"{name}:  REAL match={rm:.3f} chains={rn3}  |  "
+          f"BIGRAM-prior match={bm:.3f}±{bs:.3f} chains={bn:.1f}±{bns:.1f}  |  "
+          f"excess match {rm-bm:+.3f} chains {rn3-bn:+.1f}")
+
 # cohort inference + NW metrics + save
 # ============================================================
 import warnings
@@ -927,70 +996,13 @@ importlib.reload(phon_helpers)
 from phon_helpers import (voicing_minpair_z, feature_z, manner, place, voicing,
                           subs_nw, subs_position_zip)
 
-# %% PER for both models (with S/D/I decomposition) — run in SSL notebook
-import importlib, phon_helpers; importlib.reload(phon_helpers)
-from phon_helpers import gather_sequences
-import pickle, numpy as np
-from scipy.stats import ttest_rel, t as tdist
-
-with open('results/crf_patient_results.pkl', 'rb') as f:
-    crf_export = pickle.load(f)
-pids = sorted(set(crf_export) & set(ssl_results))
-
-def edit_counts(ref, hyp):                 # Levenshtein with S/D/I backtrace
-    n, m = len(ref), len(hyp)
-    D = np.zeros((n + 1, m + 1), dtype=int)
-    D[:, 0] = np.arange(n + 1); D[0, :] = np.arange(m + 1)
-    for i in range(1, n + 1):
-        for j in range(1, m + 1):
-            c = 0 if ref[i - 1] == hyp[j - 1] else 1
-            D[i, j] = min(D[i - 1, j] + 1, D[i, j - 1] + 1, D[i - 1, j - 1] + c)
-    i, j, s, d, ins = n, m, 0, 0, 0
-    while i > 0 or j > 0:
-        if i > 0 and j > 0 and D[i, j] == D[i - 1, j - 1] + (0 if ref[i - 1] == hyp[j - 1] else 1):
-            if ref[i - 1] != hyp[j - 1]: s += 1
-            i -= 1; j -= 1
-        elif i > 0 and D[i, j] == D[i - 1, j] + 1:
-            d += 1; i -= 1                  # deletion: gold phoneme missed
-        else:
-            ins += 1; j -= 1               # insertion: spurious predicted phoneme
-    return s, d, ins
-
-def patient_per(out):
-    gold_per, pred_per = gather_sequences(out)
-    S = Dl = I = N = 0
-    for sid in set(gold_per) | set(pred_per):
-        g, p = gold_per.get(sid, []), pred_per.get(sid, [])
-        s, d, ins = edit_counts(g, p)
-        S += s; Dl += d; I += ins; N += len(g)
-    return S, Dl, I, N
-
-rows = []
-print(f"{'pid':4} | {'CRF PER':8} {'(S/D/I)':16} | {'SSL PER':8} {'(S/D/I)':16}")
-for pid in pids:
-    cS, cD, cI, cN = patient_per(crf_export[pid])
-    sS, sD, sI, sN = patient_per(ssl_results[pid])
-    cper, sper = (cS + cD + cI) / cN, (sS + sD + sI) / sN
-    rows.append((pid, cper, sper, cS / cN, sS / sN))
-    print(f"{pid:4} | {cper:7.3f}  ({cS}/{cD}/{cI})".ljust(34) +
-          f"| {sper:7.3f}  ({sS}/{sD}/{sI})")
-
-cp = np.array([r[1] for r in rows]); sp = np.array([r[2] for r in rows])
-csub = np.array([r[3] for r in rows]); ssub = np.array([r[4] for r in rows])
-d = cp - sp; P = ttest_rel(cp, sp)[1]; md = d.mean()
-half = tdist.ppf(0.975, len(d) - 1) * d.std(ddof=1) / np.sqrt(len(d))
-print(f"\nPER  cohort: CRF={cp.mean():.3f}  SSL={sp.mean():.3f}  "
-      f"Delta={md:+.3f} CI[{md-half:+.3f},{md+half:+.3f}] p={P:.3g}")
-print(f"SUB-only rate (no I/D): CRF={csub.mean():.3f}  SSL={ssub.mean():.3f}  "
-      f"<- the fairer comparison, both conditioned on substitutions only")
-
 # %% Phoneme marginal distributions: gold vs CRF-pred vs SSL-pred ─────────
 import importlib, phon_helpers; importlib.reload(phon_helpers)
 from phon_helpers import cv
 import pickle, numpy as np, matplotlib.pyplot as plt
 from collections import Counter
 
-with open('results/crf_patient_results.pkl', 'rb') as f:
+with open('results/crf_export.pkl', 'rb') as f:
     crf_export = pickle.load(f)
 pids = sorted(set(crf_export) & set(ssl_results))
 
@@ -1033,153 +1045,6 @@ for t in ax.get_xticklabels():
 ax.set_ylabel('pred − gold'); ax.legend()
 ax.set_title('Deviation from gold  (+ = over-predicted, − = under-predicted)')
 plt.tight_layout(); plt.show()
-
-# %% WER via closed-vocab word recognition (gold word boundaries) — SSL notebook
-import importlib, phon_helpers; importlib.reload(phon_helpers)
-from phon_helpers import needleman_wunsch, gather_sequences, edit_distance
-import pickle, numpy as np
-from collections import defaultdict, Counter
-from scipy.stats import ttest_rel, t as tdist
-
-with open('results/crf_patient_results.pkl', 'rb') as f:
-    crf_export = pickle.load(f)
-pids = sorted(set(crf_export) & set(ssl_results))
-
-# 1) gold (phone, word) per sentence, keyed by sent_idx; + lexicon (word -> canonical phones)
-gold_pw = {pid: {} for pid in pids}
-word_prons = defaultdict(Counter)
-for pid in pids:
-    for s in datasets[pid]['train'] + datasets[pid]['test']:
-        pw = [(ph['phone'], (ph['word'] or '').lower()) for ph in s['mfa'] if ph['word']]
-        gold_pw[pid][s['sent_idx']] = pw
-        # accumulate per-word pronunciation (consecutive same-word runs)
-        runs = []
-        for i, (p, w) in enumerate(pw):
-            if not runs or pw[i - 1][1] != w: runs.append([w, []])
-            runs[-1][1].append(p)
-        for w, ph in runs:
-            word_prons[w][tuple(ph)] += 1
-lexicon = {w: list(c.most_common(1)[0][0]) for w, c in word_prons.items()}
-vocab = list(lexicon)
-print(f"lexicon: {len(vocab)} words")
-
-_cache = {}
-def recognize(pred_str):
-    key = tuple(pred_str)
-    if key in _cache: return _cache[key]
-    best, bd = None, 10 ** 9
-    for w in vocab:
-        d = edit_distance(key, lexicon[w])
-        if d < bd: bd, best = d, w
-    _cache[key] = best
-    return best
-
-def sentence_errors(pw, pred_phones):
-    runs, run_of = [], {}
-    for i, (p, w) in enumerate(pw):
-        if not runs or pw[i - 1][1] != w: runs.append([w, []])
-        runs[-1][1].append(i); run_of[i] = len(runs) - 1
-    al = needleman_wunsch([g for g, _ in pw], pred_phones)
-    per_run = defaultdict(list); gi = 0
-    for g, p in al:
-        if g is not None:
-            if p is not None: per_run[run_of[gi]].append(p)
-            gi += 1
-    wrong = sum(recognize(per_run.get(rid, [])) != w for rid, (w, _) in enumerate(runs))
-    return wrong, len(runs)
-
-def model_wer(out, pid):
-    _, pred_per = gather_sequences(out)
-    W = N = matched = total = 0
-    for sid, pw in gold_pw[pid].items():
-        total += 1
-        if sid not in pred_per: continue
-        matched += 1
-        w, n = sentence_errors(pw, pred_per[sid]); W += w; N += n
-    return (W / N if N else np.nan), matched, total
-
-crf_wer, ssl_wer = {}, {}
-print(f"\n{'pid':4} | {'CRF WER':8} {'cov':9} | {'SSL WER':8} {'cov':9}")
-for pid in pids:
-    cw, cm, ct = model_wer(crf_export[pid], pid)
-    sw, sm, st = model_wer(ssl_results[pid], pid)
-    crf_wer[pid], ssl_wer[pid] = cw, sw
-    print(f"{pid:4} | {cw:7.3f}  {cm}/{ct:<5} | {sw:7.3f}  {sm}/{st}")
-
-ok = [p for p in pids if np.isfinite(crf_wer[p]) and np.isfinite(ssl_wer[p])]
-c = np.array([crf_wer[p] for p in ok]); s = np.array([ssl_wer[p] for p in ok])
-d = c - s; P = ttest_rel(c, s)[1]; md = d.mean()
-half = tdist.ppf(0.975, len(d) - 1) * d.std(ddof=1) / np.sqrt(len(d))
-print(f"\nWER cohort: CRF={c.mean():.3f}  SSL={s.mean():.3f}  "
-      f"Delta={md:+.3f} CI[{md-half:+.3f},{md+half:+.3f}] p={P:.3g}")
-
-from phon_helpers import gather_sequences, edit_distance
-import numpy as np
-for pid in pids:
-    gper, _ = gather_sequences(crf_export[pid])     # CRF gold phones by its sid
-    ds = []
-    for sid in gper:
-        if sid in gold_pw[pid]:
-            a = gper[sid]; b = [g for g, _ in gold_pw[pid][sid]]
-            ds.append(edit_distance(a, b) / max(len(b), 1))
-    print(f"{pid}: matched {len(ds)}  mean gold-vs-gold dist = {np.mean(ds):.3f}" if ds else f"{pid}: none")
-print("near 0 = ids aligned (same sentences); near 1 = MISALIGNED -> CRF WER is invalid")
-
-# %% WER on the SAME sentences both models predicted (intersection) — SSL notebook
-from phon_helpers import gather_sequences
-import numpy as np
-from scipy.stats import ttest_rel, t as tdist
-
-def wer_on(out, pid, sids):
-    _, pred_per = gather_sequences(out)
-    W = N = 0
-    for sid in sids:
-        if sid in pred_per and sid in gold_pw[pid]:
-            w, n = sentence_errors(gold_pw[pid][sid], pred_per[sid]); W += w; N += n
-    return (W / N if N else np.nan)
-
-crf_w, ssl_w = {}, {}
-print(f"{'pid':4} | shared | CRF WER | SSL WER")
-for pid in pids:
-    _, cpred = gather_sequences(crf_export[pid])
-    _, spred = gather_sequences(ssl_results[pid])
-    shared = set(cpred) & set(spred) & set(gold_pw[pid])
-    crf_w[pid], ssl_w[pid] = wer_on(crf_export[pid], pid, shared), wer_on(ssl_results[pid], pid, shared)
-    print(f"{pid:4} | {len(shared):6} | {crf_w[pid]:.3f}   | {ssl_w[pid]:.3f}")
-
-ok = [p for p in pids if np.isfinite(crf_w[p]) and np.isfinite(ssl_w[p])]
-c = np.array([crf_w[p] for p in ok]); s = np.array([ssl_w[p] for p in ok])
-d = c - s; P = ttest_rel(c, s)[1]; md = d.mean()
-half = tdist.ppf(0.975, len(d) - 1) * d.std(ddof=1) / np.sqrt(len(d))
-print(f"\nWER (shared sentences): CRF={c.mean():.3f}  SSL={s.mean():.3f}  "
-      f"Delta={md:+.3f} CI[{md-half:+.3f},{md+half:+.3f}] p={P:.3g}")
-
-# add to the phoneme_auc helper — returns per-class one-vs-rest AUC
-# SSL NOTEBOOK — (re)define the PCA version of the helper
-import numpy as np
-from collections import Counter
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import GroupKFold
-from sklearn.metrics import roc_auc_score
-
-
-
-# SSL notebook: per-class OvR AUC, pooled across patients per phoneme
-from collections import defaultdict
-import numpy as np, pickle
-ssl_pc = defaultdict(list)
-for pid in sorted(embeddings):
-    X, y, grp = build_pho_matrix(pid)
-    for c, a in phoneme_auc_perclass(X, y, grp).items():
-        ssl_pc[c].append(a)
-ssl_pc = {c: float(np.mean(v)) for c, v in ssl_pc.items()}
-pickle.dump(ssl_pc, open('results/ssl_perclass_auc.pkl', 'wb'))
-print("SSL  max OvR AUC =", round(max(ssl_pc.values()), 3),
-      " #>0.7 =", sum(a > 0.7 for a in ssl_pc.values()),
-      " top:", sorted(ssl_pc.items(), key=lambda x: -x[1])[:5])
 
 import pickle; pickle.dump(ssl_results, open('results/ssl_results.pkl', 'wb'))
 
@@ -1391,3 +1256,154 @@ print("\nCOUNT-MATCHED  mean (subPER / Σn≥3 / count):")
 for w in weights:
     print(f"  lm={w}:  subPER={np.mean(agg[w]['sub']):.3f}  "
           f"Σn≥3={np.mean(agg[w]['n3']):.1f}  count={np.mean(agg[w]['cr']):.2f}×")
+
+# %% ABLATION 3 — value of SSL pretraining: random-init encoder vs trained encoder
+import torch, numpy as np
+from scipy.stats import wilcoxon
+
+RAND_SEEDS = [0, 1, 2]            # random init has seed variance — average a few
+
+def rand_embeddings(pid, n_in, seed):
+    torch.manual_seed(seed)
+    enc = CausalTCNEncoder(n_in).to(DEVICE).eval()      # SAME architecture, untrained weights
+    ds = datasets[pid]
+    return {pid: {**extract_embeddings(pid, ds['train'], enc),
+                  **extract_embeddings(pid, ds['test'],  enc)}}
+
+rows = []
+print(f"{'pid':5} | {'SSL match/PER':>13} | {'RAND match/PER':>14}")
+for pid in sorted(embeddings):
+    n_in = datasets[pid]['train'][0]['X'].shape[1]
+    o_ssl, e1 = run_for_patient_ssl(pid, datasets, embeddings)        # trained encoder
+    if o_ssl is None:
+        print(f"{pid}: SKIP ({e1})"); continue
+    m_ssl, p_ssl = nw_metrics(o_ssl)['match_rate'], o_ssl['per']
+    mr, pr = [], []
+    for sd in RAND_SEEDS:                                            # random-init encoder
+        o_r, e2 = run_for_patient_ssl(pid, datasets, rand_embeddings(pid, n_in, sd))
+        if o_r is not None:
+            mr.append(nw_metrics(o_r)['match_rate']); pr.append(o_r['per'])
+    if not mr:
+        print(f"{pid}: SKIP rand"); continue
+    m_rnd, p_rnd = np.mean(mr), np.mean(pr)
+    rows.append((pid, m_ssl, m_rnd, p_ssl, p_rnd))
+    print(f"{pid:5} | {m_ssl:.3f}/{p_ssl:.3f}   | {m_rnd:.3f}/{p_rnd:.3f}")
+
+A = np.array([(r[1], r[2], r[3], r[4]) for r in rows])
+print(f"\nCOHORT  TRAINED  match={A[:,0].mean():.3f}  PER={A[:,2].mean():.3f}")
+print(f"        RANDOM   match={A[:,1].mean():.3f}  PER={A[:,3].mean():.3f}")
+print(f"  match trained>random in {(A[:,0]>A[:,1]).sum()}/{len(A)}  "
+      f"Wilcoxon p={wilcoxon(A[:,0], A[:,1]).pvalue:.4g}")
+print(f"  PER   trained<random in {(A[:,2]<A[:,3]).sum()}/{len(A)}  "
+      f"Wilcoxon p={wilcoxon(A[:,2], A[:,3]).pvalue:.4g}")
+
+# %% ABLATION 3b — pretraining vs random-init, with count-ratio + sub-PER (over-gen control)
+import torch, numpy as np
+from scipy.stats import wilcoxon
+from phon_helpers import gather_sequences, needleman_wunsch
+
+RAND_SEEDS = [0, 1, 2, 3, 4]
+
+def sub_per(o):                                  # substitutions / gold length (count-robust)
+    gp, pp = gather_sequences(o); S = N = 0
+    for sid in gp:
+        g = gp[sid]; p = pp.get(sid, []); N += len(g)
+        for a, b in needleman_wunsch(g, p):
+            if a is not None and b is not None and a != b: S += 1
+    return S / max(N, 1)
+
+def metrics(o):
+    return (nw_metrics(o)['match_rate'],
+            o['n_pred'] / max(o['n_test'], 1),    # predicted / gold token count
+            sub_per(o))
+
+def rand_emb(pid, n_in, seed):
+    torch.manual_seed(seed)
+    enc = CausalTCNEncoder(n_in).to(DEVICE).eval()
+    ds = datasets[pid]
+    return {pid: {**extract_embeddings(pid, ds['train'], enc),
+                  **extract_embeddings(pid, ds['test'],  enc)}}
+
+rows = []
+print(f"{'pid':5} | {'SSL  m / cnt / subPER':>21} | {'RAND m / cnt / subPER':>21}")
+for pid in sorted(embeddings):
+    n_in = datasets[pid]['train'][0]['X'].shape[1]
+    o_ssl, e = run_for_patient_ssl(pid, datasets, embeddings)
+    if o_ssl is None:
+        print(f"{pid}: SKIP ({e})"); continue
+    ms = metrics(o_ssl)
+    rm = []
+    for sd in RAND_SEEDS:
+        o_r, _ = run_for_patient_ssl(pid, datasets, rand_emb(pid, n_in, sd))
+        if o_r is not None: rm.append(metrics(o_r))
+    mr = np.mean(rm, axis=0)
+    rows.append((pid,) + ms + tuple(mr))
+    print(f"{pid:5} | {ms[0]:.3f} / {ms[1]:.2f} / {ms[2]:.3f}   | {mr[0]:.3f} / {mr[1]:.2f} / {mr[2]:.3f}")
+
+A = np.array([r[1:] for r in rows])   # SSL: match,cnt,subPER (0,1,2) | RAND: (3,4,5)
+print("\nCOHORT means:")
+print(f"  match    SSL={A[:,0].mean():.3f}  RAND={A[:,3].mean():.3f}  (higher=better)   "
+      f"Wilcoxon p={wilcoxon(A[:,0], A[:,3]).pvalue:.3g}")
+print(f"  count    SSL={A[:,1].mean():.2f}x  RAND={A[:,4].mean():.2f}x  (1.0=gold; >1 over-generates)   "
+      f"Wilcoxon p={wilcoxon(A[:,1], A[:,4]).pvalue:.3g}")
+print(f"  sub-PER  SSL={A[:,2].mean():.3f}  RAND={A[:,5].mean():.3f}  (lower=better, count-robust)   "
+      f"Wilcoxon p={wilcoxon(A[:,2], A[:,5]).pvalue:.3g}")
+
+# Per-patient phonotactic (bigram) baseline vs SSL decoder — for appendix
+import numpy as np, pickle
+from collections import Counter, defaultdict
+from phon_helpers import gather_sequences, needleman_wunsch
+
+ssl = pickle.load(open('results/ssl_results.pkl', 'rb'))
+pids = sorted(ssl); rng = np.random.default_rng(0); R = 300
+
+trans = defaultdict(Counter); init = Counter(); uni = Counter()      # cohort bigram from gold
+for pid in pids:
+    gb, _ = gather_sequences(ssl[pid])
+    for g in gb.values():
+        if not g: continue
+        init[g[0]] += 1
+        for a in g: uni[a] += 1
+        for a, b in zip(g[:-1], g[1:]): trans[a][b] += 1
+def _d(c): k = list(c); p = np.array([c[x] for x in k], float); return k, p / p.sum()
+ik, ip = _d(init); uk, up = _d(uni); td = {a: _d(c) for a, c in trans.items()}
+def gen(L):
+    if L <= 0: return []
+    s = [rng.choice(ik, p=ip)]
+    for _ in range(L - 1):
+        k, p = td.get(s[-1], (uk, up)); s.append(rng.choice(k, p=p))
+    return s
+def score_nw(gb, pb):
+    m = ng = n3 = 0
+    for sid in gb:
+        g = gb[sid]; p = pb.get(sid, []); ng += len(g); run = 0
+        for a, b in needleman_wunsch(g, p):
+            if a is not None and b is not None and a == b: m += 1; run += 1
+            else:
+                if run >= 3: n3 += 1
+                run = 0
+        if run >= 3: n3 += 1
+    return m / max(ng, 1), n3
+
+print(f"{'pid':5} | {'SSL match':>9} {'SSL n3':>6} | {'big match':>9} {'big n3':>7}")
+rows = []
+for pid in pids:
+    gb, pb = gather_sequences(ssl[pid])
+    rm, rn3 = score_nw(gb, pb)
+    bm, bn = [], []
+    for _ in range(R):
+        fake = {sid: gen(len(pb.get(sid, []))) for sid in gb}
+        mm, n3 = score_nw(gb, fake); bm.append(mm); bn.append(n3)
+    rows.append((pid, rm, rn3, float(np.mean(bm)), float(np.mean(bn))))
+    print(f"{pid:5} | {rm:9.3f} {rn3:6d} | {np.mean(bm):9.3f} {np.mean(bn):7.1f}")
+A = np.array([(r[1], r[2], r[3], r[4]) for r in rows])
+print(f"\nMEAN | SSL {A[:,0].mean():.3f}/{A[:,1].mean():.1f} | bigram {A[:,2].mean():.3f}/{A[:,3].mean():.1f}")
+pickle.dump(rows, open('results/phonotactic_baseline_perpatient.pkl', 'wb'))
+
+from scipy.stats import ttest_rel, wilcoxon
+print("\nPaired tests (SSL decoder vs bigram baseline, n=10 patients):")
+for name, si, bi in [('match', 0, 2), ('chains', 1, 3)]:
+    s, b = A[:, si], A[:, bi]; d = s - b
+    print(f"  {name:6}: SSL={s.mean():.3f}  bigram={b.mean():.3f}  "
+          f"Δ(SSL−big)={d.mean():+.3f}  SSL>big {int((d > 0).sum())}/{len(d)}  "
+          f"paired-t p={ttest_rel(s, b).pvalue:.4g}  Wilcoxon p={wilcoxon(s, b).pvalue:.4g}")

@@ -157,15 +157,17 @@ the headline.
 ### Headline: SSL ≥ CRF on identity; CRF's real edge is vowels + the oracle
 
 MFA-CRF (linguistically-informed) vs SSL-LDA (data-driven), run exhaustively on
-sentence patients P21–P30. **On every metric measuring phoneme/word identity, the
-data-driven SSL is equal to or slightly better than CRF:**
+sentence patients P21–P30. **On the decoding-identity metrics (substitution PER, WER)
+the data-driven SSL is equal to or slightly better than CRF; on representational
+separability (macro-OvO AUC) CRF is reliably but slightly higher — the
+separability-vs-decodability split developed below:**
 
 | metric | CRF | SSL | note |
 |---|---|---|---|
-| substitution-only PER | 0.744 | 0.682 | SSL better |
-| WER (closed-vocab, gold word bounds) | 0.904 | 0.852 | SSL better (p=0.011) |
-| full PER | 0.81 | 1.15 | CRF "better" — but ONLY the oracle segmentation |
-| full-phoneme macro-OvO AUC | 0.545 | 0.543 | tied (both ~chance) |
+| substitution-only PER (NW, consistent split) | 0.584 | 0.568 | **tied** (Δ+0.016, p=0.08) — was "SSL better" under Levenshtein |
+| WER (closed-vocab, consistent split) | 0.904 | 0.856 | SSL better (Δ+0.048, p=2.2e-4, well-powered: 18–39 shared sents/patient) |
+| full PER (NW, consistent split) | 0.825 | 1.227 | CRF "better" — but ONLY the oracle segmentation (SSL over-generates → insertions) |
+| full-phoneme macro-OvO AUC | 0.577 | 0.537 | CRF reliably higher but small (+0.04, 10/10, p=1e-6, vowel-driven) |
 | C/V binary AUC | 0.562 | 0.563 | tied (both weak ~0.56) |
 
 The cross-model comparison is **confounded** — the two pipelines differ in ≥5 ways
@@ -178,27 +180,30 @@ within-model ablation (segmentation oracle-vs-deployable; phonotactic LM on SSL)
 Setup: per-phoneme feature/embedding → StandardScaler + PCA(50) + shrinkage-LDA,
 GroupKFold **by sentence** (prevents same-sentence leakage), gold labels.
 
-- **Overall separability is weak and tied** — full-phoneme macro-OvO AUC ≈ 0.545
-  (CRF) vs 0.543 (SSL); C/V binary AUC ≈ 0.56 both. The ~25% decoder accuracy is
-  largely the phoneme prior, not separability.
-- **The difference is in the tail/vowels, not the mean.** CRF's best phoneme
-  separates better (max OvR AUC 0.763 vs 0.660, p=0.0007) and it has more phonemes
-  above 0.7 AUC (1.6 vs 0.2 per patient, p=0.0013). The top phonemes are **long
-  vowels** (aː ~0.76, oː, uː).
-- **CRF captures vowel QUALITY; SSL is at chance.** Duration-matched long-vowel
-  pairwise AUC: CRF mean 0.574 vs SSL **0.507 (chance)**, CRF>SSL in 12/15 pairs,
-  Wilcoxon p=0.0015. Separability tracks vowel-space distance (aː separates from
-  front/high vowels at 0.68–0.72; near-identical iː–yː stays at chance).
+- **Overall separability is weak, but CRF is reliably above SSL (small).**
+  Full-phoneme macro-OvO AUC **0.577 (CRF) vs 0.537 (SSL)**, CRF>SSL in **10/10**
+  patients, paired t **p=1e-6** (Wilcoxon p=0.002) — but the gap is only **+0.04** and
+  is vowel-driven (consonants tied). OvR and OvO are numerically identical here (both
+  0.577/0.537). Computed on the **stacking_order=7 / collapse-fixed `crf_feats`**; the
+  earlier "tied" value (0.545 vs 0.543) was from the pre-fix features and is
+  **superseded**. C/V binary AUC ≈ 0.56 both. The ~25% decoder accuracy is largely the
+  phoneme prior, not separability.
+- **The difference is in the tail/vowels, not the mean.** (order-7, re-verified) CRF:
+  **aː is the best-separated phoneme in 6/10 patients and clears AUC>0.7 in 8/10**
+  (oː second: best in 2, >0.7 in 4); ~2.0 phonemes>0.7 per patient. Top phonemes are
+  **long vowels** (aː, oː). The earlier SSL-side comparison (max OvR ~0.660; ~0.2
+  phonemes>0.7/patient) is **pre-order-7, not re-verified**.
+- **CRF captures vowel quality.** *Verified (order-7):* CRF separates vowels by
+  **backness** 0.631 vs 0.539 (p=3e-6, 10/10) and **duration/quantity** 0.592 vs 0.506
+  (p=4e-5, 10/10); long-vowel pairwise 0.555 vs 0.503 (by-patient p=0.027, 8/10).
+  Separability tracks vowel-space distance (near-identical iː–yː stays at chance for both).
 
 ### Feature preservation in errors (use ABSOLUTE rates, not per-model shuffle z)
 
 Among within-class substitution errors, the absolute fraction preserving a
 phonetic feature, paired per patient:
 
-- **manner / place / voicing / backness / C-V: all TIED** (CIs span zero).
-- **vowel DURATION: CRF preserves better** — 0.51 vs 0.41, Δ=+0.092,
-  CI[+0.044, +0.140], p=0.0019. The one real preservation difference; converges
-  with the vowel-quality separability result above.
+- **manner / place / voicing / backness / C-V / vowel duration: all TIED** (CIs span zero).
 - Earlier "CRF errors are voicing/manner-structured" results were **artifacts** of
   a per-model shuffle baseline (see trap below) and vanish on absolute rates. Do
   not report them.
@@ -227,9 +232,10 @@ phonetic feature, paired per patient:
 ### Bottom line for the report
 
 SSL ≥ CRF on phoneme/word identity. CRF's genuine, audited advantages are
-**vowel-specific**: it captures Dutch **vowel quality** (long-vowel pairwise, SSL
-at chance) and **vowel quantity** (duration preservation) that the SSL encoder
-discards — concentrated in vowels, which is why it's invisible in the cohort
+**vowel-specific** and **representational**: it separates Dutch **vowel quality**
+(backness and long-vowel pairwise) and **vowel quantity** (duration) better than the
+SSL encoder, which is near chance — concentrated in vowels, which is why it's invisible
+in the cohort
 average. Frame the contribution as a controlled comparison + a vowel-specific
 representational finding, **not** "CRF decodes better." The causal "linguistics
 adds value" question is left to the ablations.

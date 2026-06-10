@@ -567,46 +567,6 @@ for pid in sorted(pipeline.patient_results):
                                       collapse_repeats=True,
                                       time_align_tol_s=0.10)
 
-# # Permutations test ~40 min sticking order = 20
-# import numpy as np, scipy.stats as ss
-
-# crf_shift_results = {}
-# print(f"{'pid':<5} {'CE_obs':>8} {'null_mu':>8} {'null_sd':>8} {'z':>7} {'p':>9}")
-# print('-' * 55)
-# for pid in sorted(pipeline.patient_results):
-#     r = pvalue_crf_shift_features(pid, pipeline, run_config, n_perm=2000, seed=0)
-#     if 'error' in r:
-#         print(f"{pid:<5} SKIP — {r['error']}"); continue
-#     crf_shift_results[pid] = r
-#     print(f"{pid:<5} {r['ce_obs']:8.3f} {r['null_mean']:8.3f} {r['null_std']:8.4f} "
-#           f"{r['z']:+7.2f} {r['p_one_sided']:9.4f}")
-
-# pv   = np.clip([r['p_one_sided'] for r in crf_shift_results.values()], 1e-300, 1.0)
-# q_bh = ss.false_discovery_control(pv, method='bh')
-# chi2 = -2 * np.log(pv).sum(); df = 2 * len(pv)
-# print('-' * 55)
-# print(f"BH-FDR significant: {(q_bh < 0.05).sum()}/{len(pv)}")
-# print(f"Fisher combined p:  {1 - ss.chi2.cdf(chi2, df):.2e}")
-
-# crf_acc = {} stacking order 20
-# print(f"{'pid':<5} {'acc_obs':>8} {'null_mu':>8} {'null_sd':>8} {'z':>7} {'p':>9}")
-# print('-' * 56)
-# for pid in sorted(pipeline.patient_results):
-#     r = pvalue_crf_shift_features(pid, pipeline, run_config,
-#                                   n_perm=2000, seed=0, statistic='accuracy')
-#     if 'error' in r:
-#         print(f"{pid:<5} SKIP — {r['error']}"); continue
-#     crf_acc[pid] = r
-#     print(f"{pid:<5} {r['ce_obs']:8.3f} {r['null_mean']:8.3f} {r['null_std']:8.4f} "
-#           f"{r['z']:+7.2f} {r['p_one_sided']:9.4f}")
-
-# pv   = np.clip([r['p_one_sided'] for r in crf_acc.values()], 1e-300, 1.0)
-# q_bh = ss.false_discovery_control(pv, method='bh')
-# chi2 = -2 * np.log(pv).sum(); df = 2 * len(pv)
-# print('-' * 56)
-# print(f"BH-FDR significant: {(q_bh < 0.05).sum()}/{len(pv)}")
-# print(f"Fisher combined p:  {1 - ss.chi2.cdf(chi2, df):.2e}")
-
 # contribution of MFA word borders & priors
 def contribution_word_borders(pid, pipeline, run_config, n_perm=1000, seed=0, n_pca=50):
     """Frozen CRF (real borders). Null = scramble test word-segment lengths
@@ -940,9 +900,6 @@ pickle.dump(crf_feats,  open('results/crf_feats.pkl',  'wb'))
 pickle.dump(crf_export, open('results/crf_export.pkl', 'wb'))    # if not already saved
 print('saved', {k: v['X'].shape for k, v in crf_feats.items()})
 
-# in feature construction, before scaling — clip clearly non-physiological values
-# X = np.clip(X, np.percentile(X, 0.1, axis=0), np.percentile(X, 99.9, axis=0))
-
 # per-patient per-class AUC dict (uses phoneme_auc_perclass + vecs/labs/ppid/sids)
 import numpy as np, pickle
 crf_pp = {}
@@ -1013,126 +970,6 @@ import pickle
 pickle.dump({nm: a for nm, a, _ in rows}, open('results/crf_vowelpairs.pkl', 'wb'))
 print("saved CRF vowel pairs:", len(rows))
 
-import numpy as np
-from collections import Counter
-# (needleman_wunsch must be defined — vendored in your SSL file / available in CRF nb)
-
-# --- Dutch phonetic features (extend as needed) ---
-PLOSIVE={'p','b','t','d','k','g'}; FRIC={'f','v','s','z','x','ɣ','h'}
-NASAL={'m','n','ŋ'}; LIQGLIDE={'l','r','j','w','ʋ','ɥ'}
-VOICED={'b','d','g','v','z','ɣ','m','n','ŋ','l','r','j','w','ʋ','ɥ'}
-VOICELESS={'p','t','k','f','s','x','h'}
-def manner(p):
-    if p in PLOSIVE: return 'plosive'
-    if p in FRIC: return 'fricative'
-    if p in NASAL: return 'nasal'
-    if p in LIQGLIDE: return 'approx'
-    return 'vowel'
-def is_cons(p): return manner(p)!='vowel'
-def base_vowel(p): return p.replace('ː','')
-
-def subs_pairs(true, pred):
-    true=list(true); pred=list(pred)
-    if len(true)==len(pred):                      # CRF: 1:1 aligned
-        return [(t,p) for t,p in zip(true,pred) if t!=p]
-    al=needleman_wunsch(true,pred)                # SSL: align first
-    return [(g,p) for g,p in al if g is not None and p is not None and g!=p]
-
-def confusion_phonetics(true, pred, name, n_perm=1000, seed=0):
-    subs=subs_pairs(true,pred)
-    cons=[(g,p) for g,p in subs if is_cons(g) and is_cons(p)]
-    vows=[(g,p) for g,p in subs if not is_cons(g) and not is_cons(p)]
-    manner_pres=np.mean([manner(g)==manner(p) for g,p in subs]) if subs else np.nan
-    voicing_pair=np.mean([manner(g)==manner(p) and ((g in VOICED)!=(p in VOICED))
-                          for g,p in cons]) if cons else np.nan
-    length_pair=np.mean([base_vowel(g)==base_vowel(p) for g,p in vows]) if vows else np.nan
-    # permutation baseline: replace pred side of each sub with a random predicted label
-    rng=np.random.default_rng(seed); pred_pool=[p for _,p in subs]
-    bm=[]
-    for _ in range(n_perm):
-        shuf=rng.permutation(pred_pool)
-        bm.append(np.mean([manner(g)==manner(s) for (g,_),s in zip(subs,shuf)]))
-    base_mean=np.mean(bm); base_std=np.std(bm)+1e-9
-    z=(manner_pres-base_mean)/base_std
-    print(f"{name}: {len(subs)} substitutions")
-    print(f"  manner-preserved      {manner_pres:.3f}  (baseline {base_mean:.3f}, z={z:+.1f})")
-    print(f"  voicing-only (cons)   {voicing_pair:.3f}  [{len(cons)} cons subs]")
-    print(f"  length-only  (vowel)  {length_pair:.3f}  [{len(vows)} vowel subs]")
-    return dict(manner_pres=manner_pres, base=base_mean, z=z,
-                voicing_pair=voicing_pair, length_pair=length_pair)
-
-# CRF (per-phoneme, 1:1):
-r = pipeline.patient_results['P22']
-confusion_phonetics(r['true_labels'], r['predictions'], "CRF P22")
-# SSL (NW-aligned): in the SSL notebook,
-# o = ssl_results['P22']; confusion_phonetics(o['true_labels'], o['predictions'], "SSL P22")
-
-import numpy as np, matplotlib.pyplot as plt
-from collections import Counter
-from matplotlib.patches import Patch
-from sklearn.preprocessing import StandardScaler
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import cross_val_predict, GroupKFold
-from sklearn.metrics import roc_auc_score
-from scipy.stats import mannwhitneyu
-
-# --- Dutch consonant set (everything else = vowel) ---
-_CONS = {'p','b','t','d','k','g','f','v','s','z','x','ɣ','h',
-         'm','n','ŋ','l','r','j','w','ʋ','ɥ'}
-def is_cons(p): return p in _CONS
-
-def separability_by_manner(X, y, title, groups=None, min_count=15, cv=5):
-    X = np.asarray(X); y = np.asarray(y)
-    keep = [c for c, n in Counter(y).items() if n >= min_count]
-    m = np.isin(y, keep); X, y = X[m], y[m]
-    clf = make_pipeline(StandardScaler(),
-                        LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto'))
-    if groups is not None:
-        g = np.asarray(groups)[m]
-        proba = cross_val_predict(clf, X, y, cv=GroupKFold(cv), groups=g, method='predict_proba')
-        cvtag = "GroupKFold by sentence"
-    else:
-        proba = cross_val_predict(clf, X, y, cv=cv, method='predict_proba')
-        cvtag = f"{cv}-fold"
-    classes = np.unique(y)
-    auc = {}
-    for k, c in enumerate(classes):
-        try: auc[c] = roc_auc_score((y == c).astype(int), proba[:, k])
-        except ValueError: pass
-
-    order = sorted(auc, key=lambda c: -auc[c]); vals = [auc[c] for c in order]
-    cc, vc = '#dd8452', '#4c72b0'                       # consonant orange, vowel blue
-    colors = [cc if is_cons(c) else vc for c in order]
-    cons = [auc[c] for c in auc if is_cons(c)]
-    vow  = [auc[c] for c in auc if not is_cons(c)]
-    pval = mannwhitneyu(cons, vow, alternative='greater').pvalue if cons and vow else np.nan
-
-    fig, (ax, axb) = plt.subplots(1, 2, figsize=(15, 5.5),
-                                  gridspec_kw={'width_ratios': [3.2, 1]})
-    # left: sorted per-phoneme bars
-    ax.bar(range(len(order)), vals, color=colors, edgecolor='k', linewidth=0.3)
-    ax.axhline(0.5, color='gray', ls=':', lw=1.5)
-    ax.axhline(np.mean(cons), color=cc, ls='--', lw=1.6)
-    ax.axhline(np.mean(vow),  color=vc, ls='--', lw=1.6)
-    ax.set_xticks(range(len(order))); ax.set_xticklabels(order, rotation=90, fontsize=9)
-    ax.set_ylim(0.45, 1.0); ax.set_ylabel('one-vs-rest AUC  (decodability)')
-    ax.set_title(f"{title} — per-phoneme decodability ({cvtag})", fontsize=11)
-    ax.legend(handles=[Patch(color=cc, label=f'consonant (mean {np.mean(cons):.3f})'),
-                       Patch(color=vc, label=f'vowel (mean {np.mean(vow):.3f})'),
-                       plt.Line2D([], [], color='gray', ls=':', label='chance 0.5')],
-              fontsize=9, loc='upper right')
-    # right: distribution + test
-    axb.boxplot([cons, vow], labels=['cons', 'vowel'], widths=0.55, showmeans=True)
-    for i, (grp, col) in enumerate([(cons, cc), (vow, vc)], start=1):
-        axb.scatter(np.random.default_rng(0).normal(i, 0.05, len(grp)), grp,
-                    color=col, alpha=0.6, s=22, zorder=3)
-    axb.axhline(0.5, color='gray', ls=':')
-    axb.set_ylim(0.45, 1.0)
-    axb.set_title(f"C > V ?\nMann-Whitney p = {pval:.2g}", fontsize=10)
-    plt.tight_layout(); plt.show()
-    return auc, pval
-
 import os, pickle
 os.makedirs('results', exist_ok=True)
 crf_export = {pid: {'true_labels': list(r['true_labels']),
@@ -1147,69 +984,6 @@ print("saved", list(crf_export))
 import importlib, phon_helpers; importlib.reload(phon_helpers)
 from phon_helpers import cv
 
-# RUN IN CRF NOTEBOOK — reuse the per-patient feature build from the C/V AUC cell
-# (vecs/ppid/sids already in memory). Same phoneme_auc() helper as above.
-import pickle, numpy as np
-crf_pho_auc = {}
-for pid in sorted(set(ppid)):
-    idx = np.where(ppid == pid)[0]
-    Xp = np.array([vecs[i] for i in idx])              # full-length per-phoneme vectors
-    yp = np.array([labs[i] for i in idx])              # phoneme strings (full labels)
-    gp = sids[idx]
-    auc, nc, n = phoneme_auc(Xp, yp, gp)
-    crf_pho_auc[pid] = auc
-    print(f"{pid}: CRF phoneme AUC={auc:.3f}  ({nc} classes, n={n})")
-pickle.dump(crf_pho_auc, open('results/crf_pho_auc.pkl', 'wb'))
-print(f"\nCRF cohort mean phoneme AUC = {np.mean(list(crf_pho_auc.values())):.3f}")
-
-# RUN IN CRF NOTEBOOK — per-class OvR AUC with PCA(50) for speed (interrupt the hanging cell first)
-import importlib, phon_helpers; importlib.reload(phon_helpers)
-import numpy as np, pickle
-from collections import Counter, defaultdict
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import GroupKFold
-from sklearn.metrics import roc_auc_score
-
-def phoneme_auc_perclass(X, y, grp, min_count=25, n_splits=5, n_pca=50):
-    y, grp = np.asarray(y), np.asarray(grp)
-    classes = sorted(c for c, n in Counter(y).items() if n >= min_count)
-    keep = np.isin(y, classes); X, y, grp = X[keep], y[keep], grp[keep]
-    cidx = {c: i for i, c in enumerate(classes)}
-    proba = np.zeros((len(y), len(classes)))
-    steps = [StandardScaler()]
-    if n_pca and X.shape[1] > n_pca:
-        steps.append(PCA(n_components=n_pca, random_state=0))   # fit per-fold on train -> no leak
-    steps.append(LinearDiscriminantAnalysis(solver='lsqr', shrinkage='auto'))
-    clf = make_pipeline(*steps)
-    for tr, te in GroupKFold(n_splits).split(X, y, grp):
-        clf.fit(X[tr], y[tr]); p = clf.predict_proba(X[te])
-        for j, c in enumerate(clf.classes_):
-            if c in cidx: proba[te, cidx[c]] = p[:, j]
-    per = {}
-    for c in classes:
-        yb = (y == c).astype(int)
-        if 0 < yb.sum() < len(yb):
-            per[c] = roc_auc_score(yb, proba[:, cidx[c]])
-    return per
-
-crf_pc = defaultdict(list)
-for pid in sorted(set(ppid)):
-    idx = np.where(ppid == pid)[0]
-    Xp = np.array([vecs[i] for i in idx])
-    yp = np.array([labs[i]  for i in idx])
-    gp = np.asarray(sids)[idx]
-    for c, a in phoneme_auc_perclass(Xp, yp, gp, n_pca=50).items():
-        crf_pc[c].append(a)
-    print(f"  {pid} done")           # progress so you can see it moving
-crf_pc = {c: float(np.mean(v)) for c, v in crf_pc.items()}
-pickle.dump(crf_pc, open('results/crf_perclass_auc.pkl', 'wb'))
-print("CRF  max OvR AUC =", round(max(crf_pc.values()), 3),
-      " #>0.7 =", sum(a > 0.7 for a in crf_pc.values()),
-      " top:", sorted(crf_pc.items(), key=lambda x: -x[1])[:5])
-
 import pickle; pickle.dump(crf_export,  open('results/crf_export.pkl',  'wb'))
 
 # verify the decoded outputs are actually there
@@ -1221,3 +995,44 @@ print("per-pid keys:", list(s.keys()), "| n_true:", len(s['true_labels']))
 import pickle
 pickle.dump(crf_results, open('results/crf_export.pkl', 'wb'))   # save the POPULATED dict
 print("saved crf_export.pkl with", len(crf_results), "patients")
+
+import pickle
+crf_feats = pickle.load(open('results/crf_feats.pkl', 'rb'))
+print(len(crf_feats), 'patients loaded')
+
+# Balanced vs unbalanced classifier on CRF features — does balancing exploit separability?
+import numpy as np, warnings
+warnings.filterwarnings('ignore')
+from collections import Counter
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GroupKFold
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
+
+def run(d, balanced, min_count=25, n_pca=50):
+    X = np.asarray(d['X'], np.float32); y = np.asarray(d['y']); g = np.asarray(d['sid'])
+    keep = [c for c, n in Counter(y).items() if n >= min_count]
+    m = np.isin(y, keep); X, y, g = X[m], y[m], g[m]
+    oof = np.empty(len(y), dtype=object)
+    for tr, te in GroupKFold(5).split(X, y, g):
+        sc = StandardScaler().fit(X[tr]); Xtr = sc.transform(X[tr]); Xte = sc.transform(X[te])
+        pca = PCA(min(n_pca, Xtr.shape[1], Xtr.shape[0]), random_state=0).fit(Xtr)
+        Xtr, Xte = pca.transform(Xtr), pca.transform(Xte)
+        clf = LogisticRegression(max_iter=300, class_weight=('balanced' if balanced else None))
+        clf.fit(Xtr, y[tr]); oof[te] = clf.predict(Xte)
+    return (accuracy_score(y, oof), balanced_accuracy_score(y, oof),
+            len(set(oof)), len(set(y)))   # acc, balanced-acc, #classes predicted, #classes present
+
+pids = sorted(crf_feats)
+print(f"{'pid':>5} | {'UNBAL  acc/bal/#pred':>22} | {'BAL    acc/bal/#pred':>22}")
+ua, ub, ba, bb = [], [], [], []
+for pid in pids:
+    a0, b0, p0, nt = run(crf_feats[pid], False)
+    a1, b1, p1, _  = run(crf_feats[pid], True)
+    ua.append(a0); ub.append(b0); ba.append(a1); bb.append(b1)
+    print(f"{pid:>5} | {a0:.3f}/{b0:.3f}/{p0:>2}of{nt:<2}        | {a1:.3f}/{b1:.3f}/{p1:>2}of{nt:<2}")
+print(f"\nCOHORT  UNBAL: acc={np.mean(ua):.3f}  bal-acc={np.mean(ub):.3f}")
+print(f"        BAL:   acc={np.mean(ba):.3f}  bal-acc={np.mean(bb):.3f}")
+print(f"  -> balancing changes overall acc {np.mean(ba)-np.mean(ua):+.3f}, "
+      f"balanced-acc {np.mean(bb)-np.mean(ub):+.3f}")

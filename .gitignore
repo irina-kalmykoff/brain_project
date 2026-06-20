@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+results/
+whisper_cache/
+phoneme_visualizations/
+report/
+.ipynb_checkpoints/
+bio_models/*
+!bio_models/*_ssl_encoder_crfsplit*.pt
+presentation.ipynb
+*.png

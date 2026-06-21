@@ -146,3 +146,9 @@ webcolors==25.10.0
 webencodings==0.5.1
 websocket-client==1.9.0
 widgetsnbextension==4.0.15
+
+# --- Required by the code but ABSENT from the freeze above — add these ---
+# Without them the MFA-CRF arm and MFA TextGrid loading raise ImportError.
+tgt>=1.4.4                # parse MFA .TextGrid alignments (run_pipeline.load_mfa_alignments)
+sklearn-crfsuite>=0.5.0   # the linear-chain CRF decoder (report.py, MFA_CRF.py)
+python-crfsuite>=0.9.9    # C backend for sklearn-crfsuite
